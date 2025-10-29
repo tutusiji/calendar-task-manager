@@ -1,0 +1,112 @@
+import type { Task, Project, User } from "./types"
+
+export const mockUsers: User[] = [
+  {
+    id: "1",
+    name: "张三",
+    avatar: "/user-avatar-1.png",
+    email: "zhangsan@example.com",
+  },
+  {
+    id: "2",
+    name: "李四",
+    avatar: "/diverse-user-avatar-set-2.png",
+    email: "lisi@example.com",
+  },
+  {
+    id: "3",
+    name: "王五",
+    avatar: "/diverse-user-avatars-3.png",
+    email: "wangwu@example.com",
+  },
+  {
+    id: "4",
+    name: "赵六",
+    avatar: "/user-avatar-4.png",
+    email: "zhaoliu@example.com",
+  },
+]
+
+export const mockProjects: Project[] = [
+  {
+    id: "personal",
+    name: "个人事务",
+    description: "个人日常任务和事项",
+    color: "#3b82f6",
+    memberIds: ["1"],
+    createdAt: new Date("2024-01-01"),
+  },
+  {
+    id: "project-1",
+    name: "产品开发",
+    description: "新产品功能开发项目",
+    color: "#8b5cf6",
+    memberIds: ["1", "2", "3"],
+    createdAt: new Date("2024-01-15"),
+  },
+  {
+    id: "project-2",
+    name: "市场营销",
+    description: "Q1市场推广活动",
+    color: "#ec4899",
+    memberIds: ["1", "4"],
+    createdAt: new Date("2024-02-01"),
+  },
+]
+
+export const mockTasks: Task[] = [
+  {
+    id: "1",
+    title: "团队周会",
+    description: "讨论本周工作进展和下周计划",
+    startDate: new Date("2025-10-27"),
+    endDate: new Date("2025-10-27"),
+    startTime: "10:00",
+    endTime: "11:00",
+    type: "meeting",
+    projectId: "project-1",
+    userId: "1",
+  },
+  {
+    id: "2",
+    title: "完成需求文档",
+    description: "编写新功能的详细需求文档",
+    startDate: new Date("2025-10-28"),
+    endDate: new Date("2025-10-29"),
+    type: "daily",
+    projectId: "project-1",
+    userId: "1",
+  },
+  {
+    id: "3",
+    title: "代码审查",
+    startDate: new Date("2025-10-29"),
+    endDate: new Date("2025-10-29"),
+    startTime: "14:00",
+    endTime: "15:30",
+    type: "daily",
+    projectId: "project-1",
+    userId: "2",
+  },
+  {
+    id: "4",
+    title: "年假",
+    description: "休假旅行",
+    startDate: new Date("2025-11-03"),
+    endDate: new Date("2025-11-05"),
+    type: "vacation",
+    projectId: "personal",
+    userId: "1",
+  },
+  {
+    id: "5",
+    title: "客户会议",
+    startDate: new Date("2025-10-30"),
+    endDate: new Date("2025-10-30"),
+    startTime: "15:00",
+    endTime: "16:00",
+    type: "meeting",
+    projectId: "project-2",
+    userId: "4",
+  },
+]
