@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,6 +66,18 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
 
   const daysDiff =
     Math.ceil((new Date(task.endDate).getTime() - new Date(task.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  // Escape 关闭：仅在挂载期添加监听，避免重复绑定
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -225,3 +237,4 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
     </div>
   )
 }
+
