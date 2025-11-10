@@ -177,7 +177,7 @@ export function TeamMemberRow({ user, weekDays }: TeamMemberRowProps) {
       {/* User info */}
       <div className="w-[120px] shrink-0 border-r border-border px-4 py-4">
         <div className="flex flex-col items-center gap-2">
-          <Avatar className="h-20 w-20">
+          <Avatar className="h-[70px] w-[70px]">
             <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
             <AvatarFallback>{user.name[0]}</AvatarFallback>
           </Avatar>
