@@ -7,14 +7,16 @@ import { CalendarDay } from "./calendar-day"
 import { assignTaskTracks, type TaskWithTrack } from "@/lib/utils/task-layout"
 
 export function MonthView() {
-  const { currentDate, dragState, tasks, selectedProjectIds } = useCalendarStore()
+  const { currentDate, dragState, tasks, selectedProjectIds, hideWeekends } = useCalendarStore()
   const [expandedDate, setExpandedDate] = useState<Date | null>(null)
   const expandedRef = useRef<HTMLDivElement | null>(null)
 
-  const monthDays = getMonthDays(currentDate.getFullYear(), currentDate.getMonth())
+  const monthDays = getMonthDays(currentDate.getFullYear(), currentDate.getMonth(), hideWeekends)
   const today = new Date()
 
-  const weekDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+  const weekDays = hideWeekends 
+    ? ["周一", "周二", "周三", "周四", "周五"]
+    : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
   // 根据选中的项目过滤任务
   const filteredTasks = useMemo(() => {
@@ -28,11 +30,12 @@ export function MonthView() {
   // 将日期按周分组
   const weeks = useMemo(() => {
     const result: Date[][] = []
-    for (let i = 0; i < monthDays.length; i += 7) {
-      result.push(monthDays.slice(i, i + 7))
+    const daysPerWeek = hideWeekends ? 5 : 7
+    for (let i = 0; i < monthDays.length; i += daysPerWeek) {
+      result.push(monthDays.slice(i, i + daysPerWeek))
     }
     return result
-  }, [monthDays])
+  }, [monthDays, hideWeekends])
 
   // 为每周独立分配轨道
   const weeksWithTracks = useMemo(() => {
@@ -40,7 +43,7 @@ export function MonthView() {
       // 获取该周内的所有任务（在该周有任何一天重叠的任务）
       const weekStart = new Date(week[0])
       weekStart.setHours(0, 0, 0, 0)
-      const weekEnd = new Date(week[6])
+      const weekEnd = new Date(week[week.length - 1])
       weekEnd.setHours(23, 59, 59, 999)
       
       const weekTasks = filteredTasks.filter(task => {
@@ -127,7 +130,7 @@ export function MonthView() {
   return (
     <div className="flex h-full flex-col">
       {/* Week day headers */}
-      <div className="grid grid-cols-7 border-b border-border bg-muted/30 pr-2">
+      <div className="grid grid-cols-7 border-b border-border bg-muted/30">
         {weekDays.map((day) => (
           <div
             key={day}

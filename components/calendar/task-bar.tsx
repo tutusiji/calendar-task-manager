@@ -13,8 +13,27 @@ interface TaskBarProps {
 }
 
 export function TaskBar({ task, date, track }: TaskBarProps) {
-  const { getProjectById, openTaskEdit } = useCalendarStore()
+  const { getProjectById, openTaskEdit, hideWeekends } = useCalendarStore()
   const project = getProjectById(task.projectId)
+
+  // 计算两个日期之间的工作日天数（可选择是否跳过周末）
+  const countDays = (startDate: Date, endDate: Date): number => {
+    let count = 0
+    const current = new Date(startDate)
+    current.setHours(0, 0, 0, 0)
+    const end = new Date(endDate)
+    end.setHours(0, 0, 0, 0)
+    
+    while (current <= end) {
+      const dayOfWeek = current.getDay()
+      // 如果隐藏周末，则跳过周六(6)和周日(0)
+      if (!hideWeekends || (dayOfWeek !== 0 && dayOfWeek !== 6)) {
+        count++
+      }
+      current.setDate(current.getDate() + 1)
+    }
+    return count
+  }
 
   // 计算任务跨越的天数
   const calculateSpanDays = () => {
@@ -22,12 +41,10 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
     start.setHours(0, 0, 0, 0)
     const end = new Date(task.endDate)
     end.setHours(0, 0, 0, 0)
-    const diffTime = end.getTime() - start.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-    return diffDays
+    return countDays(start, end)
   }
 
-  // 计算当前段显示的天数（考虑周截断）
+  // 计算当前段显示的天数（考虑周截断和周末隐藏）
   const calculateDisplayDays = () => {
     const currentDate = new Date(date)
     currentDate.setHours(0, 0, 0, 0)
@@ -39,11 +56,24 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
     const dayOfWeek = currentDayOfWeek === 0 ? 7 : currentDayOfWeek // 转换为1-7，周日=7
     
     // 计算到本周末还有多少天（包括今天）
-    const daysUntilWeekEnd = 8 - dayOfWeek // 8 - dayOfWeek = 到周日的天数
+    // 如果隐藏周末，则到周五结束；否则到周日结束
+    const weekEndDay = hideWeekends ? 5 : 7 // 周五=5, 周日=7
+    let daysUntilWeekEnd: number
     
-    // 计算任务实际还剩多少天
-    const diffTime = endDate.getTime() - currentDate.getTime()
-    const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+    if (hideWeekends) {
+      // 隐藏周末时，只计算到周五
+      if (dayOfWeek <= 5) {
+        daysUntilWeekEnd = 6 - dayOfWeek // 到周五的天数（包括今天）
+      } else {
+        // 如果已经是周末（不应该出现），返回0
+        daysUntilWeekEnd = 0
+      }
+    } else {
+      daysUntilWeekEnd = 8 - dayOfWeek // 到周日的天数
+    }
+    
+    // 计算任务实际还剩多少天（考虑周末隐藏）
+    const remainingDays = countDays(currentDate, endDate)
     
     // 返回较小值：要么到周末，要么到任务结束
     return Math.min(daysUntilWeekEnd, remainingDays)

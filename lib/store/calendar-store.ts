@@ -17,6 +17,7 @@ interface CalendarStore {
   currentDate: Date
   selectedDate: Date | null
   selectedProjectIds: string[] // 选中的项目ID列表，空数组表示显示所有项目
+  hideWeekends: boolean // 是否隐藏周末（周六日）
 
   dragState: {
     isCreating: boolean
@@ -53,6 +54,7 @@ interface CalendarStore {
   setViewMode: (mode: "personal" | "team") => void
   setCurrentDate: (date: Date) => void
   setSelectedDate: (date: Date | null) => void
+  toggleWeekends: () => void // 切换周末显示/隐藏
 
   // 项目过滤
   toggleProjectFilter: (projectId: string) => void
@@ -93,6 +95,7 @@ export const useCalendarStore = create<CalendarStore>()(
       currentDate: new Date(),
       selectedDate: null,
       selectedProjectIds: mockProjects.map(p => p.id), // 默认选中所有项目
+      hideWeekends: false, // 默认显示周末
 
       dragState: {
         isCreating: false,
@@ -148,6 +151,7 @@ export const useCalendarStore = create<CalendarStore>()(
   setViewMode: (mode) => set({ viewMode: mode }),
   setCurrentDate: (date) => set({ currentDate: date }),
   setSelectedDate: (date) => set({ selectedDate: date }),
+  toggleWeekends: () => set((state) => ({ hideWeekends: !state.hideWeekends })),
 
   // 项目过滤方法
   toggleProjectFilter: (projectId) =>
@@ -339,6 +343,7 @@ export const useCalendarStore = create<CalendarStore>()(
       partialize: (state) => ({
         viewMode: state.viewMode,
         selectedProjectIds: state.selectedProjectIds,
+        hideWeekends: state.hideWeekends,
       }),
     }
   )

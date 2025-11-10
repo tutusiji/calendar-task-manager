@@ -1,12 +1,13 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getMonthName } from "@/lib/utils/date-utils"
+import { cn } from "@/lib/utils"
 
 export function CalendarHeader() {
-  const { currentDate, setCurrentDate, viewMode } = useCalendarStore()
+  const { currentDate, setCurrentDate, viewMode, hideWeekends, toggleWeekends } = useCalendarStore()
 
   const goToPreviousMonth = () => {
     const newDate = new Date(currentDate)
@@ -71,6 +72,19 @@ export function CalendarHeader() {
       </div>
 
       <div className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={toggleWeekends}
+          className={cn(
+            "transition-colors",
+            hideWeekends && "bg-primary/10 text-primary hover:bg-primary/20"
+          )}
+          title={hideWeekends ? "显示周末" : "隐藏周末"}
+        >
+          <CalendarDays className="h-4 w-4" />
+        </Button>
+
         <Button variant="outline" size="sm" onClick={goToToday}>
           <Calendar className="mr-2 h-4 w-4" />
           {isPersonalView ? "今天" : "本周"}

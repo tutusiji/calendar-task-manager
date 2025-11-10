@@ -1,4 +1,4 @@
-export function getMonthDays(year: number, month: number): Date[] {
+export function getMonthDays(year: number, month: number, hideWeekends: boolean = false): Date[] {
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
   const days: Date[] = []
@@ -10,24 +10,36 @@ export function getMonthDays(year: number, month: number): Date[] {
   const prevMonthLastDay = new Date(year, month, 0)
   
   for (let i = mondayBasedDay - 1; i >= 0; i--) {
-    days.push(new Date(year, month - 1, prevMonthLastDay.getDate() - i))
+    const day = new Date(year, month - 1, prevMonthLastDay.getDate() - i)
+    if (!hideWeekends || (day.getDay() !== 0 && day.getDay() !== 6)) {
+      days.push(day)
+    }
   }
 
   // Add current month's days
   for (let i = 1; i <= lastDay.getDate(); i++) {
-    days.push(new Date(year, month, i))
+    const day = new Date(year, month, i)
+    if (!hideWeekends || (day.getDay() !== 0 && day.getDay() !== 6)) {
+      days.push(day)
+    }
   }
 
   // Add next month's days to fill the last week
-  const remainingDays = 42 - days.length // 6 weeks * 7 days
+  const daysPerWeek = hideWeekends ? 5 : 7
+  const targetDays = hideWeekends ? 30 : 42 // 6周*5天 or 6周*7天
+  const remainingDays = targetDays - days.length
+  
   for (let i = 1; i <= remainingDays; i++) {
-    days.push(new Date(year, month + 1, i))
+    const day = new Date(year, month + 1, i)
+    if (!hideWeekends || (day.getDay() !== 0 && day.getDay() !== 6)) {
+      days.push(day)
+    }
   }
 
   return days
 }
 
-export function getWeekDays(date: Date): Date[] {
+export function getWeekDays(date: Date, hideWeekends: boolean = false): Date[] {
   const days: Date[] = []
   const currentDay = new Date(date)
   const dayOfWeek = currentDay.getDay()
@@ -35,7 +47,9 @@ export function getWeekDays(date: Date): Date[] {
 
   currentDay.setDate(currentDay.getDate() + diff)
 
-  for (let i = 0; i < 7; i++) {
+  const totalDays = hideWeekends ? 5 : 7 // 隐藏周末时只显示5天（周一到周五）
+
+  for (let i = 0; i < totalDays; i++) {
     days.push(new Date(currentDay))
     currentDay.setDate(currentDay.getDate() + 1)
   }

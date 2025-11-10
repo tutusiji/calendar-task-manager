@@ -6,9 +6,9 @@ import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { TeamMemberRow } from "./team-member-row"
 
 export function WeekView() {
-  const { currentDate, users, dragState, cancelDragCreate } = useCalendarStore()
+  const { currentDate, users, dragState, cancelDragCreate, hideWeekends } = useCalendarStore()
 
-  const weekDays = getWeekDays(currentDate)
+  const weekDays = getWeekDays(currentDate, hideWeekends)
 
   // 全局 mouseup 事件处理，防止拖拽状态未清除
   useEffect(() => {
