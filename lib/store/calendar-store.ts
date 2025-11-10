@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from "zustand"
+import { persist, createJSONStorage } from "zustand/middleware"
 import type { Task, Project, User, CalendarSettings } from "../types"
 import { mockTasks, mockProjects, mockUsers } from "../mock-data"
 
@@ -15,6 +16,7 @@ interface CalendarStore {
   viewMode: "personal" | "team"
   currentDate: Date
   selectedDate: Date | null
+  selectedProjectIds: string[] // 选中的项目ID列表，空数组表示显示所有项目
 
   dragState: {
     isCreating: boolean
@@ -50,6 +52,11 @@ interface CalendarStore {
   setCurrentDate: (date: Date) => void
   setSelectedDate: (date: Date | null) => void
 
+  // 项目过滤
+  toggleProjectFilter: (projectId: string) => void
+  selectAllProjects: () => void
+  clearProjectFilter: () => void
+
   startDragCreate: (date: Date, cell: { x: number; y: number }) => void
   updateDragCreate: (date: Date) => void
   endDragCreate: () => { startDate: Date; endDate: Date } | null
@@ -70,41 +77,44 @@ interface CalendarStore {
   getUserById: (id: string) => User | undefined
 }
 
-export const useCalendarStore = create<CalendarStore>((set, get) => ({
-  // Initial data
-  tasks: mockTasks,
-  projects: mockProjects,
-  users: mockUsers,
-  currentUser: mockUsers[0],
+export const useCalendarStore = create<CalendarStore>()(
+  persist(
+    (set, get) => ({
+      // Initial data
+      tasks: mockTasks,
+      projects: mockProjects,
+      users: mockUsers,
+      currentUser: mockUsers[0],
 
-  // Initial view state
-  viewMode: "personal",
-  currentDate: new Date(),
-  selectedDate: null,
+      // Initial view state
+      viewMode: "personal",
+      currentDate: new Date(),
+      selectedDate: null,
+      selectedProjectIds: mockProjects.map(p => p.id), // 默认选中所有项目
 
-  dragState: {
-    isCreating: false,
-    startDate: null,
-    endDate: null,
-    startCell: null,
-  },
+      dragState: {
+        isCreating: false,
+        startDate: null,
+        endDate: null,
+        startCell: null,
+      },
 
-  taskCreation: {
-    isOpen: false,
-    startDate: null,
-    endDate: null,
-  },
+      taskCreation: {
+        isOpen: false,
+        startDate: null,
+        endDate: null,
+      },
 
-  taskEdit: {
-    isOpen: false,
-    task: null,
-  },
+      taskEdit: {
+        isOpen: false,
+        task: null,
+      },
 
-  // Initial settings
-  settings: {
-    rememberLastProject: true,
-    lastSelectedProjectId: "personal",
-  },
+      // Initial settings
+      settings: {
+        rememberLastProject: true,
+        lastSelectedProjectId: "personal",
+      },
 
   // Actions
   addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
@@ -134,6 +144,33 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
   setCurrentDate: (date) => set({ currentDate: date }),
   setSelectedDate: (date) => set({ selectedDate: date }),
+
+  // 项目过滤方法
+  toggleProjectFilter: (projectId) =>
+    set((state) => {
+      const isSelected = state.selectedProjectIds.includes(projectId)
+      
+      if (isSelected) {
+        // 如果已选中，则取消选中
+        return { selectedProjectIds: state.selectedProjectIds.filter(id => id !== projectId) }
+      } else {
+        // 如果未选中，则添加到选中列表
+        return { selectedProjectIds: [...state.selectedProjectIds, projectId] }
+      }
+    }),
+
+  selectAllProjects: () => 
+    set((state) => {
+      // 如果当前已经全选（所有项目都被选中），则清空选择
+      if (state.selectedProjectIds.length === state.projects.length) {
+        return { selectedProjectIds: [] }
+      } else {
+        // 否则选中所有项目
+        return { selectedProjectIds: state.projects.map(p => p.id) }
+      }
+    }),
+
+  clearProjectFilter: () => set({ selectedProjectIds: [] }),
 
   startDragCreate: (date, cell) =>
     set({
@@ -244,7 +281,11 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   // Helpers
   getTasksForDate: (date) => {
     const state = get()
-    return state.tasks.filter((task) => {
+    const filteredTasks = state.selectedProjectIds.length === 0 
+      ? state.tasks 
+      : state.tasks.filter(task => state.selectedProjectIds.includes(task.projectId))
+    
+    return filteredTasks.filter((task) => {
       const taskStart = new Date(task.startDate)
       const taskEnd = new Date(task.endDate)
       taskStart.setHours(0, 0, 0, 0)
@@ -256,7 +297,11 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
 
   getTasksForDateRange: (startDate, endDate) => {
     const state = get()
-    return state.tasks.filter((task) => {
+    const filteredTasks = state.selectedProjectIds.length === 0 
+      ? state.tasks 
+      : state.tasks.filter(task => state.selectedProjectIds.includes(task.projectId))
+    
+    return filteredTasks.filter((task) => {
       const taskStart = new Date(task.startDate)
       const taskEnd = new Date(task.endDate)
       return (
@@ -276,4 +321,15 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     const state = get()
     return state.users.find((user) => user.id === id)
   },
-}))
+    }),
+    {
+      name: 'calendar-storage', // localStorage key
+      storage: createJSONStorage(() => localStorage),
+      // 只持久化需要的状态
+      partialize: (state) => ({
+        viewMode: state.viewMode,
+        selectedProjectIds: state.selectedProjectIds,
+      }),
+    }
+  )
+)

@@ -13,7 +13,7 @@ export function WeekView() {
     <div className="flex h-full flex-col">
       {/* Week day headers */}
       <div className="flex border-b border-border bg-muted/30">
-        <div className="w-48 flex-shrink-0 border-r border-border px-4 py-3">
+        <div className="w-[120px] shrink-0 border-r border-border px-4 py-3">
           <span className="text-sm font-medium text-muted-foreground">团队成员</span>
         </div>
         <div className="flex flex-1">

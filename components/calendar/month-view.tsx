@@ -7,7 +7,7 @@ import { CalendarDay } from "./calendar-day"
 import { assignTaskTracks, type TaskWithTrack } from "@/lib/utils/task-layout"
 
 export function MonthView() {
-  const { currentDate, dragState, tasks } = useCalendarStore()
+  const { currentDate, dragState, tasks, selectedProjectIds } = useCalendarStore()
   const [expandedDate, setExpandedDate] = useState<Date | null>(null)
   const expandedRef = useRef<HTMLDivElement | null>(null)
 
@@ -15,6 +15,15 @@ export function MonthView() {
   const today = new Date()
 
   const weekDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+  // 根据选中的项目过滤任务
+  const filteredTasks = useMemo(() => {
+    // 如果没有选中任何项目，则不显示任何任务
+    if (selectedProjectIds.length === 0) {
+      return []
+    }
+    return tasks.filter(task => selectedProjectIds.includes(task.projectId))
+  }, [tasks, selectedProjectIds])
 
   // 将日期按周分组
   const weeks = useMemo(() => {
@@ -34,7 +43,7 @@ export function MonthView() {
       const weekEnd = new Date(week[6])
       weekEnd.setHours(23, 59, 59, 999)
       
-      const weekTasks = tasks.filter(task => {
+      const weekTasks = filteredTasks.filter(task => {
         const taskStart = new Date(task.startDate)
         taskStart.setHours(0, 0, 0, 0)
         const taskEnd = new Date(task.endDate)
@@ -52,7 +61,7 @@ export function MonthView() {
         tasks: weekTasksWithTracks
       }
     })
-  }, [weeks, tasks])
+  }, [weeks, filteredTasks])
 
   // 计算每周的最大轨道数（用于设置行高）
   const weekHeights = useMemo(() => {

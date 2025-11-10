@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, MoreVertical, Pencil, Trash2 } from "lucide-react"
+import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Circle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { NewProjectDialog } from "./new-project-dialog"
 import { EditProjectDialog } from "./edit-project-dialog"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +26,7 @@ import {
 import type { Project } from "@/lib/types"
 
 export function ProjectList() {
-  const { projects, deleteProject } = useCalendarStore()
+  const { projects, deleteProject, selectedProjectIds, toggleProjectFilter, selectAllProjects } = useCalendarStore()
   const [showNewProject, setShowNewProject] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
@@ -37,11 +38,34 @@ export function ProjectList() {
     }
   }
 
+  // 判断是否选中所有项目
+  const isAllSelected = selectedProjectIds.length === projects.length && projects.length > 0
+  
+  // 判断某个项目是否被选中
+  const isProjectSelected = (projectId: string) => {
+    return selectedProjectIds.includes(projectId)
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">项目管理</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">项目标签</h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
+            onClick={selectAllProjects}
+            title={isAllSelected ? "已选中所有项目" : "选中所有项目"}
+          >
+            {isAllSelected ? (
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+            ) : (
+              <Circle className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+        </div>
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowNewProject(true)}>
           <Plus className="h-4 w-4" />
         </Button>
@@ -49,33 +73,77 @@ export function ProjectList() {
 
       {/* Project list */}
       <div className="space-y-1">
-        {projects.map((project) => (
-          <div
-            key={project.id}
-            className="group flex items-center gap-2 rounded-md px-2 py-2 transition-colors hover:bg-muted"
-          >
-            <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: project.color }} />
-            <span className="flex-1 truncate text-sm text-foreground">{project.name}</span>
+        {projects.map((project) => {
+          const selected = isProjectSelected(project.id)
+          
+          return (
+            <div
+              key={project.id}
+              className={cn(
+                "group flex items-center gap-2 rounded-md px-2 py-2 transition-colors cursor-pointer hover:bg-muted/50"
+              )}
+              onClick={() => toggleProjectFilter(project.id)}
+            >
+              {/* 空心圆/实心圆 */}
+              {selected ? (
+                // 选中态：实心圆
+                <div 
+                  className="h-4 w-4 rounded-full shrink-0" 
+                  style={{ backgroundColor: project.color }} 
+                />
+              ) : (
+                // 未选中态：空心圆
+                <div 
+                  className="h-4 w-4 rounded-full shrink-0 border-2" 
+                  style={{ borderColor: project.color }} 
+                />
+              )}
+              
+              <span className={cn(
+                "flex-1 truncate text-sm transition-colors",
+                selected ? "text-foreground font-medium" : "text-muted-foreground"
+              )}>
+                {project.name}
+              </span>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
-                  <MoreVertical className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingProject(project)}>
-                  <Pencil className="h-4 w-4 cursor-pointer" />
-                  编辑
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" variant="destructive" onClick={() => setDeletingProject(project)}>
-                  <Trash2 className="h-4 w-4" />
-                  删除
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ))}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem 
+                    className="cursor-pointer" 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditingProject(project)
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 cursor-pointer" />
+                    编辑
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="cursor-pointer" 
+                    variant="destructive" 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeletingProject(project)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    删除
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )
+        })}
       </div>
 
       {showNewProject && <NewProjectDialog onClose={() => setShowNewProject(false)} />}
