@@ -4,9 +4,12 @@ export function getMonthDays(year: number, month: number): Date[] {
   const days: Date[] = []
 
   // Add previous month's days to fill the first week
+  // 将 getDay() 转换为周一=0, 周二=1, ..., 周日=6 的格式
   const firstDayOfWeek = firstDay.getDay()
+  const mondayBasedDay = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1 // 周一=0, 周日=6
   const prevMonthLastDay = new Date(year, month, 0)
-  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+  
+  for (let i = mondayBasedDay - 1; i >= 0; i--) {
     days.push(new Date(year, month - 1, prevMonthLastDay.getDate() - i))
   }
 

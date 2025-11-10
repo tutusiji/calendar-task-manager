@@ -1,12 +1,10 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import { ChevronDown } from "lucide-react"
+import { useState, useMemo } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { TaskBar } from "./task-bar"
 import { cn } from "@/lib/utils"
+import { getMaxTrackForDate, type TaskWithTrack } from "@/lib/utils/task-layout"
 
 interface CalendarDayProps {
   date: Date
@@ -15,7 +13,8 @@ interface CalendarDayProps {
   isExpanded: boolean
   isDragTarget: boolean
   onExpand: () => void
-  expandedRef?: React.RefObject<HTMLDivElement>
+  expandedRef?: React.RefObject<HTMLDivElement | null>
+  tasksWithTracks: TaskWithTrack[]
 }
 
 export function CalendarDay({
@@ -26,14 +25,61 @@ export function CalendarDay({
   isDragTarget,
   onExpand,
   expandedRef,
+  tasksWithTracks: allTasksWithTracks,
 }: CalendarDayProps) {
-  const { getTasksForDate, startDragCreate, updateDragCreate, endDragCreate, dragState, openTaskCreation } =
+  const { startDragCreate, updateDragCreate, endDragCreate, dragState, openTaskCreation } =
     useCalendarStore()
   const [isHovering, setIsHovering] = useState(false)
 
-  const tasks = getTasksForDate(date)
-  const visibleTasks = isExpanded ? tasks : tasks.slice(0, 3)
-  const hasMoreTasks = tasks.length > 3
+  // 过滤出与当前日期相关的任务
+  const currentDateTasks = useMemo(() => {
+    const currentDate = new Date(date)
+    currentDate.setHours(0, 0, 0, 0)
+    const currentTime = currentDate.getTime()
+    
+    return allTasksWithTracks.filter(task => {
+      const taskStart = new Date(task.startDate)
+      taskStart.setHours(0, 0, 0, 0)
+      const taskEnd = new Date(task.endDate)
+      taskEnd.setHours(0, 0, 0, 0)
+      
+      // 任务在当前日期范围内
+      return currentTime >= taskStart.getTime() && currentTime <= taskEnd.getTime()
+    })
+  }, [allTasksWithTracks, date])
+  
+  // 获取需要在当前日期渲染的任务（任务开始日期 或 周一且任务跨周继续）
+  const tasks = useMemo(() => {
+    const currentDate = new Date(date)
+    currentDate.setHours(0, 0, 0, 0)
+    const currentDayOfWeek = currentDate.getDay() // 0=周日, 1=周一, ..., 6=周六
+    const isMonday = currentDayOfWeek === 1
+    
+    return currentDateTasks.filter(task => {
+      const taskStartDate = new Date(task.startDate)
+      taskStartDate.setHours(0, 0, 0, 0)
+      const taskEndDate = new Date(task.endDate)
+      taskEndDate.setHours(0, 0, 0, 0)
+      
+      // 情况1：任务在当前日期开始
+      const isTaskStart = taskStartDate.getTime() === currentDate.getTime()
+      
+      // 情况2：当前是周一，且任务在本周之前就已经开始，但还没结束（跨周继续的中间段）
+      const isWeeklyContinuation = isMonday && 
+        taskStartDate.getTime() < currentDate.getTime() &&
+        taskEndDate.getTime() >= currentDate.getTime()
+      
+      return isTaskStart || isWeeklyContinuation
+    })
+  }, [currentDateTasks, date])
+  
+  const visibleTasks = tasks // 显示所有任务，不再限制数量
+  const hasMoreTasks = false // 不再需要"更多"按钮
+  
+  // 计算当前日期的最大轨道数（用于设置容器高度）
+  const maxTrack = useMemo(() => {
+    return getMaxTrackForDate(currentDateTasks)
+  }, [currentDateTasks])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Prevent drag creation when clicking on task bars or buttons
@@ -64,7 +110,7 @@ export function CalendarDay({
     <div
       ref={isExpanded ? expandedRef : undefined}
       className={cn(
-        "relative border-b border-r border-border p-2 transition-all last:border-r-0 select-none",
+        "relative border-b border-r border-border p-2 transition-all last:border-r-0 select-none overflow-visible h-full",
         !isCurrentMonth && "bg-muted/20",
         isToday && "bg-blue-50/50",
         isExpanded && "col-span-2 row-span-2 z-10 shadow-lg bg-card",
@@ -88,21 +134,14 @@ export function CalendarDay({
         >
           {date.getDate()}
         </span>
-
-        {hasMoreTasks && !isExpanded && (
-          <button
-            onClick={onExpand}
-            className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted transition-colors"
-          >
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </button>
-        )}
       </div>
 
       {/* Tasks */}
-      <div className="space-y-1">
+      <div 
+        className="relative overflow-visible"
+      >
         {visibleTasks.map((task) => (
-          <TaskBar key={task.id} task={task} date={date} />
+          <TaskBar key={task.id} task={task} date={date} track={task.track} />
         ))}
       </div>
 
