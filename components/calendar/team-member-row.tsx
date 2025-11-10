@@ -123,6 +123,9 @@ export function TeamMemberRow({ user, weekDays }: TeamMemberRowProps) {
   // 判断日期是否在拖拽范围内
   const isInDragRange = (date: Date) => {
     if (!dragState.isCreating || !dragState.startDate || !dragState.endDate) return false
+    
+    // 团队视图中，只有当拖拽的用户ID匹配当前用户时才高亮
+    if (dragState.userId && dragState.userId !== user.id) return false
 
     const checkDate = new Date(date)
     checkDate.setHours(0, 0, 0, 0)
@@ -140,24 +143,26 @@ export function TeamMemberRow({ user, weekDays }: TeamMemberRowProps) {
     if ((e.target as HTMLElement).closest(".task-bar")) return
     
     e.preventDefault()
-    startDragCreate(date, { x: e.clientX, y: e.clientY })
+    startDragCreate(date, { x: e.clientX, y: e.clientY }, user.id)
   }
 
   // 处理鼠标进入（更新拖拽范围）
   const handleMouseEnter = (date: Date, dayIndex: number) => {
     setHoveredDayIndex(dayIndex)
-    if (dragState.isCreating) {
+    // 只有当拖拽的用户ID匹配当前用户时才更新拖拽范围
+    if (dragState.isCreating && (!dragState.userId || dragState.userId === user.id)) {
       updateDragCreate(date)
     }
   }
 
   // 处理鼠标释放（结束拖拽，打开创建面板）
-  const handleMouseUp = () => {
-    if (dragState.isCreating) {
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (dragState.isCreating && dragState.userId === user.id) {
+      e.stopPropagation() // 阻止事件冒泡到全局处理器
       const result = endDragCreate()
       if (result) {
-        // 打开任务创建面板，注意：这里创建的任务应该自动分配给当前用户
-        openTaskCreation(result.startDate, result.endDate)
+        // 打开任务创建面板，传入当前用户的ID
+        openTaskCreation(result.startDate, result.endDate, user.id)
       }
     }
   }

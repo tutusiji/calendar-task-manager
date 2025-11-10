@@ -23,12 +23,14 @@ interface CalendarStore {
     startDate: Date | null
     endDate: Date | null
     startCell: { x: number; y: number } | null
+    userId: string | null // 拖拽创建时的用户ID，用于限制团队视图中不跨行拖拽
   }
 
   taskCreation: {
     isOpen: boolean
     startDate: Date | null
     endDate: Date | null
+    userId: string | null // 创建任务时指定的用户ID
   }
 
   taskEdit: {
@@ -57,12 +59,12 @@ interface CalendarStore {
   selectAllProjects: () => void
   clearProjectFilter: () => void
 
-  startDragCreate: (date: Date, cell: { x: number; y: number }) => void
+  startDragCreate: (date: Date, cell: { x: number; y: number }, userId?: string) => void
   updateDragCreate: (date: Date) => void
   endDragCreate: () => { startDate: Date; endDate: Date } | null
   cancelDragCreate: () => void
 
-  openTaskCreation: (startDate: Date, endDate: Date) => void
+  openTaskCreation: (startDate: Date, endDate: Date, userId?: string) => void
   closeTaskCreation: () => void
 
   openTaskEdit: (task: Task) => void
@@ -97,12 +99,14 @@ export const useCalendarStore = create<CalendarStore>()(
         startDate: null,
         endDate: null,
         startCell: null,
+        userId: null,
       },
 
       taskCreation: {
         isOpen: false,
         startDate: null,
         endDate: null,
+        userId: null,
       },
 
       taskEdit: {
@@ -172,13 +176,14 @@ export const useCalendarStore = create<CalendarStore>()(
 
   clearProjectFilter: () => set({ selectedProjectIds: [] }),
 
-  startDragCreate: (date, cell) =>
+  startDragCreate: (date, cell, userId) =>
     set({
       dragState: {
         isCreating: true,
         startDate: date,
         endDate: date,
         startCell: cell,
+        userId: userId || null,
       },
     }),
 
@@ -207,6 +212,7 @@ export const useCalendarStore = create<CalendarStore>()(
           startDate: null,
           endDate: null,
           startCell: null,
+          userId: null,
         },
       })
       return null
@@ -223,6 +229,7 @@ export const useCalendarStore = create<CalendarStore>()(
         startDate: null,
         endDate: null,
         startCell: null,
+        userId: null,
       },
     })
 
@@ -236,15 +243,17 @@ export const useCalendarStore = create<CalendarStore>()(
         startDate: null,
         endDate: null,
         startCell: null,
+        userId: null,
       },
     }),
 
-  openTaskCreation: (startDate, endDate) =>
+  openTaskCreation: (startDate, endDate, userId) =>
     set({
       taskCreation: {
         isOpen: true,
         startDate,
         endDate,
+        userId: userId || null,
       },
     }),
 
@@ -254,6 +263,7 @@ export const useCalendarStore = create<CalendarStore>()(
         isOpen: false,
         startDate: null,
         endDate: null,
+        userId: null,
       },
     }),
 

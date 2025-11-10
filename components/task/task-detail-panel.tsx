@@ -22,7 +22,7 @@ interface TaskDetailPanelProps {
 }
 
 export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanelProps) {
-  const { addTask, projects, currentUser, settings, updateSettings } = useCalendarStore()
+  const { addTask, projects, currentUser, settings, updateSettings, taskCreation } = useCalendarStore()
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -48,7 +48,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
       endTime: endTime || undefined,
       type: taskType,
       projectId,
-      userId: currentUser.id,
+      userId: taskCreation.userId || currentUser.id, // 优先使用指定的userId，否则使用当前用户
     }
 
     addTask(newTask)

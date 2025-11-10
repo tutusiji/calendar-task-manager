@@ -1,13 +1,27 @@
 "use client"
 
+import { useEffect } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { TeamMemberRow } from "./team-member-row"
 
 export function WeekView() {
-  const { currentDate, users } = useCalendarStore()
+  const { currentDate, users, dragState, cancelDragCreate } = useCalendarStore()
 
   const weekDays = getWeekDays(currentDate)
+
+  // 全局 mouseup 事件处理，防止拖拽状态未清除
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (dragState.isCreating) {
+        // 如果在其他地方释放鼠标，取消拖拽
+        cancelDragCreate()
+      }
+    }
+
+    window.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
+  }, [dragState.isCreating, cancelDragCreate])
 
   return (
     <div className="flex h-full flex-col">
