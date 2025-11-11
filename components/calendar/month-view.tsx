@@ -7,9 +7,11 @@ import { CalendarDay } from "./calendar-day"
 import { assignTaskTracks, type TaskWithTrack } from "@/lib/utils/task-layout"
 
 export function MonthView() {
-  const { currentDate, dragState, tasks, selectedProjectIds, hideWeekends } = useCalendarStore()
+  const { currentDate, dragState, dragMoveState, tasks, selectedProjectIds, hideWeekends, updateDragMove, endDragMove, cancelDragMove } = useCalendarStore()
   const [expandedDate, setExpandedDate] = useState<Date | null>(null)
   const expandedRef = useRef<HTMLDivElement | null>(null)
+  const [showPlaceholder, setShowPlaceholder] = useState(false)
+  const placeholderTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const monthDays = getMonthDays(currentDate.getFullYear(), currentDate.getMonth(), hideWeekends)
   const today = new Date()
@@ -17,6 +19,48 @@ export function MonthView() {
   const weekDays = hideWeekends 
     ? ["周一", "周二", "周三", "周四", "周五"]
     : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+  // 全局鼠标事件处理（用于拖拽移动任务）
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (dragMoveState.isMoving) {
+        endDragMove()
+        setShowPlaceholder(false)
+        if (placeholderTimerRef.current) {
+          clearTimeout(placeholderTimerRef.current)
+          placeholderTimerRef.current = null
+        }
+      }
+    }
+
+    window.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
+  }, [dragMoveState.isMoving, endDragMove])
+
+  // 监听 dragMoveState 变化，实现防抖逻辑
+  useEffect(() => {
+    // 清除之前的定时器
+    if (placeholderTimerRef.current) {
+      clearTimeout(placeholderTimerRef.current)
+      placeholderTimerRef.current = null
+    }
+
+    if (dragMoveState.isMoving && dragMoveState.offsetDays !== 0) {
+      // 如果正在拖拽且有偏移，200ms 后显示占位条
+      placeholderTimerRef.current = setTimeout(() => {
+        setShowPlaceholder(true)
+      }, 0)
+    } else {
+      // 如果停止拖拽或回到原位，立即隐藏占位条
+      setShowPlaceholder(false)
+    }
+
+    return () => {
+      if (placeholderTimerRef.current) {
+        clearTimeout(placeholderTimerRef.current)
+      }
+    }
+  }, [dragMoveState.isMoving, dragMoveState.offsetDays])
 
   // 根据选中的项目过滤任务
   const filteredTasks = useMemo(() => {
@@ -163,6 +207,7 @@ export function MonthView() {
                   isToday={isToday}
                   isExpanded={!!isExpanded}
                   isDragTarget={isDragTarget}
+                  showPlaceholder={showPlaceholder}
                   onExpand={() => setExpandedDate(isExpanded ? null : day)}
                   expandedRef={isExpanded ? expandedRef : undefined}
                   tasksWithTracks={week.tasks}

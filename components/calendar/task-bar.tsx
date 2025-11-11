@@ -13,8 +13,22 @@ interface TaskBarProps {
 }
 
 export function TaskBar({ task, date, track }: TaskBarProps) {
-  const { getProjectById, openTaskEdit, hideWeekends } = useCalendarStore()
+  const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState } = useCalendarStore()
   const project = getProjectById(task.projectId)
+
+  // 判断当前任务是否正在被拖拽
+  const isBeingDragged = dragMoveState.isMoving && dragMoveState.task?.id === task.id
+
+  // 处理拖拽开始
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // 只响应左键点击
+    if (e.button !== 0) return
+    
+    e.stopPropagation()
+    e.preventDefault()
+    
+    startDragMove(task, date)
+  }
 
   // 计算两个日期之间的工作日天数（可选择是否跳过周末）
   const countDays = (startDate: Date, endDate: Date): number => {
@@ -161,7 +175,10 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering calendar day's drag creation
-    openTaskEdit(task)
+    // 只有在不是拖拽状态时才打开编辑面板
+    if (!isBeingDragged) {
+      openTaskEdit(task)
+    }
   }
 
   const TASK_HEIGHT = 24 // 任务条高度 (px)
@@ -169,11 +186,13 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
 
   return (
     <div
+      onMouseDown={handleMouseDown}
       onClick={handleClick}
       className={cn(
-        "task-bar group absolute cursor-pointer px-2 py-1 text-xs font-medium text-white transition-all hover:opacity-90 hover:shadow-md",
+        "task-bar group absolute cursor-move px-2 py-1 text-xs font-medium text-white transition-all hover:opacity-90 hover:shadow-md",
         getTaskColor(),
         getRoundedClass(),
+        isBeingDragged && "opacity-30",
       )}
       style={{
         width: spanDays > 1 ? `calc(100% * ${spanDays} + 18px * ${spanDays - 1})` : '100%',

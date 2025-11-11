@@ -27,6 +27,14 @@ interface CalendarStore {
     userId: string | null // 拖拽创建时的用户ID，用于限制团队视图中不跨行拖拽
   }
 
+  // 拖拽移动任务的状态
+  dragMoveState: {
+    isMoving: boolean
+    task: Task | null
+    startDate: Date | null // 拖拽开始时的日期
+    offsetDays: number // 移动的天数偏移
+  }
+
   taskCreation: {
     isOpen: boolean
     startDate: Date | null
@@ -66,6 +74,12 @@ interface CalendarStore {
   endDragCreate: () => { startDate: Date; endDate: Date } | null
   cancelDragCreate: () => void
 
+  // 拖拽移动任务的方法
+  startDragMove: (task: Task, date: Date) => void
+  updateDragMove: (date: Date) => void
+  endDragMove: () => void
+  cancelDragMove: () => void
+
   openTaskCreation: (startDate: Date, endDate: Date, userId?: string) => void
   closeTaskCreation: () => void
 
@@ -103,6 +117,13 @@ export const useCalendarStore = create<CalendarStore>()(
         endDate: null,
         startCell: null,
         userId: null,
+      },
+
+      dragMoveState: {
+        isMoving: false,
+        task: null,
+        startDate: null,
+        offsetDays: 0,
       },
 
       taskCreation: {
@@ -248,6 +269,88 @@ export const useCalendarStore = create<CalendarStore>()(
         endDate: null,
         startCell: null,
         userId: null,
+      },
+    }),
+
+  // 拖拽移动任务的实现
+  startDragMove: (task, date) =>
+    set({
+      dragMoveState: {
+        isMoving: true,
+        task,
+        startDate: date,
+        offsetDays: 0,
+      },
+    }),
+
+  updateDragMove: (date) =>
+    set((state) => {
+      if (!state.dragMoveState.isMoving || !state.dragMoveState.startDate) return state
+
+      const startDate = new Date(state.dragMoveState.startDate)
+      startDate.setHours(0, 0, 0, 0)
+      const currentDate = new Date(date)
+      currentDate.setHours(0, 0, 0, 0)
+
+      const diffTime = currentDate.getTime() - startDate.getTime()
+      const offsetDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+
+      return {
+        dragMoveState: {
+          ...state.dragMoveState,
+          offsetDays,
+        },
+      }
+    }),
+
+  endDragMove: () => {
+    const state = get()
+    if (!state.dragMoveState.isMoving || !state.dragMoveState.task) {
+      set({
+        dragMoveState: {
+          isMoving: false,
+          task: null,
+          startDate: null,
+          offsetDays: 0,
+        },
+      })
+      return
+    }
+
+    const task = state.dragMoveState.task
+    const offsetDays = state.dragMoveState.offsetDays
+
+    if (offsetDays !== 0) {
+      // 计算新的开始和结束日期
+      const newStartDate = new Date(task.startDate)
+      newStartDate.setDate(newStartDate.getDate() + offsetDays)
+      const newEndDate = new Date(task.endDate)
+      newEndDate.setDate(newEndDate.getDate() + offsetDays)
+
+      // 更新任务
+      state.updateTask(task.id, {
+        startDate: newStartDate,
+        endDate: newEndDate,
+      })
+    }
+
+    set({
+      dragMoveState: {
+        isMoving: false,
+        task: null,
+        startDate: null,
+        offsetDays: 0,
+      },
+    })
+  },
+
+  cancelDragMove: () =>
+    set({
+      dragMoveState: {
+        isMoving: false,
+        task: null,
+        startDate: null,
+        offsetDays: 0,
       },
     }),
 

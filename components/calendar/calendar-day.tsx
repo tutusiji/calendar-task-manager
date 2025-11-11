@@ -12,6 +12,7 @@ interface CalendarDayProps {
   isToday: boolean
   isExpanded: boolean
   isDragTarget: boolean
+  showPlaceholder: boolean
   onExpand: () => void
   expandedRef?: React.RefObject<HTMLDivElement | null>
   tasksWithTracks: TaskWithTrack[]
@@ -23,11 +24,12 @@ export function CalendarDay({
   isToday,
   isExpanded,
   isDragTarget,
+  showPlaceholder,
   onExpand,
   expandedRef,
   tasksWithTracks: allTasksWithTracks,
 }: CalendarDayProps) {
-  const { startDragCreate, updateDragCreate, endDragCreate, dragState, openTaskCreation } =
+  const { startDragCreate, updateDragCreate, endDragCreate, dragState, openTaskCreation, dragMoveState, updateDragMove } =
     useCalendarStore()
   const [isHovering, setIsHovering] = useState(false)
 
@@ -95,6 +97,10 @@ export function CalendarDay({
     if (dragState.isCreating) {
       updateDragCreate(date)
     }
+    // 处理拖拽移动任务时的鼠标移动
+    if (dragMoveState.isMoving) {
+      updateDragMove(date)
+    }
   }
 
   const handleMouseUp = () => {
@@ -143,6 +149,62 @@ export function CalendarDay({
         {visibleTasks.map((task) => (
           <TaskBar key={task.id} task={task} date={date} track={task.track} />
         ))}
+        
+        {/* 拖拽占位预览 */}
+        {showPlaceholder && dragMoveState.isMoving && dragMoveState.task && dragMoveState.startDate && (() => {
+          // 计算目标日期
+          const targetDate = new Date(dragMoveState.startDate)
+          targetDate.setDate(targetDate.getDate() + dragMoveState.offsetDays)
+          targetDate.setHours(0, 0, 0, 0)
+          
+          const currentDate = new Date(date)
+          currentDate.setHours(0, 0, 0, 0)
+          
+          const task = dragMoveState.task
+          const taskStart = new Date(task.startDate)
+          taskStart.setHours(0, 0, 0, 0)
+          const taskEnd = new Date(task.endDate)
+          taskEnd.setHours(0, 0, 0, 0)
+          
+          // 计算目标范围
+          const targetStart = new Date(targetDate)
+          const daysDiff = Math.floor((taskEnd.getTime() - taskStart.getTime()) / (24 * 60 * 60 * 1000))
+          const targetEnd = new Date(targetStart)
+          targetEnd.setDate(targetEnd.getDate() + daysDiff)
+          
+          // 检查当前日期是否在目标范围内
+          if (currentDate.getTime() >= targetStart.getTime() && currentDate.getTime() <= targetEnd.getTime()) {
+            // 找到对应的 taskWithTrack 来获取 track 信息
+            const taskWithTrack = allTasksWithTracks.find(t => t.id === task.id)
+            const track = taskWithTrack?.track || 0
+            
+            // 计算任务在当前日期的显示位置和宽度
+            const isStartDate = currentDate.getTime() === targetStart.getTime()
+            const spanDays = Math.min(
+              Math.floor((targetEnd.getTime() - currentDate.getTime()) / (24 * 60 * 60 * 1000)) + 1,
+              7 // 最多跨7天
+            )
+            
+            return (
+              <div
+                className="absolute left-0 right-0 rounded-md border-2 border-dashed border-blue-500 bg-blue-100/30 pointer-events-none"
+                style={{
+                  height: '28px',
+                  top: `${track * 36}px`,
+                  width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 18}px)`,
+                  zIndex: 40,
+                }}
+              >
+                {isStartDate && (
+                  <div className="h-full flex items-center px-2 text-xs text-blue-600 font-medium truncate">
+                    {task.title}
+                  </div>
+                )}
+              </div>
+            )
+          }
+          return null
+        })()}
       </div>
 
       {isDragTarget && (
