@@ -176,7 +176,7 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering calendar day's drag creation
     // 只有在不是拖拽状态时才打开编辑面板
-    if (!isBeingDragged) {
+    if (!isBeingDragged && !dragMoveState.isMoving) {
       openTaskEdit(task)
     }
   }
@@ -189,16 +189,19 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       className={cn(
-        "task-bar group absolute cursor-move px-2 py-1 text-xs font-medium text-white transition-all hover:opacity-90 hover:shadow-md",
+        "task-bar group absolute px-2 py-1 text-xs font-medium text-white transition-all",
         getTaskColor(),
         getRoundedClass(),
-        isBeingDragged && "opacity-30",
+        // 拖拽样式
+        isBeingDragged ? "shadow-[0_8px_30px_rgb(0,0,0,0.4)] cursor-move" : "cursor-move hover:opacity-90 hover:shadow-md",
+        // 其他任务在拖拽时禁用交互
+        !isBeingDragged && dragMoveState.isMoving && "pointer-events-none",
       )}
       style={{
         width: spanDays > 1 ? `calc(100% * ${spanDays} + 18px * ${spanDays - 1})` : '100%',
         top: `${track * (TASK_HEIGHT + TASK_GAP)}px`,
         height: `${TASK_HEIGHT}px`,
-        zIndex: 10,
+        zIndex: isBeingDragged ? 50 : 10,
       }}
     >
       <div className="flex items-center gap-1 truncate">

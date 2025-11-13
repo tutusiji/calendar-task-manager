@@ -15,7 +15,7 @@ interface TeamMemberRowProps {
 }
 
 export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRowProps) {
-  const { tasks, openTaskEdit, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, dragState, selectedProjectIds, dragMoveState, updateDragMove } = useCalendarStore()
+  const { tasks, openTaskEdit, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, dragState, selectedProjectIds, dragMoveState, updateDragMove, startDragMove } = useCalendarStore()
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
   // 根据选中的项目过滤任务
@@ -227,6 +227,8 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
             >
               {/* 渲染该日期开始的任务 */}
               {dayTasks.map((task) => {
+                const isBeingDragged = dragMoveState.isMoving && dragMoveState.task?.id === task.id
+                
                 const spanDays = calculateSpanDays(task, day)
                 const isStart = true // 因为只在开始日期渲染
                 const taskStart = new Date(task.startDate)
@@ -263,19 +265,34 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
                 return (
                   <div
                     key={task.id}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return
+                      e.stopPropagation()
+                      e.preventDefault()
+                      startDragMove(task, day)
+                    }}
                     className={cn(
-                      "task-bar absolute px-2 py-1 text-xs font-medium text-white transition-all hover:opacity-90 hover:shadow-md cursor-pointer",
+                      "task-bar absolute px-2 py-1 text-xs font-medium text-white transition-all",
                       getTaskColor(task.type),
-                      roundedClass
+                      roundedClass,
+                      // 拖拽样式
+                      isBeingDragged ? "shadow-[0_8px_30px_rgb(0,0,0,0.4)] cursor-move" : "cursor-move hover:opacity-90 hover:shadow-md",
+                      // 其他任务在拖拽时禁用交互
+                      !isBeingDragged && dragMoveState.isMoving && "pointer-events-none",
                     )}
                     style={{
                       width: spanDays > 1 ? `calc(100% * ${spanDays} - 6px * ${spanDays - 1})` : '100%',
                       top: `${task.track * (TASK_HEIGHT + TASK_GAP) + 4}px`,
                       height: `${TASK_HEIGHT}px`,
-                      zIndex: 10,
+                      zIndex: isBeingDragged ? 50 : 10,
                     }}
                     title={task.title}
-                    onClick={(e) => handleTaskClick(e, task)}
+                    onClick={(e) => {
+                      // 只有在没有拖拽操作时才打开详情
+                      if (!isBeingDragged && !dragMoveState.isMoving) {
+                        handleTaskClick(e, task)
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-1 truncate">
                       {task.startTime && <span className="text-[10px] opacity-90">{task.startTime}</span>}
@@ -284,65 +301,6 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
                   </div>
                 )
               })}
-              
-              {/* 拖拽占位预览 */}
-              {showPlaceholder && dragMoveState.isMoving && dragMoveState.task && dragMoveState.startDate && (() => {
-                const task = dragMoveState.task
-                // 只在拖拽的任务所属的用户行显示占位预览
-                if (task.userId !== user.id) {
-                  return null
-                }
-                
-                // 计算目标日期
-                const targetDate = new Date(dragMoveState.startDate)
-                targetDate.setDate(targetDate.getDate() + dragMoveState.offsetDays)
-                targetDate.setHours(0, 0, 0, 0)
-                
-                const currentDate = new Date(day)
-                currentDate.setHours(0, 0, 0, 0)
-                
-                const taskStart = new Date(task.startDate)
-                taskStart.setHours(0, 0, 0, 0)
-                const taskEnd = new Date(task.endDate)
-                taskEnd.setHours(0, 0, 0, 0)
-                
-                // 计算目标范围
-                const targetStart = new Date(targetDate)
-                const daysDiff = Math.floor((taskEnd.getTime() - taskStart.getTime()) / (24 * 60 * 60 * 1000))
-                const targetEnd = new Date(targetStart)
-                targetEnd.setDate(targetEnd.getDate() + daysDiff)
-                
-                // 检查当前日期是否是目标开始日期
-                if (currentDate.getTime() === targetStart.getTime()) {
-                  // 找到对应的 taskWithTrack 来获取 track 信息
-                  const taskWithTrack = userTasksWithTracks.find(t => t.id === task.id)
-                  const track = taskWithTrack?.track || 0
-                  
-                  // 计算跨度天数
-                  const spanDays = Math.min(
-                    daysDiff + 1,
-                    weekDays.length - index
-                  )
-                  
-                  return (
-                    <div
-                      className="absolute px-2 py-1 text-xs font-medium text-blue-600 border-2 border-dashed border-blue-500 bg-blue-100/30 rounded-full pointer-events-none"
-                      style={{
-                        width: spanDays > 1 ? `calc(100% * ${spanDays} - 6px * ${spanDays - 1})` : '100%',
-                        top: `${track * (TASK_HEIGHT + TASK_GAP) + 4}px`,
-                        height: `${TASK_HEIGHT}px`,
-                        zIndex: 40,
-                      }}
-                    >
-                      <div className="flex items-center gap-1 truncate">
-                        {task.startTime && <span className="text-[10px] opacity-90">{task.startTime}</span>}
-                        <span className="truncate">{task.title}</span>
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              })()}
             </div>
           )
         })}

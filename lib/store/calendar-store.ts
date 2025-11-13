@@ -285,7 +285,7 @@ export const useCalendarStore = create<CalendarStore>()(
 
   updateDragMove: (date) =>
     set((state) => {
-      if (!state.dragMoveState.isMoving || !state.dragMoveState.startDate) return state
+      if (!state.dragMoveState.isMoving || !state.dragMoveState.startDate || !state.dragMoveState.task) return state
 
       const startDate = new Date(state.dragMoveState.startDate)
       startDate.setHours(0, 0, 0, 0)
@@ -294,6 +294,33 @@ export const useCalendarStore = create<CalendarStore>()(
 
       const diffTime = currentDate.getTime() - startDate.getTime()
       const offsetDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+
+      // 如果偏移量有变化,实时更新任务日期
+      if (offsetDays !== state.dragMoveState.offsetDays) {
+        const task = state.dragMoveState.task
+        const actualOffsetDays = offsetDays - state.dragMoveState.offsetDays
+        
+        const newStartDate = new Date(task.startDate)
+        newStartDate.setDate(newStartDate.getDate() + actualOffsetDays)
+        const newEndDate = new Date(task.endDate)
+        newEndDate.setDate(newEndDate.getDate() + actualOffsetDays)
+
+        // 实时更新任务日期
+        const updatedTasks = state.tasks.map(t =>
+          t.id === task.id
+            ? { ...t, startDate: newStartDate, endDate: newEndDate }
+            : t
+        )
+
+        return {
+          tasks: updatedTasks,
+          dragMoveState: {
+            ...state.dragMoveState,
+            task: { ...task, startDate: newStartDate, endDate: newEndDate },
+            offsetDays,
+          },
+        }
+      }
 
       return {
         dragMoveState: {
@@ -304,36 +331,7 @@ export const useCalendarStore = create<CalendarStore>()(
     }),
 
   endDragMove: () => {
-    const state = get()
-    if (!state.dragMoveState.isMoving || !state.dragMoveState.task) {
-      set({
-        dragMoveState: {
-          isMoving: false,
-          task: null,
-          startDate: null,
-          offsetDays: 0,
-        },
-      })
-      return
-    }
-
-    const task = state.dragMoveState.task
-    const offsetDays = state.dragMoveState.offsetDays
-
-    if (offsetDays !== 0) {
-      // 计算新的开始和结束日期
-      const newStartDate = new Date(task.startDate)
-      newStartDate.setDate(newStartDate.getDate() + offsetDays)
-      const newEndDate = new Date(task.endDate)
-      newEndDate.setDate(newEndDate.getDate() + offsetDays)
-
-      // 更新任务
-      state.updateTask(task.id, {
-        startDate: newStartDate,
-        endDate: newEndDate,
-      })
-    }
-
+    // 只需要清除拖拽状态,任务已经在拖拽过程中更新了
     set({
       dragMoveState: {
         isMoving: false,

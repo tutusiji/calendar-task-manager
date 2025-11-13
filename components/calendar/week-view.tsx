@@ -1,14 +1,12 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { TeamMemberRow } from "./team-member-row"
 
 export function WeekView() {
   const { currentDate, users, dragState, cancelDragCreate, hideWeekends, dragMoveState, endDragMove } = useCalendarStore()
-  const [showPlaceholder, setShowPlaceholder] = useState(false)
-  const placeholderTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
 
@@ -22,42 +20,12 @@ export function WeekView() {
       if (dragMoveState.isMoving) {
         // 结束拖拽移动
         endDragMove()
-        setShowPlaceholder(false)
-        if (placeholderTimerRef.current) {
-          clearTimeout(placeholderTimerRef.current)
-          placeholderTimerRef.current = null
-        }
       }
     }
 
     window.addEventListener('mouseup', handleGlobalMouseUp)
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
   }, [dragState.isCreating, dragMoveState.isMoving, cancelDragCreate, endDragMove])
-
-  // 监听 dragMoveState 变化，实现防抖逻辑
-  useEffect(() => {
-    // 清除之前的定时器
-    if (placeholderTimerRef.current) {
-      clearTimeout(placeholderTimerRef.current)
-      placeholderTimerRef.current = null
-    }
-
-    if (dragMoveState.isMoving && dragMoveState.offsetDays !== 0) {
-      // 如果正在拖拽且有偏移,200ms 后显示占位条
-      placeholderTimerRef.current = setTimeout(() => {
-        setShowPlaceholder(true)
-      }, 0)
-    } else {
-      // 如果停止拖拽或回到原位，立即隐藏占位条
-      setShowPlaceholder(false)
-    }
-
-    return () => {
-      if (placeholderTimerRef.current) {
-        clearTimeout(placeholderTimerRef.current)
-      }
-    }
-  }, [dragMoveState.isMoving, dragMoveState.offsetDays])
 
   return (
     <div className="flex h-full flex-col">
@@ -79,7 +47,7 @@ export function WeekView() {
       {/* Team member rows */}
       <div className="flex-1 overflow-y-auto">
         {users.map((user) => (
-          <TeamMemberRow key={user.id} user={user} weekDays={weekDays} showPlaceholder={showPlaceholder} />
+          <TeamMemberRow key={user.id} user={user} weekDays={weekDays} showPlaceholder={false} />
         ))}
       </div>
     </div>
