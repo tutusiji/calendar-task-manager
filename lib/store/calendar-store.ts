@@ -2,7 +2,7 @@
 
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
-import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationMode } from "../types"
+import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationMode, MainViewMode, ListGroupMode, ListLayoutColumns } from "../types"
 import { mockTasks, mockProjects, mockUsers, mockTeams } from "../mock-data-new"
 
 interface CalendarStore {
@@ -14,6 +14,9 @@ interface CalendarStore {
   currentUser: User
 
   // View state
+  mainViewMode: MainViewMode // "calendar" | "list" | "stats" 主视图模式
+  listGroupMode: ListGroupMode // "project" | "date" | "user" 清单分组模式
+  listLayoutColumns: ListLayoutColumns // 清单布局列数: 1 | 2 | 3 | 4
   viewMode: ViewMode // "month" | "week"
   navigationMode: NavigationMode // "my-days" | "team" | "project"
   selectedTeamId: string | null
@@ -68,6 +71,9 @@ interface CalendarStore {
   updateProject: (id: string, project: Partial<Project>) => void
   deleteProject: (id: string) => void
 
+  setMainViewMode: (mode: MainViewMode) => void // 设置主视图模式
+  setListGroupMode: (mode: ListGroupMode) => void // 设置清单分组模式
+  setListLayoutColumns: (columns: ListLayoutColumns) => void // 设置清单布局列数
   setViewMode: (mode: ViewMode) => void
   setNavigationMode: (mode: NavigationMode) => void
   setSelectedTeamId: (id: string | null) => void
@@ -123,6 +129,9 @@ export const useCalendarStore = create<CalendarStore>()(
       currentUser: mockUsers[0],
 
       // Initial view state
+      mainViewMode: "calendar", // 默认日历视图
+      listGroupMode: "date", // 默认按时间分组
+      listLayoutColumns: 2, // 默认2列布局
       viewMode: "month",
       navigationMode: "my-days",
       selectedTeamId: null,
@@ -203,6 +212,9 @@ export const useCalendarStore = create<CalendarStore>()(
       teams: state.teams.filter((team) => team.id !== id),
     })),
 
+  setMainViewMode: (mode) => set({ mainViewMode: mode }),
+  setListGroupMode: (mode) => set({ listGroupMode: mode }),
+  setListLayoutColumns: (columns) => set({ listLayoutColumns: columns }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setNavigationMode: (mode) => set({ navigationMode: mode, selectedTeamId: null, selectedProjectId: null }),
   setSelectedTeamId: (id) => set({ selectedTeamId: id }),
@@ -495,6 +507,9 @@ export const useCalendarStore = create<CalendarStore>()(
       storage: createJSONStorage(() => localStorage),
       // 只持久化需要的状态,不持久化 tasks/projects/users/teams 等数据
       partialize: (state) => ({
+        mainViewMode: state.mainViewMode,
+        listGroupMode: state.listGroupMode,
+        listLayoutColumns: state.listLayoutColumns,
         viewMode: state.viewMode,
         navigationMode: state.navigationMode,
         selectedProjectIds: state.selectedProjectIds,

@@ -46,3 +46,6 @@ export interface CalendarSettings {
 
 export type ViewMode = "month" | "week" | "personal"
 export type NavigationMode = "my-days" | "team" | "project"
+export type MainViewMode = "calendar" | "list" | "stats" // 主视图模式：日历 | 清单 | 统计
+export type ListGroupMode = "project" | "date" | "user" // 清单分组模式：按项目 | 按时间 | 按人头
+export type ListLayoutColumns = 1 | 2 | 3 | 4 // 清单布局列数

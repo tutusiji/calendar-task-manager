@@ -11,10 +11,13 @@ import { TaskEditPanel } from "@/components/task/task-edit-panel"
 import { MiniCalendar } from "@/components/sidebar/mini-calendar"
 import { NavigationMenu } from "@/components/sidebar/navigation-menu"
 import { UserMenu } from "@/components/user-menu"
+import { MainNavigation } from "@/components/navigation/main-navigation"
+import { ListView } from "@/components/views/list-view"
+import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 
 export default function Home() {
-  const { viewMode, navigationMode, taskCreation, closeTaskCreation, taskEdit, closeTaskEdit } = useCalendarStore()
+  const { viewMode, navigationMode, mainViewMode, taskCreation, closeTaskCreation, taskEdit, closeTaskEdit } = useCalendarStore()
 
   // 根据 navigationMode 决定渲染哪个视图
   const renderCalendarView = () => {
@@ -29,6 +32,34 @@ export default function Home() {
     } else {
       // Team 或 Project 下的周视图是团队多行视图
       return <WeekView />
+    }
+  }
+
+  // 根据主视图模式渲染不同内容
+  const renderMainContent = () => {
+    switch (mainViewMode) {
+      case "list":
+        return (
+          <>
+            <CalendarHeader />
+            <ListView />
+          </>
+        )
+      case "stats":
+        return (
+          <>
+            <CalendarHeader />
+            <StatsView />
+          </>
+        )
+      case "calendar":
+      default:
+        return (
+          <>
+            <CalendarHeader />
+            <div className="flex-1 overflow-hidden">{renderCalendarView()}</div>
+          </>
+        )
     }
   }
 
@@ -70,17 +101,22 @@ export default function Home() {
       </aside>
 
       <div className="flex flex-1 flex-col">
+        {/* Top Bar with Main Navigation and View Controls */}
         <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
-          <div className="flex-1"></div>
+          {/* Left: Main Navigation (日历/清单/统计) */}
+          <MainNavigation />
+          
+          {/* Right: View Toggle and User Menu */}
           <div className="flex items-center gap-4">
             <ViewToggle />
             <UserMenu />
           </div>
         </div>
 
-        <CalendarHeader />
-
-        <div className="flex-1 overflow-hidden">{renderCalendarView()}</div>
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {renderMainContent()}
+        </div>
       </div>
 
       {taskCreation.isOpen && taskCreation.startDate && taskCreation.endDate && (
