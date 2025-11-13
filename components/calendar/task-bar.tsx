@@ -12,9 +12,10 @@ interface TaskBarProps {
   date: Date
   track: number
   showUserInfo?: boolean // 是否显示用户头像和名字
+  isPersonalWeekView?: boolean // 是否是个人周视图
 }
 
-export function TaskBar({ task, date, track, showUserInfo = false }: TaskBarProps) {
+export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWeekView = false }: TaskBarProps) {
   const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState, getUserById } = useCalendarStore()
   const project = getProjectById(task.projectId)
   const user = getUserById(task.userId)
@@ -206,8 +207,10 @@ export function TaskBar({ task, date, track, showUserInfo = false }: TaskBarProp
         !isBeingDragged && dragMoveState.isMoving && "pointer-events-none",
       )}
       style={{
-        width: spanDays > 1 ? `calc(100% * ${spanDays} + 18px * ${spanDays - 1})` : '100%',
-        top: `${track * (TASK_HEIGHT + TASK_GAP)}px`,
+        width: isPersonalWeekView 
+          ? (spanDays > 1 ? `calc(100% * ${spanDays} - 7px * ${spanDays - 1})` : 'calc(100% - 15px)')
+          : (spanDays > 1 ? `calc(100% * ${spanDays} + 18px * ${spanDays - 1})` : '100%'),
+        top: `${track * (TASK_HEIGHT + TASK_GAP) + (isPersonalWeekView ? 4 : 0)}px`,
         height: `${TASK_HEIGHT}px`,
         zIndex: isBeingDragged ? 50 : 10,
       }}

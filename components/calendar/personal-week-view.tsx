@@ -113,7 +113,7 @@ export function PersonalWeekView() {
                 className="flex-1 border-r border-border p-2 last:border-r-0 relative select-none"
               >
                 {dayTasks.map((task) => (
-                  <TaskBar key={task.id} task={task} date={day} track={task.track} />
+                  <TaskBar key={task.id} task={task} date={day} track={task.track} isPersonalWeekView={true} />
                 ))}
               </div>
             )

@@ -4,91 +4,197 @@
 
 一个功能完善的现代化日历任务管理系统，支持个人、团队和项目三种视图模式，具备完整的任务管理、团队协作、拖拽调整等功能。基于 Next.js 14+ 和 React 19+ 构建，采用 TypeScript 提供类型安全保障。
 
-## 功能特性
+## ✨ 核心特性
 
-### 📅 日历视图
-- **月视图展示**：以月为单位展示所有任务
-- **智能任务布局**：使用栅格化算法自动排列任务，避免重叠
-- **跨天任务支持**：任务条可以跨越多天显示，自动计算宽度
-- **双击创建**：双击日历格子快速创建单天任务
-- **任务展开**：点击展开按钮查看某一天的所有任务详情
+### 📅 多视图日历系统
+- **月视图 (Month View)**：完整展示整月任务，支持跨天任务智能布局
+- **周视图 (Week View)**：
+  - **个人周视图**：单行显示个人任务，自动计算行高
+  - **团队周视图**：多行显示团队成员任务，每人一行
+- **智能导航**：My Days（个人）/ My Teams（团队）/ My Projects（项目）三级导航
+- **实时切换**：视图模式和导航模式自由切换，数据实时过滤
 
-### 📋 任务管理
-- **任务类型**：支持日常任务、会议、休假等多种类型
-- **任务编辑**：点击任务条快速编辑任务信息
-- **时间范围**：支持单天和跨天任务
-- **项目关联**：每个任务可以关联到特定项目
+### 🎯 任务管理
+- **拖拽创建**：在日历上拖拽选择日期范围快速创建任务
+- **拖拽移动**：直接拖拽任务条调整日期，实时预览无占位符
+- **任务类型**：
+  - 📋 日常任务 (Daily) - 蓝色
+  - 📞 会议 (Meeting) - 黄色
+  - 🏖️ 休假 (Vacation) - 红色
+- **跨天任务**：自动计算跨度，支持周截断显示
+- **任务详情**：
+  - 标题、描述、时间范围
+  - 开始/结束时间
+  - 负责人选择（带头像）
+  - 项目归属
+- **视觉效果**：
+  - 拖拽时显示重阴影效果
+  - 禁用其他任务交互防止干扰
+  - 松开鼠标不触发详情面板
 
-### 🎯 项目管理
-- **项目创建**：创建项目并设置颜色、描述、成员
-- **项目编辑**：编辑项目信息
-- **项目删除**：带二次确认的安全删除
-- **成员管理**：为项目添加或移除团队成员
+### 👥 团队协作
+- **团队管理**：
+  - 创建团队，设置名称、描述、颜色
+  - 多选成员添加到团队
+  - 查看团队所有成员的任务
+- **项目管理**：
+  - 创建项目，关联团队（可选）
+  - 多选项目成员
+  - 查看项目所有成员的任务
+- **权限可见性**：
+  - My Days：仅显示个人任务
+  - Team 模式：显示团队所有成员任务
+  - Project 模式：显示项目所有成员任务
+- **成员信息**：
+  - 月视图任务条显示负责人头像+姓名
+  - 周视图通过行区分成员
+  - DiceBear API 生成个性化头像
 
 ### 🎨 用户界面
-- **响应式设计**：自适应不同屏幕尺寸
-- **暗色模式支持**：基于系统主题自动切换
-- **流畅动画**：使用 Tailwind CSS 动画提升用户体验
-- **直观交互**：Hover 效果、下拉菜单、对话框等
+- **侧边栏导航**：
+  - 品牌 Logo 和标语
+  - 三级导航菜单（可折叠）
+  - 小日历（底部固定）
+- **顶部操作栏**：
+  - 月/周视图切换
+  - 用户信息下拉菜单
+- **操作菜单**：
+  - 团队/项目右侧三点菜单
+  - 编辑/删除选项
+  - 删除二次确认对话框
+- **响应式设计**：自适应布局
+- **暗色模式**：支持系统主题
+- **流畅动画**：Tailwind CSS 过渡效果
 
-## 技术栈
+### 🔧 高级功能
+- **智能布局算法**：任务自动分配轨道避免重叠
+- **周截断处理**：跨周任务在周一重新显示
+- **状态持久化**：视图偏好保存到 localStorage
+- **颜色选择器**：8 种预设颜色供团队/项目使用
+- **用户选择器**：
+  - 单选模式（任务负责人）
+  - 多选模式（团队/项目成员）
+  - 显示头像、姓名、邮箱
 
-### 前端框架
-- **Next.js 16.0.1**：React 框架，支持 SSR 和 Turbopack
-- **React 19.2.0**：最新的 React 版本
-- **TypeScript 5**：类型安全的 JavaScript
+## 🏗️ 技术栈
+
+### 核心框架
+- **Next.js 16.0.1** - React 全栈框架，支持 App Router 和 Turbopack
+- **React 19.0.2** - 最新 React 版本，支持并发特性
+- **TypeScript 5** - 类型安全的 JavaScript 超集
 
 ### 状态管理
-- **Zustand**：轻量级状态管理库
-- **Immer**：不可变状态更新
+- **Zustand 5.0.3** - 轻量级状态管理，基于 Hooks
+- **Zustand Middleware** - persist 中间件实现状态持久化
+- **Immer** - 内置支持不可变更新
 
-### UI 组件
-- **Radix UI**：无样式的可访问组件库
-  - Dialog、Dropdown Menu、Alert Dialog 等
-- **Lucide React**：现代化图标库
-- **Tailwind CSS 4.1.16**：实用优先的 CSS 框架
+### UI 框架和组件
+- **Tailwind CSS 4.1.16** - 实用优先的 CSS 框架
+- **Radix UI** - 无样式的可访问组件库
+  - `@radix-ui/react-dialog` - 对话框
+  - `@radix-ui/react-dropdown-menu` - 下拉菜单
+  - `@radix-ui/react-alert-dialog` - 警告对话框
+  - `@radix-ui/react-popover` - 弹出框
+  - `@radix-ui/react-select` - 选择器
+  - `@radix-ui/react-avatar` - 头像组件
+  - 等等...
+- **Lucide React 0.468.0** - 现代化图标库
+- **class-variance-authority** - 组件变体管理
+- **clsx & tailwind-merge** - 类名合并工具
 
 ### 工具库
-- **date-fns 4.1.0**：日期处理工具
-- **clsx & tailwind-merge**：类名管理
-- **class-variance-authority**：组件变体管理
+- **date-fns 4.1.0** - 现代化日期处理库
+- **next-themes 0.4.4** - Next.js 主题管理
 
-## 项目结构
+### 开发工具
+- **ESLint** - 代码检查
+- **TypeScript ESLint** - TypeScript 代码规范
+- **PostCSS** - CSS 后处理器
+
+## 📁 项目结构
 
 ```
 calendar-task-manager/
-├── app/                          # Next.js 应用目录
-│   ├── layout.tsx               # 根布局
-│   ├── page.tsx                 # 主页面
-│   └── globals.css              # 全局样式
-├── components/                   # React 组件
-│   ├── calendar/                # 日历相关组件
-│   │   ├── month-view.tsx      # 月视图主组件
-│   │   ├── calendar-day.tsx    # 单个日期格子
-│   │   └── task-bar.tsx        # 任务条组件
-│   ├── sidebar/                 # 侧边栏组件
-│   │   ├── project-list.tsx    # 项目列表
-│   │   ├── new-project-dialog.tsx   # 新建项目对话框
-│   │   └── edit-project-dialog.tsx  # 编辑项目对话框
-│   ├── task/                    # 任务相关组件
-│   │   ├── task-creation-panel.tsx  # 任务创建面板
-│   │   └── task-edit-panel.tsx      # 任务编辑面板
-│   └── ui/                      # 通用 UI 组件
-│       ├── button.tsx
-│       ├── dialog.tsx
-│       ├── dropdown-menu.tsx
-│       └── ...
-├── lib/                         # 工具函数和类型
+├── app/                                # Next.js App Router
+│   ├── layout.tsx                     # 根布局，主题提供者
+│   ├── page.tsx                       # 主页面，布局和视图路由
+│   └── globals.css                    # 全局样式和 Tailwind 指令
+│
+├── components/                         # React 组件库
+│   ├── calendar/                      # 日历核心组件
+│   │   ├── calendar-header.tsx       # 日历头部（月份导航）
+│   │   ├── month-view.tsx            # 月视图容器
+│   │   ├── week-view.tsx             # 团队周视图（多行）
+│   │   ├── personal-week-view.tsx    # 个人周视图（单行）
+│   │   ├── calendar-day.tsx          # 单个日期格子
+│   │   ├── task-bar.tsx              # 任务条（支持拖拽、跨天）
+│   │   ├── team-member-row.tsx       # 周视图团队成员行
+│   │   └── view-toggle.tsx           # 月/周视图切换按钮
+│   │
+│   ├── sidebar/                       # 侧边栏组件
+│   │   ├── navigation-menu.tsx       # 三级导航菜单
+│   │   ├── mini-calendar.tsx         # 小日历
+│   │   ├── team-dialog.tsx           # 团队创建/编辑对话框
+│   │   ├── project-dialog.tsx        # 项目创建/编辑对话框
+│   │   ├── new-project-dialog.tsx    # (已废弃)
+│   │   └── edit-project-dialog.tsx   # (已废弃)
+│   │
+│   ├── task/                          # 任务管理组件
+│   │   ├── task-detail-panel.tsx     # 任务创建面板
+│   │   ├── task-edit-panel.tsx       # 任务编辑面板
+│   │   ├── user-selector.tsx         # 单选用户组件
+│   │   └── user-multi-selector.tsx   # 多选用户组件
+│   │
+│   ├── ui/                            # 基础 UI 组件（shadcn/ui）
+│   │   ├── button.tsx                # 按钮
+│   │   ├── dialog.tsx                # 对话框
+│   │   ├── dropdown-menu.tsx         # 下拉菜单
+│   │   ├── alert-dialog.tsx          # 警告对话框
+│   │   ├── popover.tsx               # 弹出框
+│   │   ├── select.tsx                # 选择器
+│   │   ├── input.tsx                 # 输入框
+│   │   ├── textarea.tsx              # 文本域
+│   │   ├── label.tsx                 # 标签
+│   │   ├── avatar.tsx                # 头像
+│   │   ├── badge.tsx                 # 徽章
+│   │   ├── checkbox.tsx              # 复选框
+│   │   ├── calendar.tsx              # 日历选择器
+│   │   └── ...                       # 其他 UI 组件
+│   │
+│   ├── theme-provider.tsx            # 主题提供者组件
+│   └── user-menu.tsx                 # 用户下拉菜单
+│
+├── lib/                               # 工具库和业务逻辑
 │   ├── store/
-│   │   └── calendar-store.ts   # Zustand 状态管理
-│   ├── types.ts                 # TypeScript 类型定义
-│   ├── mock-data.ts            # 模拟数据
-│   └── utils/
-│       └── date-utils.ts       # 日期工具函数
-├── package.json                 # 项目依赖
-├── tsconfig.json               # TypeScript 配置
-├── tailwind.config.ts          # Tailwind 配置
-└── next.config.mjs             # Next.js 配置
+│   │   └── calendar-store.ts         # Zustand 全局状态管理
+│   │
+│   ├── utils/
+│   │   ├── date-utils.ts             # 日期处理工具函数
+│   │   └── task-layout.ts            # 任务布局算法
+│   │
+│   ├── types.ts                       # TypeScript 类型定义
+│   ├── mock-data-new.ts              # 模拟数据（用户、团队、项目、任务）
+│   ├── mock-data.ts                  # (旧版模拟数据)
+│   └── utils.ts                       # 通用工具函数（cn 等）
+│
+├── hooks/                             # 自定义 React Hooks
+│   ├── use-mobile.ts                 # 移动端检测
+│   └── use-toast.ts                  # Toast 通知
+│
+├── public/                            # 静态资源
+│   └── logo.png                      # Logo 图片
+│
+├── styles/                            # 样式文件
+│   └── globals.css                   # (可能重复)
+│
+├── components.json                    # shadcn/ui 配置
+├── next.config.mjs                   # Next.js 配置
+├── tailwind.config.js                # Tailwind CSS 配置
+├── tsconfig.json                     # TypeScript 配置
+├── postcss.config.mjs                # PostCSS 配置
+├── package.json                      # 项目依赖和脚本
+├── pnpm-lock.yaml                    # pnpm 锁定文件
+└── README.md                         # 项目文档
 ```
 
 ## 核心架构设计

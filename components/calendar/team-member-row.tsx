@@ -281,7 +281,7 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
                       !isBeingDragged && dragMoveState.isMoving && "pointer-events-none",
                     )}
                     style={{
-                      width: spanDays > 1 ? `calc(100% * ${spanDays} - 6px * ${spanDays - 1})` : '100%',
+                      width: spanDays > 1 ? `calc(100% * ${spanDays} - 6px * ${spanDays - 1})` : 'calc(100% - 15px)',
                       top: `${task.track * (TASK_HEIGHT + TASK_GAP) + 4}px`,
                       height: `${TASK_HEIGHT}px`,
                       zIndex: isBeingDragged ? 50 : 10,
