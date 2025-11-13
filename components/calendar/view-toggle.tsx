@@ -1,6 +1,6 @@
 "use client"
 
-import { Users, User } from "lucide-react"
+import { CalendarDays, CalendarRange } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { cn } from "@/lib/utils"
@@ -13,20 +13,20 @@ export function ViewToggle() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setViewMode("personal")}
-        className={cn("gap-2", viewMode === "personal" && "bg-background shadow-sm")}
+        onClick={() => setViewMode("month")}
+        className={cn("gap-2", viewMode === "month" && "bg-background shadow-sm")}
       >
-        <User className="h-4 w-4" />
-        个人视图
+        <CalendarDays className="h-4 w-4" />
+        月视图
       </Button>
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setViewMode("team")}
-        className={cn("gap-2", viewMode === "team" && "bg-background shadow-sm")}
+        onClick={() => setViewMode("week")}
+        className={cn("gap-2", viewMode === "week" && "bg-background shadow-sm")}
       >
-        <Users className="h-4 w-4" />
-        团队视图
+        <CalendarRange className="h-4 w-4" />
+        周视图
       </Button>
     </div>
   )

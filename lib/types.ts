@@ -13,12 +13,22 @@ export interface Task {
   userId: string
 }
 
+export interface Team {
+  id: string
+  name: string
+  description?: string
+  color: string
+  memberIds: string[]
+  createdAt: Date
+}
+
 export interface Project {
   id: string
   name: string
   description?: string
   color: string
   memberIds: string[]
+  teamId?: string // 项目可以属于某个团队
   createdAt: Date
 }
 
@@ -33,3 +43,6 @@ export interface CalendarSettings {
   rememberLastProject: boolean
   lastSelectedProjectId?: string
 }
+
+export type ViewMode = "month" | "week"
+export type NavigationMode = "my-days" | "team" | "project"

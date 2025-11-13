@@ -2,21 +2,25 @@
 
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
-import type { Task, Project, User, CalendarSettings } from "../types"
-import { mockTasks, mockProjects, mockUsers } from "../mock-data"
+import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationMode } from "../types"
+import { mockTasks, mockProjects, mockUsers, mockTeams } from "../mock-data-new"
 
 interface CalendarStore {
   // Data
   tasks: Task[]
   projects: Project[]
   users: User[]
+  teams: Team[]
   currentUser: User
 
   // View state
-  viewMode: "personal" | "team"
+  viewMode: ViewMode // "month" | "week"
+  navigationMode: NavigationMode // "my-days" | "team" | "project"
+  selectedTeamId: string | null
+  selectedProjectId: string | null
   currentDate: Date
   selectedDate: Date | null
-  selectedProjectIds: string[] // 选中的项目ID列表，空数组表示显示所有项目
+  selectedProjectIds: string[] // 选中的项目ID列表，用于过滤
   hideWeekends: boolean // 是否隐藏周末（周六日）
 
   dragState: {
@@ -55,11 +59,18 @@ interface CalendarStore {
   updateTask: (id: string, task: Partial<Task>) => void
   deleteTask: (id: string) => void
 
+  addTeam: (team: Team) => void
+  updateTeam: (id: string, team: Partial<Team>) => void
+  deleteTeam: (id: string) => void
+
   addProject: (project: Project) => void
   updateProject: (id: string, project: Partial<Project>) => void
   deleteProject: (id: string) => void
 
-  setViewMode: (mode: "personal" | "team") => void
+  setViewMode: (mode: ViewMode) => void
+  setNavigationMode: (mode: NavigationMode) => void
+  setSelectedTeamId: (id: string | null) => void
+  setSelectedProjectId: (id: string | null) => void
   setCurrentDate: (date: Date) => void
   setSelectedDate: (date: Date | null) => void
   toggleWeekends: () => void // 切换周末显示/隐藏
@@ -86,12 +97,16 @@ interface CalendarStore {
   openTaskEdit: (task: Task) => void
   closeTaskEdit: () => void
 
+  openTeamCreation: () => void
+  openProjectCreation: () => void
+
   updateSettings: (settings: Partial<CalendarSettings>) => void
 
   // Helpers
   getTasksForDate: (date: Date) => Task[]
   getTasksForDateRange: (startDate: Date, endDate: Date) => Task[]
   getProjectById: (id: string) => Project | undefined
+  getTeamById: (id: string) => Team | undefined
   getUserById: (id: string) => User | undefined
 }
 
@@ -102,10 +117,14 @@ export const useCalendarStore = create<CalendarStore>()(
       tasks: mockTasks,
       projects: mockProjects,
       users: mockUsers,
+      teams: mockTeams,
       currentUser: mockUsers[0],
 
       // Initial view state
-      viewMode: "personal",
+      viewMode: "month",
+      navigationMode: "my-days",
+      selectedTeamId: null,
+      selectedProjectId: null,
       currentDate: new Date(),
       selectedDate: null,
       selectedProjectIds: mockProjects.map(p => p.id), // 默认选中所有项目
@@ -169,7 +188,22 @@ export const useCalendarStore = create<CalendarStore>()(
       projects: state.projects.filter((project) => project.id !== id),
     })),
 
+  addTeam: (team) => set((state) => ({ teams: [...state.teams, team] })),
+
+  updateTeam: (id, updatedTeam) =>
+    set((state) => ({
+      teams: state.teams.map((team) => (team.id === id ? { ...team, ...updatedTeam } : team)),
+    })),
+
+  deleteTeam: (id) =>
+    set((state) => ({
+      teams: state.teams.filter((team) => team.id !== id),
+    })),
+
   setViewMode: (mode) => set({ viewMode: mode }),
+  setNavigationMode: (mode) => set({ navigationMode: mode, selectedTeamId: null, selectedProjectId: null }),
+  setSelectedTeamId: (id) => set({ selectedTeamId: id }),
+  setSelectedProjectId: (id) => set({ selectedProjectId: id }),
   setCurrentDate: (date) => set({ currentDate: date }),
   setSelectedDate: (date) => set({ selectedDate: date }),
   toggleWeekends: () => set((state) => ({ hideWeekends: !state.hideWeekends })),
@@ -388,6 +422,16 @@ export const useCalendarStore = create<CalendarStore>()(
       },
     }),
 
+  openTeamCreation: () => {
+    // TODO: 实现团队创建对话框
+    console.log("Open team creation dialog")
+  },
+
+  openProjectCreation: () => {
+    // TODO: 实现项目创建对话框
+    console.log("Open project creation dialog")
+  },
+
   updateSettings: (newSettings) =>
     set((state) => ({
       settings: { ...state.settings, ...newSettings },
@@ -432,19 +476,28 @@ export const useCalendarStore = create<CalendarStore>()(
     return state.projects.find((project) => project.id === id)
   },
 
+  getTeamById: (id) => {
+    const state = get()
+    return state.teams.find((team) => team.id === id)
+  },
+
   getUserById: (id) => {
     const state = get()
     return state.users.find((user) => user.id === id)
   },
     }),
     {
-      name: 'calendar-storage', // localStorage key
+      name: 'calendar-storage-v2', // localStorage key (changed to reset old data)
       storage: createJSONStorage(() => localStorage),
-      // 只持久化需要的状态
+      // 只持久化需要的状态,不持久化 tasks/projects/users/teams 等数据
       partialize: (state) => ({
         viewMode: state.viewMode,
+        navigationMode: state.navigationMode,
         selectedProjectIds: state.selectedProjectIds,
+        selectedTeamId: state.selectedTeamId,
+        selectedProjectId: state.selectedProjectId,
         hideWeekends: state.hideWeekends,
+        settings: state.settings,
       }),
     }
   )

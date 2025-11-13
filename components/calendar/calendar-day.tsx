@@ -16,6 +16,7 @@ interface CalendarDayProps {
   onExpand: () => void
   expandedRef?: React.RefObject<HTMLDivElement | null>
   tasksWithTracks: TaskWithTrack[]
+  showUserInfo?: boolean // 是否在任务条显示用户信息
 }
 
 export function CalendarDay({
@@ -28,6 +29,7 @@ export function CalendarDay({
   onExpand,
   expandedRef,
   tasksWithTracks: allTasksWithTracks,
+  showUserInfo = false,
 }: CalendarDayProps) {
   const { startDragCreate, updateDragCreate, endDragCreate, dragState, openTaskCreation, dragMoveState, updateDragMove } =
     useCalendarStore()
@@ -147,7 +149,7 @@ export function CalendarDay({
         className="relative overflow-visible"
       >
         {visibleTasks.map((task) => (
-          <TaskBar key={task.id} task={task} date={date} track={task.track} />
+          <TaskBar key={task.id} task={task} date={date} track={task.track} showUserInfo={showUserInfo} />
         ))}
       </div>
 

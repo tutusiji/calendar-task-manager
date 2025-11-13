@@ -44,7 +44,7 @@ export function MiniCalendar() {
   const weekDays = ["一", "二", "三", "四", "五", "六", "日"]
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="bg-card p-4">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">

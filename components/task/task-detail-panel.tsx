@@ -14,6 +14,7 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
+import { UserSelector } from "./user-selector"
 
 interface TaskDetailPanelProps {
   startDate: Date
@@ -32,6 +33,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
   const [projectId, setProjectId] = useState(settings.lastSelectedProjectId || "personal")
   const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
   const [showNewProject, setShowNewProject] = useState(false)
+  const [assigneeId, setAssigneeId] = useState(taskCreation.userId || currentUser.id) // 负责人ID
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,7 +50,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
       endTime: endTime || undefined,
       type: taskType,
       projectId,
-      userId: taskCreation.userId || currentUser.id, // 优先使用指定的userId，否则使用当前用户
+      userId: assigneeId, // 使用选择的负责人ID
     }
 
     addTask(newTask)
@@ -202,6 +204,15 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Assignee */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">负责人</Label>
+            <UserSelector 
+              selectedUserId={assigneeId} 
+              onUserChange={setAssigneeId}
+            />
           </div>
 
           {/* Project */}

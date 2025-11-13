@@ -13,6 +13,7 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Task, TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
+import { UserSelector } from "./user-selector"
 
 interface TaskEditPanelProps {
   task: Task
@@ -28,6 +29,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   const [endTime, setEndTime] = useState(task.endTime || "")
   const [taskType, setTaskType] = useState<TaskType>(task.type)
   const [projectId, setProjectId] = useState(task.projectId)
+  const [assigneeId, setAssigneeId] = useState(task.userId) // 负责人ID
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,6 +43,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
       endTime: endTime || undefined,
       type: taskType,
       projectId,
+      userId: assigneeId, // 更新负责人
     })
 
     onClose()
@@ -199,6 +202,15 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Assignee */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">负责人</Label>
+            <UserSelector 
+              selectedUserId={assigneeId} 
+              onUserChange={setAssigneeId}
+            />
           </div>
 
           {/* Project */}

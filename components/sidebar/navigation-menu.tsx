@@ -1,0 +1,338 @@
+"use client"
+
+import { useState } from "react"
+import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2 } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useCalendarStore } from "@/lib/store/calendar-store"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { TeamDialog } from "./team-dialog"
+import { ProjectDialog } from "./project-dialog"
+import type { Team, Project } from "@/lib/types"
+
+export function NavigationMenu() {
+  const { 
+    navigationMode, 
+    setNavigationMode, 
+    selectedTeamId, 
+    setSelectedTeamId,
+    selectedProjectId,
+    setSelectedProjectId,
+    teams,
+    projects,
+    deleteTeam,
+    deleteProject,
+  } = useCalendarStore()
+  
+  const [teamsExpanded, setTeamsExpanded] = useState(true)
+  const [projectsExpanded, setProjectsExpanded] = useState(true)
+  
+  // 对话框状态
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false)
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false)
+  const [editingTeam, setEditingTeam] = useState<Team | undefined>()
+  const [editingProject, setEditingProject] = useState<Project | undefined>()
+  
+  // 删除确认对话框状态
+  const [deleteTeamConfirm, setDeleteTeamConfirm] = useState<Team | null>(null)
+  const [deleteProjectConfirm, setDeleteProjectConfirm] = useState<Project | null>(null)
+
+  const handleCreateTeam = () => {
+    setEditingTeam(undefined)
+    setTeamDialogOpen(true)
+  }
+
+  const handleEditTeam = (team: Team) => {
+    setEditingTeam(team)
+    setTeamDialogOpen(true)
+  }
+
+  const handleDeleteTeam = (team: Team) => {
+    setDeleteTeamConfirm(team)
+  }
+
+  const confirmDeleteTeam = () => {
+    if (deleteTeamConfirm) {
+      deleteTeam(deleteTeamConfirm.id)
+      if (selectedTeamId === deleteTeamConfirm.id) {
+        setNavigationMode("my-days")
+        setSelectedTeamId(null)
+      }
+      setDeleteTeamConfirm(null)
+    }
+  }
+
+  const handleCreateProject = () => {
+    setEditingProject(undefined)
+    setProjectDialogOpen(true)
+  }
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project)
+    setProjectDialogOpen(true)
+  }
+
+  const handleDeleteProject = (project: Project) => {
+    setDeleteProjectConfirm(project)
+  }
+
+  const confirmDeleteProject = () => {
+    if (deleteProjectConfirm) {
+      deleteProject(deleteProjectConfirm.id)
+      if (selectedProjectId === deleteProjectConfirm.id) {
+        setNavigationMode("my-days")
+        setSelectedProjectId(null)
+      }
+      setDeleteProjectConfirm(null)
+    }
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-1 py-4">
+        {/* My Days */}
+        <button
+          onClick={() => setNavigationMode("my-days")}
+          className={cn(
+            "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50 rounded-md mx-2",
+            navigationMode === "my-days" && !selectedTeamId && !selectedProjectId && "bg-muted"
+          )}
+        >
+          <Calendar className="h-4 w-4" />
+          <span>My Days</span>
+        </button>
+
+        {/* My Teams */}
+        <div>
+          <div className="flex items-center gap-2 px-4 py-2 mx-2">
+            <button
+              onClick={() => setTeamsExpanded(!teamsExpanded)}
+              className="flex items-center gap-2 flex-1 text-sm font-medium hover:bg-muted/50 rounded-md p-1"
+            >
+              {teamsExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+              <Users className="h-4 w-4" />
+              <span>My Teams</span>
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={handleCreateTeam}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {teamsExpanded && (
+            <div className="ml-6 mt-1 space-y-1">
+              {teams.map((team) => (
+                <div
+                  key={team.id}
+                  className="group flex items-center gap-2 pr-2"
+                >
+                  <button
+                    onClick={() => {
+                      setNavigationMode("team")
+                      setSelectedTeamId(team.id)
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
+                      navigationMode === "team" && selectedTeamId === team.id && "bg-muted"
+                    )}
+                  >
+                    <div
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: team.color }}
+                    />
+                    <span className="truncate">{team.name}</span>
+                  </button>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEditTeam(team)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        <span>编辑</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteTeam(team)}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>删除</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* My Projects */}
+        <div>
+          <div className="flex items-center gap-2 px-4 py-2 mx-2">
+            <button
+              onClick={() => setProjectsExpanded(!projectsExpanded)}
+              className="flex items-center gap-2 flex-1 text-sm font-medium hover:bg-muted/50 rounded-md p-1"
+            >
+              {projectsExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+              <FolderKanban className="h-4 w-4" />
+              <span>My Projects</span>
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={handleCreateProject}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {projectsExpanded && (
+            <div className="ml-6 mt-1 space-y-1">
+              {projects.map((project) => (
+                <div
+                  key={project.id}
+                  className="group flex items-center gap-2 pr-2"
+                >
+                  <button
+                    onClick={() => {
+                      setNavigationMode("project")
+                      setSelectedProjectId(project.id)
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
+                      navigationMode === "project" && selectedProjectId === project.id && "bg-muted"
+                    )}
+                  >
+                    <div
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: project.color }}
+                    />
+                    <span className="truncate">{project.name}</span>
+                  </button>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        <span>编辑</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteProject(project)}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>删除</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 团队对话框 */}
+      {teamDialogOpen && (
+        <TeamDialog
+          team={editingTeam}
+          onClose={() => {
+            setTeamDialogOpen(false)
+            setEditingTeam(undefined)
+          }}
+        />
+      )}
+
+      {/* 项目对话框 */}
+      {projectDialogOpen && (
+        <ProjectDialog
+          project={editingProject}
+          onClose={() => {
+            setProjectDialogOpen(false)
+            setEditingProject(undefined)
+          }}
+        />
+      )}
+
+      {/* 删除团队确认对话框 */}
+      <AlertDialog open={!!deleteTeamConfirm} onOpenChange={(open) => !open && setDeleteTeamConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除团队</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除团队 "{deleteTeamConfirm?.name}" 吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTeam} className="bg-red-600 hover:bg-red-700">
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 删除项目确认对话框 */}
+      <AlertDialog open={!!deleteProjectConfirm} onOpenChange={(open) => !open && setDeleteProjectConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除项目</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除项目 "{deleteProjectConfirm?.name}" 吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteProject} className="bg-red-600 hover:bg-red-700">
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}

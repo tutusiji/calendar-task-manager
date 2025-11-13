@@ -1,14 +1,45 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { TeamMemberRow } from "./team-member-row"
 
 export function WeekView() {
-  const { currentDate, users, dragState, cancelDragCreate, hideWeekends, dragMoveState, endDragMove } = useCalendarStore()
+  const { 
+    currentDate, 
+    users, 
+    dragState, 
+    cancelDragCreate, 
+    hideWeekends, 
+    dragMoveState, 
+    endDragMove,
+    navigationMode,
+    selectedTeamId,
+    selectedProjectId,
+    getTeamById,
+    getProjectById,
+  } = useCalendarStore()
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
+
+  // 根据当前导航模式过滤要显示的用户
+  const displayUsers = useMemo(() => {
+    if (navigationMode === "team" && selectedTeamId) {
+      const team = getTeamById(selectedTeamId)
+      if (team) {
+        return users.filter(user => team.memberIds.includes(user.id))
+      }
+    } else if (navigationMode === "project" && selectedProjectId) {
+      const project = getProjectById(selectedProjectId)
+      if (project) {
+        return users.filter(user => project.memberIds.includes(user.id))
+      }
+    }
+    
+    // 默认显示所有用户
+    return users
+  }, [navigationMode, selectedTeamId, selectedProjectId, users, getTeamById, getProjectById])
 
   // 全局 mouseup 事件处理，防止拖拽状态未清除
   useEffect(() => {
@@ -46,7 +77,7 @@ export function WeekView() {
 
       {/* Team member rows */}
       <div className="flex-1 overflow-y-auto">
-        {users.map((user) => (
+        {displayUsers.map((user) => (
           <TeamMemberRow key={user.id} user={user} weekDays={weekDays} showPlaceholder={false} />
         ))}
       </div>

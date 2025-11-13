@@ -5,16 +5,19 @@ import type React from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Task } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface TaskBarProps {
   task: Task
   date: Date
   track: number
+  showUserInfo?: boolean // 是否显示用户头像和名字
 }
 
-export function TaskBar({ task, date, track }: TaskBarProps) {
-  const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState } = useCalendarStore()
+export function TaskBar({ task, date, track, showUserInfo = false }: TaskBarProps) {
+  const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState, getUserById } = useCalendarStore()
   const project = getProjectById(task.projectId)
+  const user = getUserById(task.userId)
 
   // 判断当前任务是否正在被拖拽
   const isBeingDragged = dragMoveState.isMoving && dragMoveState.task?.id === task.id
@@ -184,6 +187,11 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
   const TASK_HEIGHT = 24 // 任务条高度 (px)
   const TASK_GAP = 4 // 任务条间距 (px)
 
+  // 获取用户名首字母
+  const getUserInitial = (name: string) => {
+    return name.charAt(0).toUpperCase()
+  }
+
   return (
     <div
       onMouseDown={handleMouseDown}
@@ -205,6 +213,18 @@ export function TaskBar({ task, date, track }: TaskBarProps) {
       }}
     >
       <div className="flex items-center gap-1 truncate">
+        {showUserInfo && user && (
+          <>
+            <Avatar className="h-4 w-4 shrink-0 border border-white/30">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback className="bg-white/20 text-[8px] text-white">
+                {getUserInitial(user.name)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="shrink-0 font-semibold">{user.name}</span>
+            <span className="opacity-60">|</span>
+          </>
+        )}
         {task.startTime && <span className="text-[10px] opacity-90">{task.startTime}</span>}
         <span className="truncate">{task.title}</span>
       </div>

@@ -7,7 +7,21 @@ import { CalendarDay } from "./calendar-day"
 import { assignTaskTracks, type TaskWithTrack } from "@/lib/utils/task-layout"
 
 export function MonthView() {
-  const { currentDate, dragState, dragMoveState, tasks, selectedProjectIds, hideWeekends, endDragMove } = useCalendarStore()
+  const { 
+    currentDate, 
+    dragState, 
+    dragMoveState, 
+    tasks, 
+    selectedProjectIds, 
+    hideWeekends, 
+    endDragMove,
+    navigationMode,
+    selectedTeamId,
+    selectedProjectId,
+    currentUser,
+    getTeamById,
+    getProjectById,
+  } = useCalendarStore()
   const [expandedDate, setExpandedDate] = useState<Date | null>(null)
   const expandedRef = useRef<HTMLDivElement | null>(null)
 
@@ -30,14 +44,53 @@ export function MonthView() {
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
   }, [dragMoveState.isMoving, endDragMove])
 
-  // 根据选中的项目过滤任务
+  // 根据导航模式过滤任务
   const filteredTasks = useMemo(() => {
-    // 如果没有选中任何项目，则不显示任何任务
+    // My Days 模式：只显示当前用户在选中项目中的任务
+    if (navigationMode === "my-days") {
+      if (selectedProjectIds.length === 0) {
+        return []
+      }
+      return tasks.filter(task => 
+        selectedProjectIds.includes(task.projectId) && 
+        task.userId === currentUser.id
+      )
+    }
+    
+    // 团队模式：显示团队所有成员的任务
+    if (navigationMode === "team" && selectedTeamId) {
+      const team = getTeamById(selectedTeamId)
+      if (team) {
+        return tasks.filter(task => team.memberIds.includes(task.userId))
+      }
+    }
+    
+    // 项目模式：显示项目所有成员的任务
+    if (navigationMode === "project" && selectedProjectId) {
+      const project = getProjectById(selectedProjectId)
+      if (project) {
+        return tasks.filter(task => 
+          task.projectId === selectedProjectId &&
+          project.memberIds.includes(task.userId)
+        )
+      }
+    }
+    
+    // 默认：根据选中的项目过滤（向后兼容）
     if (selectedProjectIds.length === 0) {
       return []
     }
     return tasks.filter(task => selectedProjectIds.includes(task.projectId))
-  }, [tasks, selectedProjectIds])
+  }, [
+    tasks, 
+    navigationMode, 
+    selectedTeamId, 
+    selectedProjectId, 
+    selectedProjectIds, 
+    currentUser.id,
+    getTeamById,
+    getProjectById
+  ])
 
   // 将日期按周分组
   const weeks = useMemo(() => {
@@ -139,6 +192,9 @@ export function MonthView() {
     return checkDate >= start && checkDate <= end
   }
 
+  // 判断是否需要显示用户信息（团队或项目模式下显示）
+  const shouldShowUserInfo = navigationMode === "team" || navigationMode === "project"
+
   return (
     <div className="flex h-full flex-col relative">
       {/* Week day headers */}
@@ -176,6 +232,7 @@ export function MonthView() {
                   isExpanded={!!isExpanded}
                   isDragTarget={isDragTarget}
                   showPlaceholder={false}
+                  showUserInfo={shouldShowUserInfo}
                   onExpand={() => setExpandedDate(isExpanded ? null : day)}
                   expandedRef={isExpanded ? expandedRef : undefined}
                   tasksWithTracks={week.tasks}
