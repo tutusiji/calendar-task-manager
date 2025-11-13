@@ -15,7 +15,7 @@ interface TeamMemberRowProps {
 }
 
 export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRowProps) {
-  const { tasks, openTaskEdit, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, dragState, selectedProjectIds, dragMoveState, updateDragMove, startDragMove } = useCalendarStore()
+  const { tasks, openTaskEdit, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, dragState, selectedProjectIds, dragMoveState, updateDragMove, startDragMove, taskBarSize } = useCalendarStore()
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
   // 根据选中的项目过滤任务
@@ -178,7 +178,7 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
     openTaskEdit(task)
   }
 
-  const TASK_HEIGHT = 24
+  const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30 // 紧凑型24px, 宽松型30px
   const TASK_GAP = 4
   const rowHeight = Math.max(120, 60 + maxTrack * (TASK_HEIGHT + TASK_GAP))
 
@@ -272,7 +272,8 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
                       startDragMove(task, day)
                     }}
                     className={cn(
-                      "task-bar absolute px-2 py-1 text-xs font-medium text-white transition-all",
+                      "task-bar absolute px-2 py-1 font-medium text-white transition-all",
+                      taskBarSize === "compact" ? "text-xs" : "text-sm",
                       getTaskColor(task.type),
                       roundedClass,
                       // 拖拽样式

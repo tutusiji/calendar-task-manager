@@ -44,5 +44,5 @@ export interface CalendarSettings {
   lastSelectedProjectId?: string
 }
 
-export type ViewMode = "month" | "week"
+export type ViewMode = "month" | "week" | "personal"
 export type NavigationMode = "my-days" | "team" | "project"

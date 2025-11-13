@@ -16,7 +16,7 @@ interface TaskBarProps {
 }
 
 export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWeekView = false }: TaskBarProps) {
-  const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState, getUserById } = useCalendarStore()
+  const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState, getUserById, taskBarSize } = useCalendarStore()
   const project = getProjectById(task.projectId)
   const user = getUserById(task.userId)
 
@@ -185,8 +185,13 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
     }
   }
 
-  const TASK_HEIGHT = 24 // 任务条高度 (px)
+  const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30 // 任务条高度 (px): 紧凑型24px, 宽松型30px
   const TASK_GAP = 4 // 任务条间距 (px)
+  
+  // 根据 taskBarSize 动态设置样式
+  const avatarSizeClass = taskBarSize === "compact" ? "h-4 w-4" : "h-5 w-5"
+  const textSizeClass = taskBarSize === "compact" ? "text-xs" : "text-sm"
+  const avatarFallbackTextSize = taskBarSize === "compact" ? "text-[8px]" : "text-[10px]"
 
   // 获取用户名首字母
   const getUserInitial = (name: string) => {
@@ -198,7 +203,8 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       className={cn(
-        "task-bar group absolute px-2 py-1 text-xs font-medium text-white transition-all",
+        "task-bar group absolute px-2 py-1 font-medium text-white transition-all",
+        textSizeClass,
         getTaskColor(),
         getRoundedClass(),
         // 拖拽样式
@@ -218,9 +224,9 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
       <div className="flex items-center gap-1 truncate">
         {showUserInfo && user && (
           <>
-            <Avatar className="h-4 w-4 shrink-0 border border-white/30">
+            <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30")}>
               <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="bg-white/20 text-[8px] text-white">
+              <AvatarFallback className={cn("bg-white/20 text-white", avatarFallbackTextSize)}>
                 {getUserInitial(user.name)}
               </AvatarFallback>
             </Avatar>

@@ -21,6 +21,7 @@ export function MonthView() {
     currentUser,
     getTeamById,
     getProjectById,
+    taskBarSize,
   } = useCalendarStore()
   const [expandedDate, setExpandedDate] = useState<Date | null>(null)
   const expandedRef = useRef<HTMLDivElement | null>(null)
@@ -133,6 +134,8 @@ export function MonthView() {
 
   // 计算每周的最大轨道数（用于设置行高）
   const weekHeights = useMemo(() => {
+    const TASK_HEIGHT = taskBarSize === "compact" ? 28 : 34 // 紧凑型28px, 宽松型34px (28+6)
+    
     return weeksWithTracks.map(week => {
       let maxTrack = 0
       
@@ -155,14 +158,13 @@ export function MonthView() {
         }
       })
       
-      // 最小高度180px，每个轨道28px
-      const TASK_HEIGHT = 28
+      // 最小高度180px，每个轨道根据taskBarSize动态计算
       const BASE_HEIGHT = 180
       const calculatedHeight = Math.max(BASE_HEIGHT, 80 + maxTrack * TASK_HEIGHT)
       
       return calculatedHeight
     })
-  }, [weeksWithTracks])
+  }, [weeksWithTracks, taskBarSize])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

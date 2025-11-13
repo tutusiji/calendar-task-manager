@@ -7,7 +7,7 @@ import { assignTaskTracks } from "@/lib/utils/task-layout"
 import { TaskBar } from "./task-bar"
 
 export function PersonalWeekView() {
-  const { currentDate, currentUser, tasks, selectedProjectIds, hideWeekends, dragState, dragMoveState, cancelDragCreate, endDragMove } = useCalendarStore()
+  const { currentDate, currentUser, tasks, selectedProjectIds, hideWeekends, dragState, dragMoveState, cancelDragCreate, endDragMove, taskBarSize } = useCalendarStore()
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
 
@@ -85,9 +85,8 @@ export function PersonalWeekView() {
     return Math.max(...weekTasks.map(t => t.track)) + 1
   }, [tasksWithTracks, weekDays])
 
-  const TASK_HEIGHT = 24
+  const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30 // 紧凑型24px, 宽松型30px
   const TASK_GAP = 4
-  const rowHeight = Math.max(120, 60 + maxTrack * (TASK_HEIGHT + TASK_GAP))
 
   return (
     <div className="flex h-full flex-col">
@@ -101,24 +100,22 @@ export function PersonalWeekView() {
         ))}
       </div>
 
-      {/* Single row for current user's tasks */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="flex border-b border-border hover:bg-muted/30 transition-colors" style={{ minHeight: `${rowHeight}px` }}>
-          {weekDays.map((day, index) => {
-            const dayTasks = getTasksToRenderForDay(day, index)
+      {/* Single row for current user's tasks - 撑满剩余空间 */}
+      <div className="flex flex-1 border-b border-border hover:bg-muted/30 transition-colors">
+        {weekDays.map((day, index) => {
+          const dayTasks = getTasksToRenderForDay(day, index)
 
-            return (
-              <div 
-                key={index} 
-                className="flex-1 border-r border-border p-2 last:border-r-0 relative select-none"
-              >
-                {dayTasks.map((task) => (
-                  <TaskBar key={task.id} task={task} date={day} track={task.track} isPersonalWeekView={true} />
-                ))}
-              </div>
-            )
-          })}
-        </div>
+          return (
+            <div 
+              key={index} 
+              className="flex-1 border-r border-border p-2 last:border-r-0 relative select-none"
+            >
+              {dayTasks.map((task) => (
+                <TaskBar key={task.id} task={task} date={day} track={task.track} isPersonalWeekView={true} />
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

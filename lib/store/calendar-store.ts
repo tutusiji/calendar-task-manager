@@ -22,6 +22,7 @@ interface CalendarStore {
   selectedDate: Date | null
   selectedProjectIds: string[] // 选中的项目ID列表，用于过滤
   hideWeekends: boolean // 是否隐藏周末（周六日）
+  taskBarSize: "compact" | "comfortable" // 任务条大小：紧凑型 | 宽松型
 
   dragState: {
     isCreating: boolean
@@ -74,6 +75,7 @@ interface CalendarStore {
   setCurrentDate: (date: Date) => void
   setSelectedDate: (date: Date | null) => void
   toggleWeekends: () => void // 切换周末显示/隐藏
+  setTaskBarSize: (size: "compact" | "comfortable") => void // 设置任务条大小
 
   // 项目过滤
   toggleProjectFilter: (projectId: string) => void
@@ -129,6 +131,7 @@ export const useCalendarStore = create<CalendarStore>()(
       selectedDate: null,
       selectedProjectIds: mockProjects.map(p => p.id), // 默认选中所有项目
       hideWeekends: false, // 默认显示周末
+      taskBarSize: "compact", // 默认紧凑型
 
       dragState: {
         isCreating: false,
@@ -207,6 +210,7 @@ export const useCalendarStore = create<CalendarStore>()(
   setCurrentDate: (date) => set({ currentDate: date }),
   setSelectedDate: (date) => set({ selectedDate: date }),
   toggleWeekends: () => set((state) => ({ hideWeekends: !state.hideWeekends })),
+  setTaskBarSize: (size) => set({ taskBarSize: size }),
 
   // 项目过滤方法
   toggleProjectFilter: (projectId) =>
@@ -497,6 +501,7 @@ export const useCalendarStore = create<CalendarStore>()(
         selectedTeamId: state.selectedTeamId,
         selectedProjectId: state.selectedProjectId,
         hideWeekends: state.hideWeekends,
+        taskBarSize: state.taskBarSize,
         settings: state.settings,
       }),
     }

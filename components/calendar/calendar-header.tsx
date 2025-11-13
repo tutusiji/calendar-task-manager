@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getMonthName } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
+import { TaskSizeToggle } from "./task-size-toggle"
 
 export function CalendarHeader() {
   const { currentDate, setCurrentDate, viewMode, hideWeekends, toggleWeekends } = useCalendarStore()
@@ -72,6 +73,8 @@ export function CalendarHeader() {
       </div>
 
       <div className="flex items-center gap-2">
+        <TaskSizeToggle />
+        
         <Button 
           variant="outline" 
           size="icon"
