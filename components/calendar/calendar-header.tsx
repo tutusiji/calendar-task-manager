@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, Calendar, CalendarDays } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar,CalendarMinus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getMonthName } from "@/lib/utils/date-utils"
@@ -103,7 +103,7 @@ export function CalendarHeader() {
             )}
             title={hideWeekends ? "显示周末" : "隐藏周末"}
           >
-            <CalendarDays className="h-4 w-4" />
+            <CalendarMinus className="h-4 w-4" />
           </Button>
         )}
 
