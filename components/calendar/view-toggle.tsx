@@ -17,7 +17,7 @@ export function ViewToggle() {
         className={cn("gap-2", viewMode === "month" && "bg-background shadow-sm")}
       >
         <CalendarDays className="h-4 w-4" />
-        月视图
+        看月度
       </Button>
       <Button
         variant="ghost"
@@ -26,7 +26,7 @@ export function ViewToggle() {
         className={cn("gap-2", viewMode === "week" && "bg-background shadow-sm")}
       >
         <CalendarRange className="h-4 w-4" />
-        周视图
+        看周度
       </Button>
     </div>
   )
