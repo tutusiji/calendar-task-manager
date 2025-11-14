@@ -189,7 +189,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
   const TASK_GAP = 4 // 任务条间距 (px)
   
   // 根据 taskBarSize 动态设置样式
-  const avatarSizeClass = taskBarSize === "compact" ? "h-4 w-4" : "h-5 w-5"
+  const avatarSizeClass = taskBarSize === "compact" ? "h-4 w-4" : "h-[22px] w-[22px]"
   const textSizeClass = taskBarSize === "compact" ? "text-xs" : "text-sm"
   const avatarFallbackTextSize = taskBarSize === "compact" ? "text-[8px]" : "text-[10px]"
 
@@ -203,7 +203,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       className={cn(
-        "task-bar group absolute px-2 py-1 font-medium text-white transition-all",
+        "task-bar group absolute px-1 font-medium text-white transition-all",
         textSizeClass,
         getTaskColor(),
         getRoundedClass(),
@@ -221,10 +221,10 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
         zIndex: isBeingDragged ? 50 : 10,
       }}
     >
-      <div className="flex items-center gap-1 truncate">
+      <div className="flex items-center gap-1 truncate h-full">
         {showUserInfo && user && (
           <>
-            <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30")}>
+            <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white")}>
               <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback className={cn("bg-white/20 text-white", avatarFallbackTextSize)}>
                 {getUserInitial(user.name)}

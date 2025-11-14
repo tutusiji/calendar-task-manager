@@ -221,7 +221,7 @@ export function ListView() {
 
   return (
     <div className="flex h-full flex-col bg-muted/30">
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 pb-24">
         {groupedTasks.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">

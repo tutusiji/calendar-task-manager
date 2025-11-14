@@ -26,6 +26,10 @@ export function MiniCalendar() {
     setMiniDate(newDate)
   }
 
+  const goToToday = () => {
+    setMiniDate(new Date())
+  }
+
   const hasTasksOnDate = (date: Date) => {
     return tasks.some((task) => {
       const taskStart = new Date(task.startDate)
@@ -51,6 +55,15 @@ export function MiniCalendar() {
           {getMonthName(miniDate.getMonth())} {miniDate.getFullYear()}
         </h3>
         <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 text-xs font-medium" 
+            onClick={goToToday}
+            title="返回今天"
+          >
+            今
+          </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={goToPreviousMonth}>
             <ChevronLeft className="h-3 w-3" />
           </Button>
