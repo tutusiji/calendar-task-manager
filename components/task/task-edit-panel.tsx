@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Task, TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
@@ -25,6 +26,10 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
 
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description || "")
+  const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>({
+    from: new Date(task.startDate),
+    to: new Date(task.endDate),
+  })
   const [startTime, setStartTime] = useState(task.startTime || "")
   const [endTime, setEndTime] = useState(task.endTime || "")
   const [taskType, setTaskType] = useState<TaskType>(task.type)
@@ -34,11 +39,13 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title.trim()) return
+    if (!title.trim() || !dateRange.from) return
 
     updateTask(task.id, {
       title: title.trim(),
       description: description.trim() || undefined,
+      startDate: dateRange.from,
+      endDate: dateRange.to || dateRange.from,
       startTime: startTime || undefined,
       endTime: endTime || undefined,
       type: taskType,
@@ -67,8 +74,9 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
     }
   }
 
-  const daysDiff =
-    Math.ceil((new Date(task.endDate).getTime() - new Date(task.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+  const daysDiff = dateRange.to
+    ? Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    : 1
 
   // Escape 关闭：仅在挂载期添加监听，避免重复绑定
   useEffect(() => {
@@ -134,16 +142,11 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
           {/* Date Range */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">时间范围</Label>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
-              <span className="text-foreground">{formatDate(new Date(task.startDate))}</span>
-              {daysDiff > 1 && (
-                <>
-                  <span className="text-muted-foreground">至</span>
-                  <span className="text-foreground">{formatDate(new Date(task.endDate))}</span>
-                  <span className="ml-auto text-muted-foreground">({daysDiff} 天)</span>
-                </>
-              )}
-            </div>
+            <DateRangePicker
+              value={dateRange}
+              onChange={(range) => range && setDateRange(range)}
+              className="w-full"
+            />
           </div>
 
           {/* Time */}
@@ -240,7 +243,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
             <Button type="button" variant="outline" onClick={onClose} className="flex-1 bg-transparent">
               取消
             </Button>
-            <Button type="submit" className="flex-1" disabled={!title.trim()}>
+            <Button type="submit" className="flex-1" disabled={!title.trim() || !dateRange.from}>
               保存更改
             </Button>
           </div>
