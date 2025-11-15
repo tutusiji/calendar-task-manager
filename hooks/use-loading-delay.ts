@@ -3,7 +3,7 @@
  * @param minDuration 最小持续时间（毫秒），默认 1200ms
  * @returns 返回一个函数，用于延迟关闭 loading
  */
-export function useLoadingDelay(minDuration: number = 1200) {
+export function useLoadingDelay(minDuration: number = 800) {
   let startTime: number | null = null
 
   const start = () => {
