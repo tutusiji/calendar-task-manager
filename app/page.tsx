@@ -15,6 +15,7 @@ import { NavigationMenu } from "@/components/sidebar/navigation-menu"
 import { UserMenu } from "@/components/user-menu"
 import { MainNavigation } from "@/components/navigation/main-navigation"
 import { SpaceSwitcher } from "@/components/space-switcher"
+import { NotificationBell } from "@/components/notification-bell"
 import { ListView } from "@/components/views/list-view"
 import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
@@ -180,9 +181,10 @@ export default function Home() {
             <MainNavigation />
           </div>
           
-          {/* Right: View Toggle and User Menu */}
+          {/* Right: View Toggle, Notification Bell and User Menu */}
           <div className="flex items-center gap-4">
             <ViewToggle />
+            <NotificationBell />
             <UserMenu />
           </div>
         </div>

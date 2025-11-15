@@ -4,6 +4,42 @@ export type TaskPermission = "ALL_MEMBERS" | "CREATOR_ONLY"
 
 export type OrgMemberRole = "OWNER" | "ADMIN" | "MEMBER"
 
+export type NotificationType = 
+  | "ORG_JOIN_REQUEST"
+  | "ORG_JOIN_APPROVED"
+  | "ORG_JOIN_REJECTED"
+  | "TASK_CREATED"
+  | "TASK_UPDATED"
+  | "TASK_DELETED"
+  | "TASK_ASSIGNED"
+
+export type JoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED"
+
+export interface Notification {
+  id: string
+  userId: string
+  type: NotificationType
+  title: string
+  content: string
+  metadata?: Record<string, any>
+  isRead: boolean
+  createdAt: Date
+  readAt?: Date
+}
+
+export interface OrganizationJoinRequest {
+  id: string
+  organizationId: string
+  applicantId: string
+  status: JoinRequestStatus
+  message?: string
+  handledBy?: string
+  handledAt?: Date
+  rejectReason?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface Organization {
   id: string
   name: string
