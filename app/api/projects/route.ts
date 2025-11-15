@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { authenticate } from '@/lib/middleware'
 
-// GET /api/projects - 获取项目列表
+// GET /api/projects - 获取当前用户可访问的项目列表
 export async function GET(request: NextRequest) {
   try {
+    const auth = await authenticate(request)
+    if (auth.error) return auth.error
+
     const { searchParams } = new URL(request.url)
     const teamId = searchParams.get('teamId')
 
-    const where: any = {}
+    // 只获取用户是成员的项目
+    const where: any = {
+      members: {
+        some: {
+          userId: auth.userId
+        }
+      }
+    }
+    
     if (teamId) {
       where.teamId = teamId
     }
@@ -32,6 +44,14 @@ export async function GET(request: NextRequest) {
                 avatar: true
               }
             }
+          }
+        },
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true
           }
         },
         _count: {

@@ -328,9 +328,9 @@ export const projectAPI = {
   /**
    * 退出项目
    */
-  async leave(projectId: string, userId: string): Promise<void> {
-    return fetchAPI<void>(`/projects/${projectId}/members/${userId}`, {
-      method: 'DELETE',
+  async leave(projectId: string): Promise<void> {
+    return fetchAPI<void>(`/projects/${projectId}/leave`, {
+      method: 'POST',
     })
   },
 }
@@ -393,9 +393,9 @@ export const teamAPI = {
   /**
    * 退出团队
    */
-  async leave(teamId: string, userId: string): Promise<void> {
-    return fetchAPI<void>(`/teams/${teamId}/members/${userId}`, {
-      method: 'DELETE',
+  async leave(teamId: string): Promise<void> {
+    return fetchAPI<void>(`/teams/${teamId}/leave`, {
+      method: 'POST',
     })
   },
 }

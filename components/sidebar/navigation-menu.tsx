@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown } from "lucide-react"
+import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
@@ -38,6 +39,8 @@ export function NavigationMenu() {
     currentUser,
     deleteTeam,
     deleteProject,
+    leaveTeam,
+    leaveProject,
   } = useCalendarStore()
   
   const [teamsExpanded, setTeamsExpanded] = useState(true)
@@ -47,7 +50,9 @@ export function NavigationMenu() {
   const [teamDialogOpen, setTeamDialogOpen] = useState(false)
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | undefined>()
+  const [viewingTeam, setViewingTeam] = useState<Team | undefined>()
   const [editingProject, setEditingProject] = useState<Project | undefined>()
+  const [viewingProject, setViewingProject] = useState<Project | undefined>()
   
   // 过滤当前用户的项目，个人事务项目置顶
   const myProjects = currentUser 
@@ -66,19 +71,44 @@ export function NavigationMenu() {
   // 删除确认对话框状态
   const [deleteTeamConfirm, setDeleteTeamConfirm] = useState<Team | null>(null)
   const [deleteProjectConfirm, setDeleteProjectConfirm] = useState<Project | null>(null)
+  // 退出确认对话框状态
+  const [leaveTeamConfirm, setLeaveTeamConfirm] = useState<Team | null>(null)
+  const [leaveProjectConfirm, setLeaveProjectConfirm] = useState<Project | null>(null)
+
+  // 检查是否可以管理团队（创建者或超管）
+  const canManageTeam = (team: Team) => {
+    return team.creatorId === currentUser?.id || currentUser?.isAdmin
+  }
+
+  // 检查是否可以管理项目（创建者或超管）
+  const canManageProject = (project: Project) => {
+    return project.creatorId === currentUser?.id || currentUser?.isAdmin
+  }
 
   const handleCreateTeam = () => {
     setEditingTeam(undefined)
+    setViewingTeam(undefined)
     setTeamDialogOpen(true)
   }
 
   const handleEditTeam = (team: Team) => {
     setEditingTeam(team)
+    setViewingTeam(undefined)
+    setTeamDialogOpen(true)
+  }
+
+  const handleViewTeam = (team: Team) => {
+    setViewingTeam(team)
+    setEditingTeam(undefined)
     setTeamDialogOpen(true)
   }
 
   const handleDeleteTeam = (team: Team) => {
     setDeleteTeamConfirm(team)
+  }
+
+  const handleLeaveTeam = (team: Team) => {
+    setLeaveTeamConfirm(team)
   }
 
   const confirmDeleteTeam = () => {
@@ -92,18 +122,41 @@ export function NavigationMenu() {
     }
   }
 
+  const confirmLeaveTeam = async () => {
+    if (leaveTeamConfirm) {
+      await leaveTeam(leaveTeamConfirm.id)
+      if (selectedTeamId === leaveTeamConfirm.id) {
+        setNavigationMode("my-days")
+        setSelectedTeamId(null)
+      }
+      setLeaveTeamConfirm(null)
+    }
+  }
+
   const handleCreateProject = () => {
     setEditingProject(undefined)
+    setViewingProject(undefined)
     setProjectDialogOpen(true)
   }
 
   const handleEditProject = (project: Project) => {
     setEditingProject(project)
+    setViewingProject(undefined)
+    setProjectDialogOpen(true)
+  }
+
+  const handleViewProject = (project: Project) => {
+    setViewingProject(project)
+    setEditingProject(undefined)
     setProjectDialogOpen(true)
   }
 
   const handleDeleteProject = (project: Project) => {
     setDeleteProjectConfirm(project)
+  }
+
+  const handleLeaveProject = (project: Project) => {
+    setLeaveProjectConfirm(project)
   }
 
   const confirmDeleteProject = () => {
@@ -114,6 +167,17 @@ export function NavigationMenu() {
         setSelectedProjectId(null)
       }
       setDeleteProjectConfirm(null)
+    }
+  }
+
+  const confirmLeaveProject = async () => {
+    if (leaveProjectConfirm) {
+      await leaveProject(leaveProjectConfirm.id)
+      if (selectedProjectId === leaveProjectConfirm.id) {
+        setNavigationMode("my-days")
+        setSelectedProjectId(null)
+      }
+      setLeaveProjectConfirm(null)
     }
   }
 
@@ -196,17 +260,36 @@ export function NavigationMenu() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditTeam(team)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        <span>编辑</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteTeam(team)}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        <span>删除</span>
-                      </DropdownMenuItem>
+                      {canManageTeam(team) ? (
+                        <>
+                          <DropdownMenuItem onClick={() => handleEditTeam(team)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>编辑</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteTeam(team)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>删除</span>
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <>
+                          <DropdownMenuItem onClick={() => handleViewTeam(team)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            <span>查看</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleLeaveTeam(team)}
+                            className="text-orange-600 focus:text-orange-600"
+                          >
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>退出</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -281,17 +364,36 @@ export function NavigationMenu() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          <span>编辑</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteProject(project)}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>删除</span>
-                        </DropdownMenuItem>
+                        {canManageProject(project) ? (
+                          <>
+                            <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              <span>编辑</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteProject(project)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>删除</span>
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <>
+                            <DropdownMenuItem onClick={() => handleViewProject(project)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              <span>查看</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleLeaveProject(project)}
+                              className="text-orange-600 focus:text-orange-600"
+                            >
+                              <LogOut className="mr-2 h-4 w-4" />
+                              <span>退出</span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -305,10 +407,12 @@ export function NavigationMenu() {
       {/* 团队对话框 */}
       {teamDialogOpen && (
         <TeamDialog
-          team={editingTeam}
+          team={editingTeam || viewingTeam}
+          viewOnly={!!viewingTeam}
           onClose={() => {
             setTeamDialogOpen(false)
             setEditingTeam(undefined)
+            setViewingTeam(undefined)
           }}
         />
       )}
@@ -316,10 +420,12 @@ export function NavigationMenu() {
       {/* 项目对话框 */}
       {projectDialogOpen && (
         <ProjectDialog
-          project={editingProject}
+          project={editingProject || viewingProject}
+          viewOnly={!!viewingProject}
           onClose={() => {
             setProjectDialogOpen(false)
             setEditingProject(undefined)
+            setViewingProject(undefined)
           }}
         />
       )}
@@ -348,13 +454,49 @@ export function NavigationMenu() {
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除项目</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除项目 "{deleteProjectConfirm?.name}" 吗？此操作无法撤销。
+              确定要删除项目 "{deleteProjectConfirm?.name}" 吗?此操作无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteProject} className="bg-red-600 hover:bg-red-700">
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 退出团队确认对话框 */}
+      <AlertDialog open={!!leaveTeamConfirm} onOpenChange={(open) => !open && setLeaveTeamConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认退出团队</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要退出团队 "{leaveTeamConfirm?.name}" 吗?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmLeaveTeam} className="bg-orange-600 hover:bg-orange-700">
+              退出
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 退出项目确认对话框 */}
+      <AlertDialog open={!!leaveProjectConfirm} onOpenChange={(open) => !open && setLeaveProjectConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认退出项目</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要退出项目 "{leaveProjectConfirm?.name}" 吗?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmLeaveProject} className="bg-orange-600 hover:bg-orange-700">
+              退出
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

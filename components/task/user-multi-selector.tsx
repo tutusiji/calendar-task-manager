@@ -17,9 +17,10 @@ interface UserMultiSelectorProps {
   selectedUserIds: string[]
   onUserChange: (userIds: string[]) => void
   lockedUserIds?: string[] // 不可移除的用户ID列表
+  creatorId?: string // 创建者ID，用于显示标签
 }
 
-export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [] }: UserMultiSelectorProps) {
+export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [], creatorId }: UserMultiSelectorProps) {
   const { users, getUserById } = useCalendarStore()
   const [open, setOpen] = useState(false)
 
@@ -55,7 +56,7 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-start min-h-[40px] h-auto px-3 py-2"
+          className="w-full justify-start min-h-10 h-auto px-3 py-2"
         >
           <div className="flex flex-wrap gap-1 flex-1">
             {selectedUserIds.length === 0 ? (
@@ -122,7 +123,7 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
                 <div className="flex-1 text-left">
                   <div className="font-medium">
                     {user.name}
-                    {isLocked && <span className="ml-1 text-xs text-muted-foreground">(创建者)</span>}
+                    {creatorId === user.id && <span className="ml-1 text-xs text-muted-foreground">(创建者)</span>}
                   </div>
                   <div className="text-xs text-muted-foreground">{user.email}</div>
                 </div>

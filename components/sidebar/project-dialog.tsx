@@ -14,6 +14,7 @@ import { UserSingleSelector } from "../task/user-single-selector"
 
 interface ProjectDialogProps {
   project?: Project // 如果提供则为编辑模式
+  viewOnly?: boolean // 只读模式
   onClose: () => void
 }
 
@@ -29,7 +30,7 @@ const PRESET_COLORS = [
   "#f97316", // amber
 ]
 
-export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
+export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDialogProps) {
   const { addProject, updateProject, teams, currentUser, users } = useCalendarStore()
   
   const [name, setName] = useState(project?.name || "")
@@ -49,7 +50,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
   const isEditMode = !!project
   // 判断当前用户是否是创建者或超级管理员
   const isCreator = currentUser?.id === project?.creatorId
-  const canEditCreator = isCreator || currentUser?.isAdmin
+  const canEditCreator = (isCreator || currentUser?.isAdmin) && !viewOnly
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,7 +112,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-semibold text-foreground">
-            {isEditMode ? "编辑项目" : "新建项目"}
+            {viewOnly ? "查看项目" : isEditMode ? "编辑项目" : "新建项目"}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -123,15 +124,16 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
           {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
-              项目名称 <span className="text-red-500">*</span>
+              项目名称 {!viewOnly && <span className="text-red-500">*</span>}
             </Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="输入项目名称"
-              autoFocus
-              required
+              autoFocus={!viewOnly}
+              required={!viewOnly}
+              disabled={viewOnly}
             />
           </div>
 
@@ -146,6 +148,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="添加项目描述（可选）"
               rows={3}
+              disabled={viewOnly}
             />
           </div>
 
@@ -157,8 +160,9 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
                 <button
                   key={presetColor}
                   type="button"
-                  onClick={() => setColor(presetColor)}
-                  className="h-8 w-8 rounded-full border-2 transition-all hover:scale-110"
+                  onClick={() => !viewOnly && setColor(presetColor)}
+                  disabled={viewOnly}
+                  className="h-8 w-8 rounded-full border-2 transition-all hover:scale-110 disabled:cursor-not-allowed disabled:hover:scale-100"
                   style={{
                     backgroundColor: presetColor,
                     borderColor: color === presetColor ? presetColor : "transparent",
@@ -177,7 +181,11 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
               <Label htmlFor="team" className="text-sm font-medium">
                 归属团队（可选）
               </Label>
-              <Select value={teamId || "none"} onValueChange={(value) => setTeamId(value === "none" ? undefined : value)}>
+              <Select 
+                value={teamId || "none"} 
+                onValueChange={(value) => setTeamId(value === "none" ? undefined : value)}
+                disabled={viewOnly}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="选择团队" />
                 </SelectTrigger>
@@ -204,7 +212,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
                 <UserSingleSelector
                   selectedUserId={creatorId}
                   onUserChange={setCreatorId}
-                  disabled={!canEditCreator}
+                  disabled={!canEditCreator || viewOnly}
                   placeholder="选择创建人"
                 />
               </div>
@@ -214,23 +222,26 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
           {/* Members */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
-              项目成员 <span className="text-red-500">*</span>
+              项目成员 {!viewOnly && <span className="text-red-500">*</span>}
             </Label>
             <UserMultiSelector 
               selectedUserIds={memberIds}
               onUserChange={setMemberIds}
-              lockedUserIds={[creatorId]} // 创建者不可移除
+              lockedUserIds={viewOnly ? memberIds : [creatorId]} // 查看模式下所有成员都锁定
+              creatorId={creatorId} // 传入创建者ID用于显示标签
             />
           </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              取消
+              {viewOnly ? "关闭" : "取消"}
             </Button>
-            <Button type="submit">
-              {isEditMode ? "保存" : "创建"}
-            </Button>
+            {!viewOnly && (
+              <Button type="submit">
+                {isEditMode ? "保存" : "创建"}
+              </Button>
+            )}
           </div>
         </form>
       </div>

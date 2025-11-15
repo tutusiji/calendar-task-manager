@@ -13,6 +13,7 @@ import { UserSingleSelector } from "../task/user-single-selector"
 
 interface TeamDialogProps {
   team?: Team // 如果提供则为编辑模式
+  viewOnly?: boolean // 是否为查看模式
   onClose: () => void
 }
 
@@ -28,7 +29,7 @@ const PRESET_COLORS = [
   "#f97316", // amber
 ]
 
-export function TeamDialog({ team, onClose }: TeamDialogProps) {
+export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps) {
   const { addTeam, updateTeam, currentUser, users } = useCalendarStore()
   
   const [name, setName] = useState(team?.name || "")
@@ -107,7 +108,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-semibold text-foreground">
-            {isEditMode ? "编辑团队" : "新建团队"}
+            {viewOnly ? "查看团队" : isEditMode ? "编辑团队" : "新建团队"}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -127,6 +128,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
               onChange={(e) => setName(e.target.value)}
               placeholder="输入团队名称"
               autoFocus
+              disabled={viewOnly}
               required
             />
           </div>
@@ -142,6 +144,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="添加团队描述（可选）"
               rows={3}
+              disabled={viewOnly}
             />
           </div>
 
@@ -161,6 +164,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
                     boxShadow: color === presetColor ? `0 0 0 2px white, 0 0 0 4px ${presetColor}` : "none",
                   }}
                   title={presetColor}
+                  disabled={viewOnly}
                 />
               ))}
             </div>
@@ -175,7 +179,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
               <UserSingleSelector
                 selectedUserId={creatorId}
                 onUserChange={setCreatorId}
-                disabled={!canEditCreator}
+                disabled={viewOnly || !canEditCreator}
                 placeholder="选择创建人"
               />
             </div>
@@ -189,18 +193,21 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
             <UserMultiSelector 
               selectedUserIds={memberIds}
               onUserChange={setMemberIds}
-              lockedUserIds={[creatorId]} // 创建者不可移除
+              lockedUserIds={viewOnly ? memberIds : [creatorId]} // 查看模式锁定所有成员,编辑模式锁定创建者
+              creatorId={creatorId} // 传入创建者ID用于显示标签
             />
           </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              取消
+              {viewOnly ? "关闭" : "取消"}
             </Button>
-            <Button type="submit">
-              {isEditMode ? "保存" : "创建"}
-            </Button>
+            {!viewOnly && (
+              <Button type="submit">
+                {isEditMode ? "保存" : "创建"}
+              </Button>
+            )}
           </div>
         </form>
       </div>

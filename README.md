@@ -136,8 +136,6 @@ calendar-task-manager/
 │   │   ├── mini-calendar.tsx         # 小日历
 │   │   ├── team-dialog.tsx           # 团队创建/编辑对话框
 │   │   ├── project-dialog.tsx        # 项目创建/编辑对话框
-│   │   ├── new-project-dialog.tsx    # (已废弃)
-│   │   └── edit-project-dialog.tsx   # (已废弃)
 │   │
 │   ├── task/                          # 任务管理组件
 │   │   ├── task-detail-panel.tsx     # 任务创建面板

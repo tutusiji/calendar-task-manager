@@ -89,6 +89,8 @@ interface CalendarStore {
   addProject: (project: Omit<Project, 'id' | 'createdAt'> & { memberIds: string[] }) => Promise<void>
   updateProject: (id: string, project: Partial<Project> & { memberIds?: string[] }) => Promise<void>
   deleteProject: (id: string) => Promise<void>
+  leaveProject: (id: string) => Promise<void>
+  leaveTeam: (id: string) => Promise<void>
 
   setMainViewMode: (mode: MainViewMode) => void // 设置主视图模式
   setListGroupMode: (mode: ListGroupMode) => void // 设置清单分组模式
@@ -441,6 +443,22 @@ export const useCalendarStore = create<CalendarStore>()(
     }
   },
 
+  leaveProject: async (id) => {
+    try {
+      await projectAPI.leave(id)
+      
+      // 重新获取项目列表以确保数据同步
+      await get().fetchProjects()
+      
+      showToast.success('退出成功', '已退出项目')
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      showToast.error('退出失败', errorMsg)
+      throw error
+    }
+  },
+
   addTeam: async (team) => {
     try {
       const newTeam = await teamAPI.create(team as any)
@@ -485,6 +503,22 @@ export const useCalendarStore = create<CalendarStore>()(
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg })
       showToast.error('删除失败', errorMsg)
+      throw error
+    }
+  },
+
+  leaveTeam: async (id) => {
+    try {
+      await teamAPI.leave(id)
+      
+      // 重新获取团队列表以确保数据同步
+      await get().fetchTeams()
+      
+      showToast.success('退出成功', '已退出团队')
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      showToast.error('退出失败', errorMsg)
       throw error
     }
   },

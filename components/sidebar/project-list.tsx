@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Circle } from "lucide-react"
+import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Circle, Eye, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { ProjectDialog } from "./project-dialog"
@@ -11,6 +11,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
@@ -25,16 +26,30 @@ import {
 import type { Project } from "@/lib/types"
 
 export function ProjectList() {
-  const { projects, deleteProject, selectedProjectIds, toggleProjectFilter, selectAllProjects } = useCalendarStore()
+  const { projects, deleteProject, leaveProject, selectedProjectIds, toggleProjectFilter, selectAllProjects, currentUser } = useCalendarStore()
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [viewingProject, setViewingProject] = useState<Project | null>(null)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
+  const [leavingProject, setLeavingProject] = useState<Project | null>(null)
 
   const handleDelete = () => {
     if (deletingProject) {
       deleteProject(deletingProject.id)
       setDeletingProject(null)
     }
+  }
+
+  const handleLeave = () => {
+    if (leavingProject) {
+      leaveProject(leavingProject.id)
+      setLeavingProject(null)
+    }
+  }
+
+  // 检查用户是否可以编辑/删除项目（创建者或超管）
+  const canManageProject = (project: Project) => {
+    return project.creatorId === currentUser?.id || currentUser?.isAdmin
   }
 
   // 判断是否选中所有项目
@@ -117,27 +132,56 @@ export function ProjectList() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuItem 
-                    className="cursor-pointer" 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setEditingProject(project)
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 cursor-pointer" />
-                    编辑
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="cursor-pointer" 
-                    variant="destructive" 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDeletingProject(project)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    删除
-                  </DropdownMenuItem>
+                  {canManageProject(project) ? (
+                    <>
+                      <DropdownMenuItem 
+                        className="cursor-pointer" 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingProject(project)
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        编辑
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="cursor-pointer" 
+                        variant="destructive" 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeletingProject(project)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        删除
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem 
+                        className="cursor-pointer" 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setViewingProject(project)
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                        查看
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        className="cursor-pointer" 
+                        variant="destructive" 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setLeavingProject(project)
+                        }}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        退出
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -146,16 +190,19 @@ export function ProjectList() {
       </div>
 
       {/* 统一的项目弹窗 */}
-      {(projectDialogOpen || editingProject) && (
+      {(projectDialogOpen || editingProject || viewingProject) && (
         <ProjectDialog 
-          project={editingProject || undefined}
+          project={editingProject || viewingProject || undefined}
+          viewOnly={!!viewingProject}
           onClose={() => {
             setProjectDialogOpen(false)
             setEditingProject(null)
+            setViewingProject(null)
           }} 
         />
       )}
 
+      {/* 删除确认对话框 */}
       <AlertDialog open={!!deletingProject} onOpenChange={(open) => !open && setDeletingProject(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -168,6 +215,24 @@ export function ProjectList() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 退出确认对话框 */}
+      <AlertDialog open={!!leavingProject} onOpenChange={(open) => !open && setLeavingProject(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认退出项目</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要退出项目 "{leavingProject?.name}" 吗？退出后将无法查看该项目的任务。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLeave} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              确认退出
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

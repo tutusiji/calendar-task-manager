@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { authenticate } from '@/lib/middleware'
 
-// GET /api/teams - 获取团队列表
-export async function GET() {
+// GET /api/teams - 获取当前用户可访问的团队列表
+export async function GET(request: NextRequest) {
   try {
+    const auth = await authenticate(request)
+    if (auth.error) return auth.error
+
+    // 只获取用户是成员的团队
     const teams = await prisma.team.findMany({
+      where: {
+        members: {
+          some: {
+            userId: auth.userId
+          }
+        }
+      },
       include: {
         members: {
           include: {
@@ -23,6 +35,14 @@ export async function GET() {
             id: true,
             name: true,
             color: true
+          }
+        },
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true
           }
         },
         _count: {
