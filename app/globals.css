@@ -3,6 +3,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: 'MomoLite';
+  src: url('/momo-lite.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NailaoLite';
+  src: url('/nailao-lite.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

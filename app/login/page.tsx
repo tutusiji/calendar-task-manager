@@ -141,7 +141,7 @@ export default function AuthPage() {
           <h1 className="text-3xl font-bold bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent">
             OxHorse Planner
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">牛马日记 —— 打工人必备的轻量任务管理工具</p>
+          <p className="mt-2 text-sm text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>牛马日记 —— 打工人必备的轻量任务管理工具</p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">

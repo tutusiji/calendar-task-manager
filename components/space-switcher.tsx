@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { ChevronRight, Check } from "lucide-react"
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ interface Organization {
 }
 
 export function SpaceSwitcher() {
+  const router = useRouter()
   const { toast } = useToast()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
@@ -100,18 +102,20 @@ export function SpaceSwitcher() {
         
         toast({
           title: "已切换空间",
-          description: "页面将刷新以加载新空间的数据",
+          description: "正在加载新空间的数据...",
+          duration: 2000,
         })
         
-        // 刷新页面以重新加载数据
+        // 使用硬刷新确保完全重新加载页面和数据
         setTimeout(() => {
-          window.location.reload()
-        }, 500)
+          window.location.href = "/"
+        }, 300)
       } else {
         toast({
           title: "切换失败",
           description: data.error || "无法切换空间",
           variant: "destructive",
+          duration: 3000,
         })
       }
     } catch (error) {
@@ -120,6 +124,7 @@ export function SpaceSwitcher() {
         title: "切换失败",
         description: "网络错误，请稍后重试",
         variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setIsLoading(false)
