@@ -1,15 +1,13 @@
 import { NextRequest } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
+import { authenticate } from "@/lib/middleware"
 
 // GET /api/organizations - 获取用户的所有组织
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return errorResponse("未授权", 401)
-    }
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
 
     const searchParams = req.nextUrl.searchParams
     const search = searchParams.get("search")
@@ -37,7 +35,7 @@ export async function GET(req: NextRequest) {
     // 否则返回用户所属的所有组织
     const organizationMembers = await prisma.organizationMember.findMany({
       where: {
-        userId: user.id,
+        userId: auth.userId,
       },
       include: {
         organization: {
@@ -77,10 +75,8 @@ export async function GET(req: NextRequest) {
 // POST /api/organizations - 创建新组织
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return errorResponse("未授权", 401)
-    }
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
 
     const body = await req.json()
     const { name, description } = body
@@ -98,16 +94,22 @@ export async function POST(req: NextRequest) {
       return errorResponse("该组织名称已存在")
     }
 
+    // 获取当前用户
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { currentOrganizationId: true },
+    })
+
     // 创建组织
     const organization = await prisma.organization.create({
       data: {
         name: name.trim(),
         description: description?.trim(),
-        creatorId: user.id,
+        creatorId: auth.userId,
         isVerified: false, // 新创建的组织默认未认证
         members: {
           create: {
-            userId: user.id,
+            userId: auth.userId,
             role: "OWNER", // 创建者自动成为所有者
           },
         },
@@ -124,9 +126,9 @@ export async function POST(req: NextRequest) {
     })
 
     // 如果用户当前没有选择的组织，自动设置为新创建的组织
-    if (!user.currentOrganizationId) {
+    if (!currentUser?.currentOrganizationId) {
       await prisma.user.update({
-        where: { id: user.id },
+        where: { id: auth.userId },
         data: { currentOrganizationId: organization.id },
       })
     }

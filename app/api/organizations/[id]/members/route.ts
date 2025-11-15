@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
+import { authenticate } from "@/lib/middleware"
 
 // POST /api/organizations/[id]/members - 添加成员到组织
 export async function POST(
@@ -9,10 +9,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return errorResponse("未授权", 401)
-    }
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
 
     const { id: organizationId } = params
     const body = await req.json()
@@ -26,7 +24,7 @@ export async function POST(
     const currentMember = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: user.id,
+          userId: auth.userId,
           organizationId,
         },
       },
@@ -92,10 +90,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return errorResponse("未授权", 401)
-    }
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
 
     const { id: organizationId } = params
     const searchParams = req.nextUrl.searchParams
@@ -109,7 +105,7 @@ export async function DELETE(
     const currentMember = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: user.id,
+          userId: auth.userId,
           organizationId,
         },
       },

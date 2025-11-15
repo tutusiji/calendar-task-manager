@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
       })
 
       if (!teamMember) {
-        return validationErrorResponse('无权访问该团队的任务')
+        // 如果用户不是团队成员，返回空数组而不是错误
+        // 这样可以避免切换组织后出现错误
+        return successResponse([])
       }
 
       // 查询该团队所有成员的任务（不限制项目）
@@ -65,7 +67,8 @@ export async function GET(request: NextRequest) {
       })
 
       if (!projectMember) {
-        return validationErrorResponse('无权访问该项目的任务')
+        // 如果用户不是项目成员，返回空数组而不是错误
+        return successResponse([])
       }
 
       // 查询该项目的所有任务（不限制userId）

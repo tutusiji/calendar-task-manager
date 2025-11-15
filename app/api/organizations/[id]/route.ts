@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
+import { authenticate } from "@/lib/middleware"
 
 // GET /api/organizations/[id] - 获取单个组织详情
 export async function GET(
@@ -9,10 +9,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return errorResponse("未授权", 401)
-    }
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
 
     const { id } = params
 
@@ -20,7 +18,7 @@ export async function GET(
     const member = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: user.id,
+          userId: auth.userId,
           organizationId: id,
         },
       },
@@ -113,10 +111,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return errorResponse("未授权", 401)
-    }
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
 
     const { id } = params
     const body = await req.json()
@@ -126,7 +122,7 @@ export async function PUT(
     const member = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: user.id,
+          userId: auth.userId,
           organizationId: id,
         },
       },
@@ -171,18 +167,22 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return errorResponse("未授权", 401)
-    }
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
 
     const { id } = params
+
+    // 获取用户信息
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { currentOrganizationId: true },
+    })
 
     // 检查用户是否是该组织的所有者
     const member = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: user.id,
+          userId: auth.userId,
           organizationId: id,
         },
       },
@@ -193,7 +193,7 @@ export async function DELETE(
     }
 
     // 检查是否是用户当前所在的组织
-    if (user.currentOrganizationId === id) {
+    if (currentUser?.currentOrganizationId === id) {
       return errorResponse("不能删除当前所在的组织", 400)
     }
 
