@@ -37,11 +37,24 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
   const [showNewProject, setShowNewProject] = useState(false)
   const [assigneeId, setAssigneeId] = useState(taskCreation.userId || currentUser?.id || "") // 负责人ID
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [projectError, setProjectError] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!title.trim() || !currentUser) return
+
+    // 验证项目是否选择
+    if (!projectId || projectId === '') {
+      setProjectError(true)
+      toast({
+        title: "请选择项目",
+        description: "任务必须归属于一个项目",
+        variant: "destructive",
+      })
+      return
+    }
+    setProjectError(false)
 
     setIsSubmitting(true)
 
@@ -68,6 +81,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
 
       // 显示成功提示
       toast({
+        variant: 'success' as any,
         title: "创建成功",
         description: `任务「${title}」已创建`,
       })
@@ -244,12 +258,15 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
           {/* Project */}
           <div className="space-y-2">
             <Label htmlFor="project" className="text-sm font-medium">
-              归属项目
+              归属项目 <span className="text-red-500">*</span>
             </Label>
             <div className="flex gap-2">
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
+              <Select value={projectId} onValueChange={(value) => {
+                setProjectId(value)
+                setProjectError(false)
+              }}>
+                <SelectTrigger className={cn("flex-1", projectError && "border-red-500 ring-1 ring-red-500")}>
+                  <SelectValue placeholder="请选择项目" />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((project) => (
@@ -266,6 +283,9 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
+            {projectError && (
+              <p className="text-sm text-red-500">请选择一个项目</p>
+            )}
           </div>
 
           {/* Remember Project */}

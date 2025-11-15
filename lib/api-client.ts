@@ -7,6 +7,39 @@ import type { Task, Project, User, Team } from './types'
 
 const API_BASE_URL = '/api'
 
+// ==================== Token 管理 ====================
+
+/**
+ * Token 存储键名
+ */
+const TOKEN_KEY = 'auth_token'
+
+/**
+ * 获取存储的 token
+ */
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+/**
+ * 保存 token
+ */
+export function setToken(token: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+/**
+ * 清除 token
+ */
+export function clearToken(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+// ==================== 请求方法 ====================
+
 // 通用请求方法
 async function fetchAPI<T>(
   endpoint: string,
@@ -14,22 +47,51 @@ async function fetchAPI<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
   
+  // 获取 token 并添加到请求头
+  const token = getToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  
+  // 添加自定义 headers
+  if (options.headers) {
+    const customHeaders = options.headers as Record<string, string>
+    Object.assign(headers, customHeaders)
+  }
+  
+  // 如果有 token，添加 Authorization header
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Unknown error' }))
-    throw new Error(error.message || `API Error: ${response.status}`)
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+    
+    // 401 错误：token 无效或过期，清除 token
+    if (response.status === 401) {
+      clearToken()
+      throw new Error(error.error || '认证失败，请重新登录')
+    }
+    
+    throw new Error(error.error || error.message || `API Error: ${response.status}`)
   }
 
   const result = await response.json()
   
-  // 如果 API 返回 { success, data } 格式，提取 data
+  // 新的 API 返回格式：{ success, data, message }
+  if (result && typeof result === 'object' && 'success' in result) {
+    if (!result.success) {
+      throw new Error(result.error || 'API request failed')
+    }
+    return result.data as T
+  }
+  
+  // 兼容旧格式
   if (result && typeof result === 'object' && 'data' in result) {
     return result.data as T
   }
@@ -62,7 +124,10 @@ export const taskAPI = {
     const query = params.toString()
     const endpoint = query ? `/tasks?${query}` : '/tasks'
     
-    return fetchAPI<Task[]>(endpoint)
+    const result = await fetchAPI<{ tasks: Task[]; count: number }>(endpoint)
+    
+    // 新的 API 返回 { tasks, count }
+    return result.tasks || (result as any) || []
   },
 
   /**
@@ -131,6 +196,48 @@ export const userAPI = {
    */
   async getById(id: string): Promise<User> {
     return fetchAPI<User>(`/users/${id}`)
+  },
+
+  /**
+   * 获取当前用户信息
+   */
+  async getMe(): Promise<User> {
+    return fetchAPI<User>('/users/me')
+  },
+
+  /**
+   * 更新当前用户信息
+   */
+  async updateMe(updates: Partial<User>): Promise<User> {
+    return fetchAPI<User>('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  },
+
+  /**
+   * 上传头像
+   */
+  async uploadAvatar(file: File): Promise<{ url: string; filename: string; size: number; type: string }> {
+    const formData = new FormData()
+    formData.append('avatar', file)
+
+    const token = getToken()
+    const response = await fetch(`/api/upload/avatar`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || error.message || '上传失败')
+    }
+
+    const result = await response.json()
+    return result.data
   },
 
   /**
@@ -217,6 +324,15 @@ export const projectAPI = {
       method: 'DELETE',
     })
   },
+
+  /**
+   * 退出项目
+   */
+  async leave(projectId: string, userId: string): Promise<void> {
+    return fetchAPI<void>(`/projects/${projectId}/members/${userId}`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 // ==================== 团队 API ====================
@@ -273,6 +389,15 @@ export const teamAPI = {
       method: 'DELETE',
     })
   },
+
+  /**
+   * 退出团队
+   */
+  async leave(teamId: string, userId: string): Promise<void> {
+    return fetchAPI<void>(`/teams/${teamId}/members/${userId}`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 // ==================== 认证 API ====================
@@ -290,25 +415,51 @@ export interface RegisterData {
   confirmPassword: string
 }
 
+export interface AuthResponse {
+  user: User
+  token: string
+}
+
 export const authAPI = {
   /**
    * 用户登录
    */
   async login(credentials: LoginCredentials): Promise<User> {
-    return fetchAPI<User>('/auth/login', {
+    const response = await fetchAPI<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     })
+    
+    // 保存 token
+    if (response.token) {
+      setToken(response.token)
+    }
+    
+    return response.user
   },
 
   /**
    * 用户注册
    */
   async register(data: RegisterData): Promise<User> {
-    return fetchAPI<User>('/auth/register', {
+    const response = await fetchAPI<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     })
+    
+    // 保存 token
+    if (response.token) {
+      setToken(response.token)
+    }
+    
+    return response.user
+  },
+
+  /**
+   * 用户登出
+   */
+  logout(): void {
+    clearToken()
   },
 }
 

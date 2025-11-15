@@ -43,6 +43,9 @@ export function StatsView() {
 
   // 过滤任务
   const filteredTasks = useMemo(() => {
+    // 如果 currentUser 为空，返回空数组
+    if (!currentUser) return []
+    
     let filtered = tasks
 
     // 根据导航模式过滤
@@ -93,7 +96,7 @@ export function StatsView() {
     selectedTeamId,
     selectedProjectId,
     selectedProjectIds,
-    currentUser.id,
+    currentUser,
     getTeamById,
     getProjectById,
     dateRange,

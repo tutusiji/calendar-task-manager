@@ -39,11 +39,24 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   const [assigneeId, setAssigneeId] = useState(task.userId) // 负责人ID
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [projectError, setProjectError] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!title.trim() || !dateRange.from) return
+
+    // 验证项目是否选择
+    if (!projectId || projectId === '') {
+      setProjectError(true)
+      toast({
+        title: "请选择项目",
+        description: "任务必须归属于一个项目",
+        variant: "destructive",
+      })
+      return
+    }
+    setProjectError(false)
 
     setIsSubmitting(true)
 
@@ -61,6 +74,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
       })
 
       toast({
+        variant: 'success' as any,
         title: "保存成功",
         description: `任务「${title}」已更新`,
       })
@@ -92,6 +106,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
       await deleteTask(task.id)
       
       toast({
+        variant: 'success' as any,
         title: "删除成功",
         description: `任务「${task.title}」已删除`,
       })
@@ -275,11 +290,14 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
           {/* Project */}
           <div className="space-y-2">
             <Label htmlFor="project" className="text-sm font-medium">
-              归属项目
+              归属项目 <span className="text-red-500">*</span>
             </Label>
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger>
-                <SelectValue />
+            <Select value={projectId} onValueChange={(value) => {
+              setProjectId(value)
+              setProjectError(false)
+            }}>
+              <SelectTrigger className={cn(projectError && "border-red-500 ring-1 ring-red-500")}>
+                <SelectValue placeholder="请选择项目" />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
@@ -292,6 +310,9 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
                 ))}
               </SelectContent>
             </Select>
+            {projectError && (
+              <p className="text-sm text-red-500">请选择一个项目</p>
+            )}
           </div>
 
           {/* Actions */}

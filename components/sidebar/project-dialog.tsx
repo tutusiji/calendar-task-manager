@@ -29,15 +29,18 @@ const PRESET_COLORS = [
 ]
 
 export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
-  const { addProject, updateProject, teams } = useCalendarStore()
+  const { addProject, updateProject, teams, currentUser, users } = useCalendarStore()
   
   const [name, setName] = useState(project?.name || "")
   const [description, setDescription] = useState(project?.description || "")
   const [color, setColor] = useState(project?.color || PRESET_COLORS[0])
   const [teamId, setTeamId] = useState<string | undefined>(project?.teamId)
   const [memberIds, setMemberIds] = useState<string[]>(project?.memberIds || [])
+  const [creatorId, setCreatorId] = useState<string>(project?.creatorId || currentUser?.id || "")
 
   const isEditMode = !!project
+  // 判断当前用户是否是创建者
+  const isCreator = currentUser?.id === project?.creatorId
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,6 +58,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
         color,
         teamId: teamId || undefined,
         memberIds,
+        creatorId, // 更新创建者
       })
     } else {
       const newProject: Project = {
@@ -64,6 +68,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
         color,
         teamId: teamId || undefined,
         memberIds,
+        creatorId: currentUser?.id || "", // 设置创建者
         createdAt: new Date(),
       }
       addProject(newProject)
@@ -173,6 +178,33 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Creator - 只在编辑模式显示 */}
+          {isEditMode && (
+            <div className="space-y-2">
+              <Label htmlFor="creator" className="text-sm font-medium">
+                创建人
+              </Label>
+              {isCreator ? (
+                <Select value={creatorId} onValueChange={setCreatorId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  {users.find(u => u.id === creatorId)?.name || '未知'}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Members */}
           <div className="space-y-2">

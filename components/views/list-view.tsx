@@ -54,6 +54,9 @@ export function ListView() {
 
   // 过滤任务
   const filteredTasks = useMemo(() => {
+    // 如果 currentUser 为空，返回空数组
+    if (!currentUser) return []
+    
     let filtered = tasks
 
     if (navigationMode === "my-days") {
@@ -96,7 +99,7 @@ export function ListView() {
     selectedTeamId,
     selectedProjectId,
     selectedProjectIds,
-    currentUser.id,
+    currentUser,
     getTeamById,
     getProjectById,
     dateRange,

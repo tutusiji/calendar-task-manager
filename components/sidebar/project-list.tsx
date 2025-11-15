@@ -4,8 +4,7 @@ import { useState } from "react"
 import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Circle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarStore } from "@/lib/store/calendar-store"
-import { NewProjectDialog } from "./new-project-dialog"
-import { EditProjectDialog } from "./edit-project-dialog"
+import { ProjectDialog } from "./project-dialog"
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -27,7 +26,7 @@ import type { Project } from "@/lib/types"
 
 export function ProjectList() {
   const { projects, deleteProject, selectedProjectIds, toggleProjectFilter, selectAllProjects } = useCalendarStore()
-  const [showNewProject, setShowNewProject] = useState(false)
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
 
@@ -66,7 +65,7 @@ export function ProjectList() {
             )}
           </Button>
         </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowNewProject(true)}>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setProjectDialogOpen(true)}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -146,8 +145,16 @@ export function ProjectList() {
         })}
       </div>
 
-      {showNewProject && <NewProjectDialog onClose={() => setShowNewProject(false)} />}
-      {editingProject && <EditProjectDialog project={editingProject} onClose={() => setEditingProject(null)} />}
+      {/* 统一的项目弹窗 */}
+      {(projectDialogOpen || editingProject) && (
+        <ProjectDialog 
+          project={editingProject || undefined}
+          onClose={() => {
+            setProjectDialogOpen(false)
+            setEditingProject(null)
+          }} 
+        />
+      )}
 
       <AlertDialog open={!!deletingProject} onOpenChange={(open) => !open && setDeletingProject(null)}>
         <AlertDialogContent>

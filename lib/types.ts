@@ -19,6 +19,7 @@ export interface Team {
   description?: string
   color: string
   memberIds: string[]
+  creatorId: string // 创建者ID
   createdAt: Date
 }
 
@@ -29,6 +30,7 @@ export interface Project {
   color: string
   memberIds: string[]
   teamId?: string // 项目可以属于某个团队
+  creatorId: string // 创建者ID
   createdAt: Date
 }
 
@@ -38,6 +40,9 @@ export interface User {
   name: string // 显示名称
   avatar: string
   email: string // 邮箱（个人资料）
+  gender?: string // 性别
+  role?: string // 职业
+  isAdmin?: boolean // 是否为超级管理员
 }
 
 export interface CalendarSettings {

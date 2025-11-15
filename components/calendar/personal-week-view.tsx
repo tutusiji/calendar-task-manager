@@ -28,12 +28,15 @@ export function PersonalWeekView() {
 
   // 过滤当前用户的任务
   const userTasks = useMemo(() => {
+    // 如果 currentUser 为空，返回空数组
+    if (!currentUser) return []
+    
     const filtered = selectedProjectIds.length === 0 
       ? tasks 
       : tasks.filter(task => selectedProjectIds.includes(task.projectId))
     
     return filtered.filter(task => task.userId === currentUser.id)
-  }, [tasks, selectedProjectIds, currentUser.id])
+  }, [tasks, selectedProjectIds, currentUser])
 
   // 为任务分配轨道
   const tasksWithTracks = useMemo(() => assignTaskTracks(userTasks), [userTasks])

@@ -28,14 +28,17 @@ const PRESET_COLORS = [
 ]
 
 export function TeamDialog({ team, onClose }: TeamDialogProps) {
-  const { addTeam, updateTeam } = useCalendarStore()
+  const { addTeam, updateTeam, currentUser, users } = useCalendarStore()
   
   const [name, setName] = useState(team?.name || "")
   const [description, setDescription] = useState(team?.description || "")
   const [color, setColor] = useState(team?.color || PRESET_COLORS[0])
   const [memberIds, setMemberIds] = useState<string[]>(team?.memberIds || [])
+  const [creatorId, setCreatorId] = useState<string>(team?.creatorId || currentUser?.id || "")
 
   const isEditMode = !!team
+  // 判断当前用户是否是创建者
+  const isCreator = currentUser?.id === team?.creatorId
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,6 +55,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
         description: description.trim() || undefined,
         color,
         memberIds,
+        creatorId, // 更新创建者
       })
     } else {
       const newTeam: Team = {
@@ -60,6 +64,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
         description: description.trim() || undefined,
         color,
         memberIds,
+        creatorId: currentUser?.id || "", // 设置创建者
         createdAt: new Date(),
       }
       addTeam(newTeam)
@@ -146,6 +151,33 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
               ))}
             </div>
           </div>
+
+          {/* Creator - 只在编辑模式显示 */}
+          {isEditMode && (
+            <div className="space-y-2">
+              <Label htmlFor="creator" className="text-sm font-medium">
+                创建人
+              </Label>
+              {isCreator ? (
+                <select
+                  id="creator"
+                  value={creatorId}
+                  onChange={(e) => setCreatorId(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  {users.find(u => u.id === creatorId)?.name || '未知'}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Members */}
           <div className="space-y-2">

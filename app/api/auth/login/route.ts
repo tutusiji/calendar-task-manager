@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
         password: true,
         name: true,
         email: true,
-        avatar: true
+        avatar: true,
+        gender: true,
+        role: true,
+        isAdmin: true
       }
     })
 

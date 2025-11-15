@@ -17,6 +17,8 @@ import { MainNavigation } from "@/components/navigation/main-navigation"
 import { ListView } from "@/components/views/list-view"
 import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
+import { getToken } from "@/lib/api-client"
+import { showToast } from "@/lib/toast"
 
 export default function Home() {
   const router = useRouter()
@@ -39,7 +41,10 @@ export default function Home() {
   // 检查登录状态并加载数据
   useEffect(() => {
     const currentUser = localStorage.getItem("currentUser")
-    if (!currentUser) {
+    const token = getToken()
+    
+    // 必须同时有用户信息和 token
+    if (!currentUser || !token) {
       router.push("/login")
       return
     }
@@ -54,10 +59,17 @@ export default function Home() {
   // 显示错误提示
   useEffect(() => {
     if (error) {
-      console.error('Store error:', error)
-      // 可以在这里添加 toast 通知
+      // 如果是认证错误，跳转到登录页
+      if (error.includes('认证') || error.includes('Token') || error.includes('登录')) {
+        showToast.error('认证失败', '请重新登录')
+        localStorage.removeItem("currentUser")
+        router.push("/login")
+      } else {
+        // 其他错误显示 toast 通知
+        showToast.error('操作失败', error)
+      }
     }
-  }, [error])
+  }, [error, router])
 
   // 根据 navigationMode 决定渲染哪个视图
   const renderCalendarView = () => {

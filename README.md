@@ -436,3 +436,6 @@ MIT License
 ---
 
 **Built with ❤️ using Next.js and React**
+
+
+npx prisma studio

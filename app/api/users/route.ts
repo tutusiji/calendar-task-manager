@@ -10,6 +10,7 @@ export async function GET() {
         name: true,
         email: true,
         avatar: true,
+        role: true,
         createdAt: true
       },
       orderBy: {

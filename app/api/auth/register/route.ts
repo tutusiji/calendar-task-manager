@@ -19,14 +19,15 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { username, password, name, email, avatar } = body
+    const { username, password, name, email, avatar, role } = body
 
     // 验证必填字段
     const requiredValidation = validateRequiredFields(body, [
       'username',
       'password',
       'name',
-      'email'
+      'email',
+      'role'
     ])
     if (!requiredValidation.valid) {
       return validationErrorResponse(requiredValidation.message!)
@@ -50,6 +51,12 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(passwordValidation.message!)
     }
 
+    // 验证职业
+    const validRoles = ['设计师', '前端开发', '后端开发', '产品经理', '项目管理', '交互设计师']
+    if (!validRoles.includes(role)) {
+      return validationErrorResponse('请选择有效的职业')
+    }
+
     // 检查用户名是否已存在
     const existingUser = await prisma.user.findUnique({
       where: { username }
@@ -66,23 +73,45 @@ export async function POST(request: NextRequest) {
     // 哈希密码
     const hashedPassword = await hashPassword(password)
 
-    // 创建新用户
-    const user = await prisma.user.create({
-      data: {
-        username: username.toLowerCase(), // 统一转为小写
-        password: hashedPassword,
-        name: cleanName,
-        email: cleanEmail,
-        avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
-      },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        email: true,
-        avatar: true,
-        createdAt: true
-      }
+    // 创建新用户和个人项目（使用事务）
+    const user = await prisma.$transaction(async (tx: any) => {
+      // 创建用户
+      const newUser = await tx.user.create({
+        data: {
+          username: username.toLowerCase(), // 统一转为小写
+          password: hashedPassword,
+          name: cleanName,
+          email: cleanEmail,
+          role: role, // 职业
+          avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
+        },
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          email: true,
+          avatar: true,
+          role: true,
+          createdAt: true
+        }
+      })
+
+      // 为新用户创建专属的"个人事务"项目
+      await tx.project.create({
+        data: {
+          name: `${cleanName}的个人事务`,
+          color: '#3b82f6',
+          description: '个人日常任务和事项',
+          creatorId: newUser.id,
+          members: {
+            create: {
+              userId: newUser.id
+            }
+          }
+        }
+      })
+
+      return newUser
     })
 
     // 生成 JWT Token

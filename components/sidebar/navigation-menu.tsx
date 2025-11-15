@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2 } from "lucide-react"
+import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { Button } from "@/components/ui/button"
@@ -35,6 +35,7 @@ export function NavigationMenu() {
     setSelectedProjectId,
     teams,
     projects,
+    currentUser,
     deleteTeam,
     deleteProject,
   } = useCalendarStore()
@@ -47,6 +48,20 @@ export function NavigationMenu() {
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | undefined>()
   const [editingProject, setEditingProject] = useState<Project | undefined>()
+  
+  // 过滤当前用户的项目，个人事务项目置顶
+  const myProjects = currentUser 
+    ? projects
+        .filter(p => p.memberIds.includes(currentUser.id))
+        .sort((a, b) => {
+          // 个人事务项目置顶
+          const aIsPersonal = a.name.includes('个人事务')
+          const bIsPersonal = b.name.includes('个人事务')
+          if (aIsPersonal && !bIsPersonal) return -1
+          if (!aIsPersonal && bIsPersonal) return 1
+          return a.name.localeCompare(b.name)
+        })
+    : []
   
   // 删除确认对话框状态
   const [deleteTeamConfirm, setDeleteTeamConfirm] = useState<Team | null>(null)
@@ -164,6 +179,10 @@ export function NavigationMenu() {
                       style={{ backgroundColor: team.color }}
                     />
                     <span className="truncate">{team.name}</span>
+                    {/* 创建者标识 */}
+                    {currentUser && team.creatorId === currentUser.id && (
+                      <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
+                    )}
                   </button>
                   
                   <DropdownMenu>
@@ -223,7 +242,7 @@ export function NavigationMenu() {
           
           {projectsExpanded && (
             <div className="ml-6 mt-1 space-y-1">
-              {projects.map((project) => (
+              {myProjects.map((project) => (
                 <div
                   key={project.id}
                   className="group flex items-center gap-2 pr-2"
@@ -243,32 +262,39 @@ export function NavigationMenu() {
                       style={{ backgroundColor: project.color }}
                     />
                     <span className="truncate">{project.name}</span>
+                    {/* 创建者标识 */}
+                    {currentUser && project.creatorId === currentUser.id && (
+                      <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
+                    )}
                   </button>
                   
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <MoreVertical className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        <span>编辑</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteProject(project)}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        <span>删除</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* 个人事务项目不显示编辑/删除按钮 */}
+                  {!project.name.includes('个人事务') && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>编辑</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteProject(project)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          <span>删除</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               ))}
             </div>

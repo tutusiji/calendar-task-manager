@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
+import { authAPI } from "@/lib/api-client"
 
 export default function AuthPage() {
   const router = useRouter()
@@ -28,6 +30,7 @@ export default function AuthPage() {
     username: "",
     name: "",
     email: "",
+    role: "",
     password: "",
     confirmPassword: ""
   })
@@ -38,28 +41,19 @@ export default function AuthPage() {
     setError("")
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(loginData)
+      const user = await authAPI.login({
+        username: loginData.username,
+        password: loginData.password
       })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // 保存用户信息到 localStorage
-        localStorage.setItem("currentUser", JSON.stringify(data.data))
-        
-        // 跳转到主页
-        router.push("/")
-        router.refresh()
-      } else {
-        setError(data.error || "登录失败")
-      }
-    } catch (err) {
-      setError("网络错误，请稍后重试")
+      
+      // 保存用户信息到 localStorage
+      localStorage.setItem("currentUser", JSON.stringify(user))
+      
+      // 跳转到主页
+      router.push("/")
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message || "登录失败")
     } finally {
       setIsLoading(false)
     }
@@ -70,6 +64,13 @@ export default function AuthPage() {
     setIsLoading(true)
     setError("")
     setSuccess("")
+
+    // 验证职业
+    if (!registerData.role) {
+      setError("请选择职业")
+      setIsLoading(false)
+      return
+    }
 
     // 验证密码
     if (registerData.password !== registerData.confirmPassword) {
@@ -85,39 +86,20 @@ export default function AuthPage() {
     }
 
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          name: registerData.name,
-          email: registerData.email,
-          password: registerData.password
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setSuccess("注册成功！请登录")
-        // 清空表单
-        setRegisterData({
-          name: "",
-          email: "",
-          password: "",
-          confirmPassword: ""
-        })
-        // 3 秒后自动切换到登录标签
-        setTimeout(() => {
-          const loginTab = document.querySelector('[value="login"]') as HTMLElement
-          loginTab?.click()
-        }, 2000)
-      } else {
-        setError(data.error || "注册失败")
-      }
-    } catch (err) {
-      setError("网络错误，请稍后重试")
+      const user = await authAPI.register(registerData)
+      
+      // 保存用户信息到 localStorage
+      localStorage.setItem("currentUser", JSON.stringify(user))
+      
+      setSuccess("注册成功！正在跳转...")
+      
+      // 跳转到主页
+      setTimeout(() => {
+        router.push("/")
+        router.refresh()
+      }, 1000)
+    } catch (err: any) {
+      setError(err.message || "注册失败")
     } finally {
       setIsLoading(false)
     }
@@ -265,6 +247,30 @@ export default function AuthPage() {
                       required
                       disabled={isLoading}
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="register-role">
+                      职业 <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={registerData.role}
+                      onValueChange={(value) => setRegisterData({ ...registerData, role: value })}
+                      disabled={isLoading}
+                      required
+                    >
+                      <SelectTrigger id="register-role">
+                        <SelectValue placeholder="请选择职业" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="设计师">设计师</SelectItem>
+                        <SelectItem value="前端开发">前端开发</SelectItem>
+                        <SelectItem value="后端开发">后端开发</SelectItem>
+                        <SelectItem value="产品经理">产品经理</SelectItem>
+                        <SelectItem value="项目管理">项目管理</SelectItem>
+                        <SelectItem value="交互设计师">交互设计师</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">

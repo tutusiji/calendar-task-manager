@@ -4,6 +4,7 @@ import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationMode, MainViewMode, ListGroupMode, ListLayoutColumns } from "../types"
 import { taskAPI, projectAPI, userAPI, teamAPI, handleAPIError } from "../api-client"
+import { showToast } from "../toast"
 
 interface CalendarStore {
   // Data
@@ -74,6 +75,7 @@ interface CalendarStore {
   fetchTeams: () => Promise<void>
   fetchAllData: () => Promise<void>
   setCurrentUserFromStorage: () => void
+  setCurrentUser: (user: User) => void
 
   // Actions
   addTask: (task: Omit<Task, 'id'>) => Promise<void>
@@ -217,6 +219,10 @@ export const useCalendarStore = create<CalendarStore>()(
     }
   },
 
+  setCurrentUser: (user: User) => {
+    set({ currentUser: user })
+  },
+
   fetchTasks: async (filters) => {
     set({ isLoadingTasks: true, error: null })
     try {
@@ -240,7 +246,7 @@ export const useCalendarStore = create<CalendarStore>()(
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg, isLoadingTasks: false })
-      console.error('Failed to fetch tasks:', error)
+      showToast.error('获取任务失败', errorMsg)
     }
   },
 
@@ -255,6 +261,7 @@ export const useCalendarStore = create<CalendarStore>()(
         description: project.description,
         color: project.color,
         teamId: project.teamId,
+        creatorId: project.creatorId, // 添加创建者ID
         // members 是 ProjectMember 数组，每个有 user 属性
         memberIds: project.members?.map((m: any) => m.user?.id || m.userId) || [],
         createdAt: new Date(project.createdAt),
@@ -267,7 +274,7 @@ export const useCalendarStore = create<CalendarStore>()(
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg, isLoadingProjects: false })
-      console.error('Failed to fetch projects:', error)
+      showToast.error('获取项目失败', errorMsg)
     }
   },
 
@@ -279,7 +286,7 @@ export const useCalendarStore = create<CalendarStore>()(
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg, isLoadingUsers: false })
-      console.error('Failed to fetch users:', error)
+      showToast.error('获取用户失败', errorMsg)
     }
   },
 
@@ -293,6 +300,7 @@ export const useCalendarStore = create<CalendarStore>()(
         name: team.name,
         description: team.description,
         color: team.color,
+        creatorId: team.creatorId, // 添加创建者ID
         // members 是 TeamMember 数组，每个有 user 属性
         memberIds: team.members?.map((m: any) => m.user?.id || m.userId) || [],
         createdAt: new Date(team.createdAt),
@@ -301,21 +309,36 @@ export const useCalendarStore = create<CalendarStore>()(
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg, isLoadingTeams: false })
-      console.error('Failed to fetch teams:', error)
+      showToast.error('获取团队失败', errorMsg)
     }
   },
 
   fetchAllData: async () => {
     const store = get()
-    store.setCurrentUserFromStorage()
+    
+    // 先从 localStorage 加载用户
+    let currentUser: User | null = null
+    if (typeof window !== 'undefined') {
+      const currentUserStr = localStorage.getItem('currentUser')
+      if (currentUserStr) {
+        try {
+          currentUser = JSON.parse(currentUserStr)
+          set({ currentUser })
+        } catch (e) {
+          console.error('Failed to parse current user:', e)
+        }
+      }
+    }
+    
     await Promise.all([
       store.fetchUsers(),
       store.fetchTeams(),
       store.fetchProjects(),
     ])
+    
     // 加载当前用户的任务
-    if (store.currentUser) {
-      await store.fetchTasks({ userId: store.currentUser.id })
+    if (currentUser) {
+      await store.fetchTasks({ userId: currentUser.id })
     }
   },
 
@@ -324,14 +347,13 @@ export const useCalendarStore = create<CalendarStore>()(
   // Actions
   addTask: async (task) => {
     try {
-      const newTask = await taskAPI.create(task as any)
-      set((state) => ({
-        tasks: [...state.tasks, {
-          ...newTask,
-          startDate: new Date(newTask.startDate),
-          endDate: new Date(newTask.endDate),
-        }],
-      }))
+      await taskAPI.create(task as any)
+      
+      // 创建成功后，重新获取任务列表
+      const currentUser = get().currentUser
+      if (currentUser) {
+        await get().fetchTasks({ userId: currentUser.id })
+      }
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg })
@@ -340,42 +362,33 @@ export const useCalendarStore = create<CalendarStore>()(
   },
 
   updateTask: async (id, updatedTask) => {
-    // 乐观更新
-    const originalTasks = get().tasks
-    set((state) => ({
-      tasks: state.tasks.map((task) => (task.id === id ? { ...task, ...updatedTask } : task)),
-    }))
-
     try {
-      const updated = await taskAPI.update(id, updatedTask)
-      set((state) => ({
-        tasks: state.tasks.map((task) => 
-          task.id === id ? {
-            ...updated,
-            startDate: new Date(updated.startDate),
-            endDate: new Date(updated.endDate),
-          } : task
-        ),
-      }))
+      await taskAPI.update(id, updatedTask)
+      
+      // 更新成功后，重新获取任务列表
+      const currentUser = get().currentUser
+      if (currentUser) {
+        await get().fetchTasks({ userId: currentUser.id })
+      }
     } catch (error) {
-      // 回滚
-      set({ tasks: originalTasks, error: handleAPIError(error) })
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
       throw error
     }
   },
 
   deleteTask: async (id) => {
-    // 乐观更新
-    const originalTasks = get().tasks
-    set((state) => ({
-      tasks: state.tasks.filter((task) => task.id !== id),
-    }))
-
     try {
       await taskAPI.delete(id)
+      
+      // 删除成功后，重新获取任务列表
+      const currentUser = get().currentUser
+      if (currentUser) {
+        await get().fetchTasks({ userId: currentUser.id })
+      }
     } catch (error) {
-      // 回滚
-      set({ tasks: originalTasks, error: handleAPIError(error) })
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
       throw error
     }
   },
@@ -390,6 +403,7 @@ export const useCalendarStore = create<CalendarStore>()(
           description: newProject.description,
           color: newProject.color,
           teamId: newProject.teamId,
+          creatorId: newProject.creatorId, // 添加创建者ID
           memberIds: newProject.members?.map((m: any) => m.id) || [],
           createdAt: new Date(newProject.createdAt),
         }],
@@ -419,6 +433,7 @@ export const useCalendarStore = create<CalendarStore>()(
             description: updated.description,
             color: updated.color,
             teamId: updated.teamId,
+            creatorId: updated.creatorId, // 添加创建者ID
             memberIds: updated.members?.map((m: any) => m.id) || [],
             createdAt: new Date(updated.createdAt),
           } : project
@@ -453,6 +468,7 @@ export const useCalendarStore = create<CalendarStore>()(
           name: newTeam.name,
           description: newTeam.description,
           color: newTeam.color,
+          creatorId: newTeam.creatorId, // 添加创建者ID
           memberIds: newTeam.members?.map((m: any) => m.id) || [],
           createdAt: new Date(newTeam.createdAt),
         }],
@@ -481,6 +497,7 @@ export const useCalendarStore = create<CalendarStore>()(
             name: updated.name,
             description: updated.description,
             color: updated.color,
+            creatorId: updated.creatorId, // 添加创建者ID
             memberIds: updated.members?.map((m: any) => m.id) || [],
             createdAt: new Date(updated.createdAt),
           } : team
