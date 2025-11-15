@@ -100,6 +100,24 @@ export function SpaceSwitcher() {
           localStorage.setItem("currentUser", JSON.stringify(user))
         }
         
+        // 重置导航状态到 My Days
+        const storeKey = "calendar-storage-v2"
+        const storeStr = localStorage.getItem(storeKey)
+        if (storeStr) {
+          try {
+            const store = JSON.parse(storeStr)
+            if (store.state) {
+              // 重置导航状态
+              store.state.navigationMode = "my-days"
+              store.state.selectedTeamId = null
+              store.state.selectedProjectId = null
+              localStorage.setItem(storeKey, JSON.stringify(store))
+            }
+          } catch (e) {
+            console.error("Failed to reset navigation state:", e)
+          }
+        }
+        
         toast({
           title: "已切换空间",
           description: "正在加载新空间的数据...",

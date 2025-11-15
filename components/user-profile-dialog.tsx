@@ -26,6 +26,13 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { AvatarUpload } from "@/components/avatar-upload"
 import { EditProfileDialog } from "@/components/edit-profile-dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { User } from "@/lib/types"
 import {
   AlertDialog,
@@ -38,7 +45,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { showToast } from "@/lib/toast"
-import { userAPI } from "@/lib/api-client"
+import { userAPI, teamAPI, projectAPI } from "@/lib/api-client"
+import { useEffect } from "react"
+import { TeamDialog } from "@/components/sidebar/team-dialog"
+import { ProjectDialog } from "@/components/sidebar/project-dialog"
 
 interface UserProfileDialogProps {
   open: boolean
@@ -46,12 +56,43 @@ interface UserProfileDialogProps {
 }
 
 export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps) {
-  const { currentUser, teams, projects, setCurrentUser } = useCalendarStore()
+  const { currentUser, teams, projects, setCurrentUser, fetchAllData } = useCalendarStore()
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [confirmLeaveTeam, setConfirmLeaveTeam] = useState<string | null>(null)
   const [confirmLeaveProject, setConfirmLeaveProject] = useState<string | null>(null)
   const [confirmDeleteTeam, setConfirmDeleteTeam] = useState<string | null>(null)
   const [confirmDeleteProject, setConfirmDeleteProject] = useState<string | null>(null)
+  const [isJoining, setIsJoining] = useState<string | null>(null)
+  const [isLeaving, setIsLeaving] = useState<string | null>(null)
+  const [editingTeam, setEditingTeam] = useState<any | null>(null)
+  const [editingProject, setEditingProject] = useState<any | null>(null)
+
+  // 存储所有团队和项目（包括未加入的）
+  const [allTeams, setAllTeams] = useState<any[]>([])
+  const [allProjects, setAllProjects] = useState<any[]>([])
+
+  // 加载所有团队和项目
+  useEffect(() => {
+    if (open && currentUser) {
+      loadAllTeamsAndProjects()
+    }
+  }, [open, currentUser])
+
+  const loadAllTeamsAndProjects = async () => {
+    try {
+      const [teamsData, projectsData] = await Promise.all([
+        teamAPI.getAll(),
+        projectAPI.getAll()
+      ])
+      
+      setAllTeams(teamsData)
+      // 过滤掉个人事务项目（名称包含"的个人事务"）
+      const nonPersonalProjects = projectsData.filter(p => !p.name.includes('的个人事务'))
+      setAllProjects(nonPersonalProjects)
+    } catch (error) {
+      console.error('Load teams and projects failed:', error)
+    }
+  }
 
   if (!currentUser) return null
 
@@ -104,24 +145,74 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
   // 处理退出团队
   const handleLeaveTeam = async (teamId: string) => {
     try {
-      // TODO: 调用 API 退出团队
-      console.log('Leave team:', teamId)
+      setIsLeaving(teamId)
+      await teamAPI.leave(teamId)
       showToast.success('退出成功', '已退出团队')
       setConfirmLeaveTeam(null)
-    } catch (error) {
-      showToast.error('退出失败', '请稍后重试')
+      // 重新加载数据
+      await Promise.all([
+        loadAllTeamsAndProjects(),
+        fetchAllData()
+      ])
+    } catch (error: any) {
+      showToast.error('退出失败', error.message || '请稍后重试')
+    } finally {
+      setIsLeaving(null)
+    }
+  }
+
+  // 处理加入团队
+  const handleJoinTeam = async (teamId: string) => {
+    try {
+      setIsJoining(teamId)
+      await teamAPI.join(teamId)
+      showToast.success('加入成功', '已加入团队')
+      // 重新加载数据
+      await Promise.all([
+        loadAllTeamsAndProjects(),
+        fetchAllData()
+      ])
+    } catch (error: any) {
+      showToast.error('加入失败', error.message || '请稍后重试')
+    } finally {
+      setIsJoining(null)
     }
   }
 
   // 处理退出项目
   const handleLeaveProject = async (projectId: string) => {
     try {
-      // TODO: 调用 API 退出项目
-      console.log('Leave project:', projectId)
+      setIsLeaving(projectId)
+      await projectAPI.leave(projectId)
       showToast.success('退出成功', '已退出项目')
       setConfirmLeaveProject(null)
-    } catch (error) {
-      showToast.error('退出失败', '请稍后重试')
+      // 重新加载数据
+      await Promise.all([
+        loadAllTeamsAndProjects(),
+        fetchAllData()
+      ])
+    } catch (error: any) {
+      showToast.error('退出失败', error.message || '请稍后重试')
+    } finally {
+      setIsLeaving(null)
+    }
+  }
+
+  // 处理加入项目
+  const handleJoinProject = async (projectId: string) => {
+    try {
+      setIsJoining(projectId)
+      await projectAPI.join(projectId)
+      showToast.success('加入成功', '已加入项目')
+      // 重新加载数据
+      await Promise.all([
+        loadAllTeamsAndProjects(),
+        fetchAllData()
+      ])
+    } catch (error: any) {
+      showToast.error('加入失败', error.message || '请稍后重试')
+    } finally {
+      setIsJoining(null)
     }
   }
 
@@ -151,16 +242,18 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
 
   // 处理编辑团队
   const handleEditTeam = (teamId: string) => {
-    // TODO: 打开编辑团队对话框
-    console.log('Edit team:', teamId)
-    showToast.info('编辑团队', '功能开发中...')
+    const team = allTeams.find(t => t.id === teamId)
+    if (team) {
+      setEditingTeam(team)
+    }
   }
 
   // 处理编辑项目
   const handleEditProject = (projectId: string) => {
-    // TODO: 打开编辑项目对话框
-    console.log('Edit project:', projectId)
-    showToast.info('编辑项目', '功能开发中...')
+    const project = allProjects.find(p => p.id === projectId)
+    if (project) {
+      setEditingProject(project)
+    }
   }
 
   return (
@@ -230,83 +323,127 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Users className="h-5 w-5" />
-                    所属团队
+                    团队列表
                     <Badge variant="outline" className="ml-auto">
-                      {userTeams.length}
+                      {allTeams.length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto max-h-[300px]">
-                  {userTeams.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">暂未加入任何团队</p>
+                  {allTeams.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">暂无团队</p>
                   ) : (
                     <div className="space-y-3">
-                      {userTeams.map((team) => {
+                      {allTeams.map((team) => {
                         const isCreator = team.creatorId === currentUser.id
+                        const isMember = team.memberIds?.includes(currentUser.id) || false
                         return (
                           <div
                             key={team.id}
-                            className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-accent/50 transition-colors"
+                            className="rounded-lg border border-border hover:bg-accent/50 transition-colors"
                           >
-                            <div
-                              className="h-10 w-10 rounded-lg shrink-0"
-                              style={{ backgroundColor: team.color }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-sm">{team.name}</h4>
-                                {isCreator && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    <Crown className="mr-1 h-3 w-3" />
-                                    创建者
-                                  </Badge>
+                            <div className="flex items-center gap-3 p-3">
+                              <div
+                                className="h-10 w-10 rounded-lg shrink-0"
+                                style={{ backgroundColor: team.color }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium text-sm">{team.name}</h4>
+                                  {isCreator && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <Crown className="mr-1 h-3 w-3" />
+                                      创建者
+                                    </Badge>
+                                  )}
+                                </div>
+                                {team.description && (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                    {team.description}
+                                  </p>
                                 )}
+                                <div className="flex items-center gap-2 mt-1">
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={200}>
+                                      <TooltipTrigger asChild>
+                                        <Badge variant="secondary" className="text-xs cursor-help">
+                                          {team.memberIds?.length || 0} 成员
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="right" className="max-w-xs">
+                                        <div className="space-y-2">
+                                          <p className="font-semibold text-xs mb-2">团队成员</p>
+                                          <div className="grid gap-2">
+                                            {team.members?.map((member: any) => (
+                                              <div key={member.id} className="flex items-center gap-2">
+                                                <Avatar className="h-6 w-6">
+                                                  <AvatarImage src={member.avatar} />
+                                                  <AvatarFallback className="text-xs">
+                                                    {member.name?.charAt(0)}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                                <span className="text-xs">{member.name}</span>
+                                              </div>
+                                            )) || (
+                                              <p className="text-xs text-muted-foreground">暂无成员信息</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                               </div>
-                              {team.description && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {team.description}
-                                </p>
+                              {/* 操作按钮 - 非创建者显示在右侧 */}
+                              {!isCreator && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {isMember ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-orange-500 hover:text-orange-600"
+                                      onClick={() => setConfirmLeaveTeam(team.id)}
+                                      disabled={isLeaving === team.id}
+                                    >
+                                      <LogOut className="mr-1 h-3 w-3" />
+                                      {isLeaving === team.id ? '退出中...' : '退出'}
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleJoinTeam(team.id)}
+                                      disabled={isJoining === team.id}
+                                    >
+                                      {isJoining === team.id ? '加入中...' : '加入'}
+                                    </Button>
+                                  )}
+                                </div>
                               )}
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {team.memberIds.length} 成员
-                                </Badge>
-                              </div>
-                              {/* 操作按钮 */}
-                              <div className="flex items-center gap-2 mt-2">
-                                {isCreator ? (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditTeam(team.id)}
-                                    >
-                                      <Edit className="mr-1 h-3 w-3" />
-                                      编辑
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="text-red-500 hover:text-red-600"
-                                      onClick={() => setConfirmDeleteTeam(team.id)}
-                                    >
-                                      <Trash2 className="mr-1 h-3 w-3" />
-                                      删除
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-orange-500 hover:text-orange-600"
-                                    onClick={() => setConfirmLeaveTeam(team.id)}
-                                  >
-                                    <LogOut className="mr-1 h-3 w-3" />
-                                    退出
-                                  </Button>
-                                )}
-                              </div>
                             </div>
+                            {/* 创建者的编辑和删除按钮显示在底部 */}
+                            {isCreator && (
+                              <div className="flex items-center gap-2 px-3 pb-3 pt-0">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => handleEditTeam(team.id)}
+                                >
+                                  <Edit className="mr-1 h-3 w-3" />
+                                  编辑
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 text-red-500 hover:text-red-600"
+                                  onClick={() => setConfirmDeleteTeam(team.id)}
+                                >
+                                  <Trash2 className="mr-1 h-3 w-3" />
+                                  删除
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         )
                       })}
@@ -320,88 +457,127 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <FolderKanban className="h-5 w-5" />
-                    参与项目
+                    项目列表
                     <Badge variant="outline" className="ml-auto">
-                      {userProjects.length}
+                      {allProjects.length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto max-h-[300px]">
-                  {userProjects.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">暂未参与任何项目</p>
+                  {allProjects.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">暂无项目</p>
                   ) : (
                     <div className="space-y-3">
-                      {userProjects.map((project) => {
+                      {allProjects.map((project) => {
                         const isCreator = project.creatorId === currentUser.id
+                        const isMember = project.memberIds?.includes(currentUser.id) || false
                         return (
                           <div
                             key={project.id}
-                            className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-accent/50 transition-colors"
+                            className="rounded-lg border border-border hover:bg-accent/50 transition-colors"
                           >
-                            <div
-                              className="h-10 w-10 rounded-lg shrink-0"
-                              style={{ backgroundColor: project.color }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-sm">{project.name}</h4>
-                                {isCreator && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    <Crown className="mr-1 h-3 w-3" />
-                                    创建者
-                                  </Badge>
+                            <div className="flex items-center gap-3 p-3">
+                              <div
+                                className="h-10 w-10 rounded-lg shrink-0"
+                                style={{ backgroundColor: project.color }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium text-sm">{project.name}</h4>
+                                  {isCreator && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <Crown className="mr-1 h-3 w-3" />
+                                      创建者
+                                    </Badge>
+                                  )}
+                                </div>
+                                {project.description && (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                    {project.description}
+                                  </p>
                                 )}
+                                <div className="flex items-center gap-2 mt-1">
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={200}>
+                                      <TooltipTrigger asChild>
+                                        <Badge variant="secondary" className="text-xs cursor-help">
+                                          {project.memberIds?.length || 0} 成员
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="right" className="max-w-xs">
+                                        <div className="space-y-2">
+                                          <p className="font-semibold text-xs mb-2">项目成员</p>
+                                          <div className="grid gap-2">
+                                            {project.members?.map((member: any) => (
+                                              <div key={member.id} className="flex items-center gap-2">
+                                                <Avatar className="h-6 w-6">
+                                                  <AvatarImage src={member.avatar} />
+                                                  <AvatarFallback className="text-xs">
+                                                    {member.name?.charAt(0)}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                                <span className="text-xs">{member.name}</span>
+                                              </div>
+                                            )) || (
+                                              <p className="text-xs text-muted-foreground">暂无成员信息</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                               </div>
-                              {project.description && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {project.description}
-                                </p>
+                              {/* 操作按钮 - 非创建者显示在右侧 */}
+                              {!isCreator && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {isMember ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-orange-500 hover:text-orange-600"
+                                      onClick={() => setConfirmLeaveProject(project.id)}
+                                      disabled={isLeaving === project.id}
+                                    >
+                                      <LogOut className="mr-1 h-3 w-3" />
+                                      {isLeaving === project.id ? '退出中...' : '退出'}
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleJoinProject(project.id)}
+                                      disabled={isJoining === project.id}
+                                    >
+                                      {isJoining === project.id ? '加入中...' : '加入'}
+                                    </Button>
+                                  )}
+                                </div>
                               )}
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {project.memberIds.length} 成员
-                                </Badge>
-                                {project.teamId && (
-                                  <Badge variant="outline" className="text-xs">
-                                    团队项目
-                                  </Badge>
-                                )}
-                              </div>
-                              {/* 操作按钮 */}
-                              <div className="flex items-center gap-2 mt-2">
-                                {isCreator ? (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditProject(project.id)}
-                                    >
-                                      <Edit className="mr-1 h-3 w-3" />
-                                      编辑
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="text-red-500 hover:text-red-600"
-                                      onClick={() => setConfirmDeleteProject(project.id)}
-                                    >
-                                      <Trash2 className="mr-1 h-3 w-3" />
-                                      删除
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-orange-500 hover:text-orange-600"
-                                    onClick={() => setConfirmLeaveProject(project.id)}
-                                  >
-                                    <LogOut className="mr-1 h-3 w-3" />
-                                    退出
-                                  </Button>
-                                )}
-                              </div>
                             </div>
+                            {/* 创建者的编辑和删除按钮显示在底部 */}
+                            {isCreator && (
+                              <div className="flex items-center gap-2 px-3 pb-3 pt-0">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => handleEditProject(project.id)}
+                                >
+                                  <Edit className="mr-1 h-3 w-3" />
+                                  编辑
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 text-red-500 hover:text-red-600"
+                                  onClick={() => setConfirmDeleteProject(project.id)}
+                                >
+                                  <Trash2 className="mr-1 h-3 w-3" />
+                                  删除
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         )
                       })}
@@ -499,6 +675,34 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 编辑团队对话框 */}
+      {editingTeam && (
+        <TeamDialog
+          team={editingTeam}
+          onClose={() => {
+            setEditingTeam(null)
+            // 重新加载数据
+            loadAllTeamsAndProjects()
+            // 触发全局数据刷新
+            window.location.reload()
+          }}
+        />
+      )}
+
+      {/* 编辑项目对话框 */}
+      {editingProject && (
+        <ProjectDialog
+          project={editingProject}
+          onClose={() => {
+            setEditingProject(null)
+            // 重新加载数据
+            loadAllTeamsAndProjects()
+            // 触发全局数据刷新
+            window.location.reload()
+          }}
+        />
+      )}
     </>
   )
 }

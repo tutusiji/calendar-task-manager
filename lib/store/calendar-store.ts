@@ -287,10 +287,11 @@ export const useCalendarStore = create<CalendarStore>()(
         description: project.description,
         color: project.color,
         teamId: project.teamId,
+        organizationId: project.organizationId,
         creatorId: project.creatorId, // 添加创建者ID
         taskPermission: project.taskPermission || "ALL_MEMBERS", // 任务权限
-        // members 是 ProjectMember 数组，每个有 user 属性
-        memberIds: project.members?.map((m: any) => m.user?.id || m.userId) || [],
+        // API 现在直接返回 memberIds 数组
+        memberIds: project.memberIds || [],
         createdAt: new Date(project.createdAt),
       }))
       
@@ -356,10 +357,11 @@ export const useCalendarStore = create<CalendarStore>()(
         name: team.name,
         description: team.description,
         color: team.color,
+        organizationId: team.organizationId,
         creatorId: team.creatorId, // 添加创建者ID
         taskPermission: team.taskPermission || "ALL_MEMBERS", // 任务权限
-        // members 是 TeamMember 数组，每个有 user 属性
-        memberIds: team.members?.map((m: any) => m.user?.id || m.userId) || [],
+        // API 现在直接返回 memberIds 数组
+        memberIds: team.memberIds || [],
         createdAt: new Date(team.createdAt),
       }))
       
@@ -596,10 +598,20 @@ export const useCalendarStore = create<CalendarStore>()(
     
     try {
       // await API 调用,确保任务删除成功
-      await taskAPI.delete(id)
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete task')
+      }
       
       // API 成功后,在后台刷新任务列表(不阻塞调用者)
-      (async () => {
+      const refreshData = async () => {
         const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
         
         if (navigationMode === 'team' && selectedTeamId) {
@@ -609,7 +621,9 @@ export const useCalendarStore = create<CalendarStore>()(
         } else if (currentUser) {
           await get().fetchTasks({ userId: currentUser.id })
         }
-      })().catch((error: any) => {
+      }
+      
+      refreshData().catch((error: any) => {
         console.error('Background data refresh failed after task deletion:', error)
       })
       

@@ -333,6 +333,15 @@ export const projectAPI = {
       method: 'POST',
     })
   },
+
+  /**
+   * 加入项目
+   */
+  async join(projectId: string): Promise<void> {
+    return fetchAPI<void>(`/projects/${projectId}/join`, {
+      method: 'POST',
+    })
+  },
 }
 
 // ==================== 团队 API ====================
@@ -395,6 +404,15 @@ export const teamAPI = {
    */
   async leave(teamId: string): Promise<void> {
     return fetchAPI<void>(`/teams/${teamId}/leave`, {
+      method: 'POST',
+    })
+  },
+
+  /**
+   * 加入团队
+   */
+  async join(teamId: string): Promise<void> {
+    return fetchAPI<void>(`/teams/${teamId}/join`, {
       method: 'POST',
     })
   },

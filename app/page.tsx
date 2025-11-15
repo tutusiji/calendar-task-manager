@@ -138,7 +138,7 @@ export default function Home() {
     <div className="flex h-screen">
       <aside className="w-72 border-r border-border bg-background flex flex-col">
         {/* Logo */}
-        <div className="border-b border-border bg-card px-6 py-[18px]">
+        <div className="border-b border-border bg-card px-6 pt-[14px] pb-[15px]">
           <div className="flex items-center gap-3">
             {/* Logo 图片 */}
             <div className="relative w-10 h-10 shrink-0">
@@ -152,7 +152,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent">
+              <h1 className="text-[22px] font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent">
                 OxHorse Planner
               </h1>
               <p className="text-[11px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>打工人必备的轻量任务管理工具</p>

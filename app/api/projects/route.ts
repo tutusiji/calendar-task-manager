@@ -23,29 +23,17 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
 
-    // 只获取当前组织内用户是成员的项目
+    // 获取当前组织内的所有项目（供个人中心等场景使用）
     const where: any = {
       organizationId: user.currentOrganizationId,
-      members: {
-        some: {
-          userId: auth.userId
-        }
-      }
     }
 
     const projects = await prisma.project.findMany({
       where,
       include: {
         members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
+          select: {
+            userId: true
           }
         },
         creator: {
@@ -67,9 +55,18 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // 格式化响应数据，只返回必要字段
+    const formattedProjects = projects.map(project => {
+      const { members, ...projectData } = project
+      return {
+        ...projectData,
+        memberIds: members.map(m => m.userId)
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      data: projects
+      data: formattedProjects
     })
   } catch (error) {
     console.error('Error fetching projects:', error)
@@ -122,6 +119,24 @@ export async function POST(request: NextRequest) {
           error: 'User must be in an organization'
         },
         { status: 400 }
+      )
+    }
+
+    // 检查同组织内是否已存在同名项目
+    const existingProject = await prisma.project.findFirst({
+      where: {
+        organizationId: user.currentOrganizationId,
+        name: name
+      }
+    })
+
+    if (existingProject) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: '该组织内已存在同名项目'
+        },
+        { status: 409 }
       )
     }
 

@@ -181,7 +181,7 @@ export function NotificationItem({
             size="sm"
             onClick={handleApprove}
             disabled={isProcessing || isHandled}
-            className="flex-1"
+            className="h-7 px-3 text-xs"
           >
             {isHandled ? "已同意" : "同意"}
           </Button>
@@ -190,25 +190,11 @@ export function NotificationItem({
             variant="outline"
             onClick={handleReject}
             disabled={isProcessing || isHandled}
-            className="flex-1"
+            className="h-7 px-3 text-xs"
           >
             {isHandled ? "已拒绝" : "拒绝"}
           </Button>
         </div>
-      )
-    }
-
-    // 其他类型的消息只显示已读按钮
-    if (!notification.isRead) {
-      return (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onMarkAsRead(notification.id)}
-          className="mt-2 w-full"
-        >
-          标记已读
-        </Button>
       )
     }
 
@@ -233,11 +219,12 @@ export function NotificationItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <h4 className="font-medium text-sm">{notification.title}</h4>
-            {!notification.isRead && (
-              <Badge variant="secondary" className="shrink-0 text-xs">
-                未读
-              </Badge>
-            )}
+            <Badge 
+              variant={notification.isRead ? "outline" : "secondary"} 
+              className="shrink-0 text-xs"
+            >
+              {notification.isRead ? "已读" : "未读"}
+            </Badge>
           </div>
           
           <p className="text-sm text-muted-foreground mt-1 wrap-break-word">
@@ -252,7 +239,19 @@ export function NotificationItem({
 
           <p className="text-xs text-muted-foreground mt-2">{timeAgo}</p>
 
-          {renderActions()}
+          {notification.type === "ORG_JOIN_REQUEST" && renderActions()}
+          
+          {/* 标记已读按钮放在时间下方 */}
+          {notification.type !== "ORG_JOIN_REQUEST" && !notification.isRead && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onMarkAsRead(notification.id)}
+              className="mt-2 h-7 px-3 text-xs font-semibold shadow-sm"
+            >
+              标记已读
+            </Button>
+          )}
         </div>
       </div>
     </div>

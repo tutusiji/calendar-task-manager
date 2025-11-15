@@ -49,14 +49,8 @@ export async function GET(request: NextRequest) {
         return successResponse([])
       }
 
-      // 查询该团队所有成员的任务（不限制项目）
-      const teamMemberIds = await prisma.teamMember.findMany({
-        where: { teamId },
-        select: { userId: true }
-      })
-      where.userId = {
-        in: teamMemberIds.map(m => m.userId)
-      }
+      // 查询该团队的任务（只查询 teamId 字段匹配的任务）
+      where.teamId = teamId
     } else if (projectId) {
       // 验证用户是否是项目成员
       const projectMember = await prisma.projectMember.findFirst({

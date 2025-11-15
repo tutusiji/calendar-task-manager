@@ -54,6 +54,11 @@ export function NavigationMenu() {
   const [editingProject, setEditingProject] = useState<Project | undefined>()
   const [viewingProject, setViewingProject] = useState<Project | undefined>()
   
+  // 过滤当前用户的团队
+  const myTeams = currentUser
+    ? teams.filter(t => t.memberIds.includes(currentUser.id))
+    : []
+  
   // 过滤当前用户的项目，个人事务项目置顶
   const myProjects = currentUser 
     ? projects
@@ -223,7 +228,7 @@ export function NavigationMenu() {
           
           {teamsExpanded && (
             <div className="ml-6 mt-1 space-y-1">
-              {teams.map((team) => (
+              {myTeams.map((team) => (
                 <div
                   key={team.id}
                   className="group flex items-center gap-2 pr-2"
