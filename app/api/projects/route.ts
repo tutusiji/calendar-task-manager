@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, color, description, teamId, memberIds } = body
+    const { name, color, description, teamId, memberIds, creatorId } = body
 
     if (!name || !color) {
       return NextResponse.json(
@@ -77,12 +77,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!creatorId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Creator ID is required'
+        },
+        { status: 400 }
+      )
+    }
+
     const project = await prisma.project.create({
       data: {
         name,
         color,
         description,
         teamId,
+        creatorId, // 设置创建者
         members: memberIds
           ? {
               create: memberIds.map((userId: string) => ({

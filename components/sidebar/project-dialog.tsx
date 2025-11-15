@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Project } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
+import { UserSingleSelector } from "../task/user-single-selector"
 
 interface ProjectDialogProps {
   project?: Project // 如果提供则为编辑模式
@@ -35,12 +36,20 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
   const [description, setDescription] = useState(project?.description || "")
   const [color, setColor] = useState(project?.color || PRESET_COLORS[0])
   const [teamId, setTeamId] = useState<string | undefined>(project?.teamId)
-  const [memberIds, setMemberIds] = useState<string[]>(project?.memberIds || [])
+  const [memberIds, setMemberIds] = useState<string[]>(() => {
+    // 初始化成员列表
+    if (project?.memberIds) {
+      return project.memberIds
+    }
+    // 新建项目时，默认包含当前用户
+    return currentUser?.id ? [currentUser.id] : []
+  })
   const [creatorId, setCreatorId] = useState<string>(project?.creatorId || currentUser?.id || "")
 
   const isEditMode = !!project
-  // 判断当前用户是否是创建者
+  // 判断当前用户是否是创建者或超级管理员
   const isCreator = currentUser?.id === project?.creatorId
+  const canEditCreator = isCreator || currentUser?.isAdmin
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,13 +60,18 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
       return
     }
 
+    // 确保创建者在成员列表中
+    const finalMemberIds = memberIds.includes(creatorId) 
+      ? memberIds 
+      : [...memberIds, creatorId]
+
     if (isEditMode) {
       updateProject(project.id, {
         name: name.trim(),
         description: description.trim() || undefined,
         color,
         teamId: teamId || undefined,
-        memberIds,
+        memberIds: finalMemberIds,
         creatorId, // 更新创建者
       })
     } else {
@@ -67,7 +81,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
         description: description.trim() || undefined,
         color,
         teamId: teamId || undefined,
-        memberIds,
+        memberIds: finalMemberIds,
         creatorId: currentUser?.id || "", // 设置创建者
         createdAt: new Date(),
       }
@@ -156,55 +170,46 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
             </div>
           </div>
 
-          {/* Team */}
-          <div className="space-y-2">
-            <Label htmlFor="team" className="text-sm font-medium">
-              归属团队（可选）
-            </Label>
-            <Select value={teamId || "none"} onValueChange={(value) => setTeamId(value === "none" ? undefined : value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="选择团队" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">无</SelectItem>
-                {teams.map((team) => (
-                  <SelectItem key={team.id} value={team.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
-                      {team.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Creator - 只在编辑模式显示 */}
-          {isEditMode && (
+          {/* Team and Creator - 只在编辑模式时并排显示创建人，否则只显示团队 */}
+          <div className={isEditMode ? "grid grid-cols-2 gap-4" : "space-y-2"}>
+            {/* Team */}
             <div className="space-y-2">
-              <Label htmlFor="creator" className="text-sm font-medium">
-                创建人
+              <Label htmlFor="team" className="text-sm font-medium">
+                归属团队（可选）
               </Label>
-              {isCreator ? (
-                <Select value={creatorId} onValueChange={setCreatorId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  {users.find(u => u.id === creatorId)?.name || '未知'}
-                </div>
-              )}
+              <Select value={teamId || "none"} onValueChange={(value) => setTeamId(value === "none" ? undefined : value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择团队" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">无</SelectItem>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
+                        {team.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
+
+            {/* Creator - 只在编辑模式显示 */}
+            {isEditMode && (
+              <div className="space-y-2">
+                <Label htmlFor="creator" className="text-sm font-medium">
+                  创建人
+                </Label>
+                <UserSingleSelector
+                  selectedUserId={creatorId}
+                  onUserChange={setCreatorId}
+                  disabled={!canEditCreator}
+                  placeholder="选择创建人"
+                />
+              </div>
+            )}
+          </div>
 
           {/* Members */}
           <div className="space-y-2">
@@ -214,6 +219,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
             <UserMultiSelector 
               selectedUserIds={memberIds}
               onUserChange={setMemberIds}
+              lockedUserIds={[creatorId]} // 创建者不可移除
             />
           </div>
 

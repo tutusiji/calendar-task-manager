@@ -92,9 +92,15 @@ export async function PUT(
       return notFoundResponse('项目不存在')
     }
 
-    // 权限验证：只有创建者可以修改项目
-    if (existingProject.creatorId !== auth.userId) {
-      return forbiddenResponse('只有项目创建者可以修改项目')
+    // 获取当前用户信息（检查是否是超级管理员）
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { isAdmin: true }
+    })
+
+    // 权限验证：只有创建者或超级管理员可以修改项目
+    if (existingProject.creatorId !== auth.userId && !currentUser?.isAdmin) {
+      return forbiddenResponse('只有项目创建者或超级管理员可以修改项目')
     }
 
     const { name, description, color, teamId, memberIds, creatorId } = body
@@ -241,9 +247,15 @@ export async function DELETE(
       return notFoundResponse('项目不存在')
     }
 
-    // 权限验证：只有创建者可以删除项目
-    if (existingProject.creatorId !== auth.userId) {
-      return forbiddenResponse('只有项目创建者可以删除项目')
+    // 获取当前用户信息（检查是否是超级管理员）
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { isAdmin: true }
+    })
+
+    // 权限验证：只有创建者或超级管理员可以删除项目
+    if (existingProject.creatorId !== auth.userId && !currentUser?.isAdmin) {
+      return forbiddenResponse('只有项目创建者或超级管理员可以删除项目')
     }
 
     // 检查是否有任务

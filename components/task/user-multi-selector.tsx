@@ -16,9 +16,10 @@ import { Badge } from "@/components/ui/badge"
 interface UserMultiSelectorProps {
   selectedUserIds: string[]
   onUserChange: (userIds: string[]) => void
+  lockedUserIds?: string[] // 不可移除的用户ID列表
 }
 
-export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSelectorProps) {
+export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [] }: UserMultiSelectorProps) {
   const { users, getUserById } = useCalendarStore()
   const [open, setOpen] = useState(false)
 
@@ -28,6 +29,10 @@ export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSe
 
   const toggleUser = (userId: string) => {
     if (selectedUserIds.includes(userId)) {
+      // 如果用户在锁定列表中，不允许取消选择
+      if (lockedUserIds.includes(userId)) {
+        return
+      }
       onUserChange(selectedUserIds.filter(id => id !== userId))
     } else {
       onUserChange([...selectedUserIds, userId])
@@ -36,6 +41,10 @@ export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSe
 
   const removeUser = (userId: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    // 如果用户在锁定列表中，不允许移除
+    if (lockedUserIds.includes(userId)) {
+      return
+    }
     onUserChange(selectedUserIds.filter(id => id !== userId))
   }
 
@@ -55,6 +64,7 @@ export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSe
               selectedUserIds.map(userId => {
                 const user = getUserById(userId)
                 if (!user) return null
+                const isLocked = lockedUserIds.includes(userId)
                 return (
                   <Badge key={userId} variant="secondary" className="gap-1 pr-1">
                     <Avatar className="h-4 w-4">
@@ -64,19 +74,21 @@ export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSe
                       </AvatarFallback>
                     </Avatar>
                     <span>{user.name}</span>
-                    <span
-                      onClick={(e) => removeUser(userId, e)}
-                      className="ml-1 rounded-full hover:bg-muted cursor-pointer inline-flex items-center justify-center"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          removeUser(userId, e as any)
-                        }
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </span>
+                    {!isLocked && (
+                      <span
+                        onClick={(e) => removeUser(userId, e)}
+                        className="ml-1 rounded-full hover:bg-muted cursor-pointer inline-flex items-center justify-center"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            removeUser(userId, e as any)
+                          }
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    )}
                   </Badge>
                 )
               })
@@ -89,13 +101,16 @@ export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSe
         <div className="space-y-1">
           {users.map((user) => {
             const isSelected = selectedUserIds.includes(user.id)
+            const isLocked = lockedUserIds.includes(user.id)
             return (
               <button
                 key={user.id}
                 onClick={() => toggleUser(user.id)}
+                disabled={isLocked}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent",
-                  isSelected && "bg-accent"
+                  isSelected && "bg-accent",
+                  isLocked && "opacity-60 cursor-not-allowed"
                 )}
               >
                 <Avatar className="h-6 w-6">
@@ -105,7 +120,10 @@ export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSe
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 text-left">
-                  <div className="font-medium">{user.name}</div>
+                  <div className="font-medium">
+                    {user.name}
+                    {isLocked && <span className="ml-1 text-xs text-muted-foreground">(创建者)</span>}
+                  </div>
                   <div className="text-xs text-muted-foreground">{user.email}</div>
                 </div>
                 {isSelected && (

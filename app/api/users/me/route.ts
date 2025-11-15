@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         avatar: true,
         gender: true,
         role: true,
+        isAdmin: true,
         createdAt: true,
         updatedAt: true
       }
@@ -93,6 +94,7 @@ export async function PUT(request: NextRequest) {
         avatar: true,
         gender: true,
         role: true,
+        isAdmin: true,
         createdAt: true,
         updatedAt: true
       }

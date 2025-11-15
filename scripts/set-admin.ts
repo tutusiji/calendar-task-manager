@@ -4,18 +4,21 @@ const prisma = new PrismaClient()
 
 async function main() {
   try {
-    // 查找张三的账号
-    const zhangsan = await prisma.user.findFirst({
+    // 从命令行参数获取用户名，默认为张三
+    const userName = process.argv[2] || '张三'
+    
+    // 查找用户账号
+    const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { username: 'zhangsan' },
-          { name: { contains: '张三' } }
+          { username: userName.toLowerCase() },
+          { name: { contains: userName } }
         ]
       }
     })
 
-    if (!zhangsan) {
-      console.log('❌ 未找到张三的账号')
+    if (!user) {
+      console.log(`❌ 未找到 ${userName} 的账号`)
       console.log('正在查找所有用户...')
       const allUsers = await prisma.user.findMany({
         select: { id: true, username: true, name: true, isAdmin: true }
@@ -24,11 +27,11 @@ async function main() {
       return
     }
 
-    console.log(`✅ 找到用户: ${zhangsan.name} (${zhangsan.username})`)
+    console.log(`✅ 找到用户: ${user.name} (${user.username})`)
 
     // 设置为超级管理员
     const updated = await prisma.user.update({
-      where: { id: zhangsan.id },
+      where: { id: user.id },
       data: { isAdmin: true },
       select: {
         id: true,

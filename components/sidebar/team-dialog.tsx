@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Team } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
+import { UserSingleSelector } from "../task/user-single-selector"
 
 interface TeamDialogProps {
   team?: Team // 如果提供则为编辑模式
@@ -33,12 +34,20 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
   const [name, setName] = useState(team?.name || "")
   const [description, setDescription] = useState(team?.description || "")
   const [color, setColor] = useState(team?.color || PRESET_COLORS[0])
-  const [memberIds, setMemberIds] = useState<string[]>(team?.memberIds || [])
+  const [memberIds, setMemberIds] = useState<string[]>(() => {
+    // 初始化成员列表
+    if (team?.memberIds) {
+      return team.memberIds
+    }
+    // 新建团队时，默认包含当前用户
+    return currentUser?.id ? [currentUser.id] : []
+  })
   const [creatorId, setCreatorId] = useState<string>(team?.creatorId || currentUser?.id || "")
 
   const isEditMode = !!team
-  // 判断当前用户是否是创建者
+  // 判断当前用户是否是创建者或超级管理员
   const isCreator = currentUser?.id === team?.creatorId
+  const canEditCreator = isCreator || currentUser?.isAdmin
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,12 +58,17 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
       return
     }
 
+    // 确保创建者在成员列表中
+    const finalMemberIds = memberIds.includes(creatorId) 
+      ? memberIds 
+      : [...memberIds, creatorId]
+
     if (isEditMode) {
       updateTeam(team.id, {
         name: name.trim(),
         description: description.trim() || undefined,
         color,
-        memberIds,
+        memberIds: finalMemberIds,
         creatorId, // 更新创建者
       })
     } else {
@@ -63,7 +77,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
         name: name.trim(),
         description: description.trim() || undefined,
         color,
-        memberIds,
+        memberIds: finalMemberIds,
         creatorId: currentUser?.id || "", // 设置创建者
         createdAt: new Date(),
       }
@@ -158,24 +172,12 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
               <Label htmlFor="creator" className="text-sm font-medium">
                 创建人
               </Label>
-              {isCreator ? (
-                <select
-                  id="creator"
-                  value={creatorId}
-                  onChange={(e) => setCreatorId(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  {users.find(u => u.id === creatorId)?.name || '未知'}
-                </div>
-              )}
+              <UserSingleSelector
+                selectedUserId={creatorId}
+                onUserChange={setCreatorId}
+                disabled={!canEditCreator}
+                placeholder="选择创建人"
+              />
             </div>
           )}
 
@@ -187,6 +189,7 @@ export function TeamDialog({ team, onClose }: TeamDialogProps) {
             <UserMultiSelector 
               selectedUserIds={memberIds}
               onUserChange={setMemberIds}
+              lockedUserIds={[creatorId]} // 创建者不可移除
             />
           </div>
 

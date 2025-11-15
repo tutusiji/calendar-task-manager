@@ -396,65 +396,47 @@ export const useCalendarStore = create<CalendarStore>()(
   addProject: async (project) => {
     try {
       const newProject = await projectAPI.create(project as any)
-      set((state) => ({
-        projects: [...state.projects, {
-          id: newProject.id,
-          name: newProject.name,
-          description: newProject.description,
-          color: newProject.color,
-          teamId: newProject.teamId,
-          creatorId: newProject.creatorId, // 添加创建者ID
-          memberIds: newProject.members?.map((m: any) => m.id) || [],
-          createdAt: new Date(newProject.createdAt),
-        }],
-      }))
+      
+      // 重新获取项目列表以确保数据同步
+      await get().fetchProjects()
+      
+      showToast.success('创建成功', `项目 "${newProject.name}" 已创建`)
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg })
+      showToast.error('创建失败', errorMsg)
       throw error
     }
   },
 
   updateProject: async (id, updatedProject) => {
-    const originalProjects = get().projects
-    set((state) => ({
-      projects: state.projects.map((project) => 
-        project.id === id ? { ...project, ...updatedProject } : project
-      ),
-    }))
-
     try {
-      const updated = await projectAPI.update(id, updatedProject)
-      set((state) => ({
-        projects: state.projects.map((project) =>
-          project.id === id ? {
-            id: updated.id,
-            name: updated.name,
-            description: updated.description,
-            color: updated.color,
-            teamId: updated.teamId,
-            creatorId: updated.creatorId, // 添加创建者ID
-            memberIds: updated.members?.map((m: any) => m.id) || [],
-            createdAt: new Date(updated.createdAt),
-          } : project
-        ),
-      }))
+      await projectAPI.update(id, updatedProject)
+      
+      // 重新获取项目列表以确保数据同步
+      await get().fetchProjects()
+      
+      showToast.success('更新成功', '项目信息已更新')
     } catch (error) {
-      set({ projects: originalProjects, error: handleAPIError(error) })
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      showToast.error('更新失败', errorMsg)
       throw error
     }
   },
 
   deleteProject: async (id) => {
-    const originalProjects = get().projects
-    set((state) => ({
-      projects: state.projects.filter((project) => project.id !== id),
-    }))
-
     try {
       await projectAPI.delete(id)
+      
+      // 重新获取项目列表以确保数据同步
+      await get().fetchProjects()
+      
+      showToast.success('删除成功', '项目已删除')
     } catch (error) {
-      set({ projects: originalProjects, error: handleAPIError(error) })
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      showToast.error('删除失败', errorMsg)
       throw error
     }
   },
@@ -462,63 +444,47 @@ export const useCalendarStore = create<CalendarStore>()(
   addTeam: async (team) => {
     try {
       const newTeam = await teamAPI.create(team as any)
-      set((state) => ({
-        teams: [...state.teams, {
-          id: newTeam.id,
-          name: newTeam.name,
-          description: newTeam.description,
-          color: newTeam.color,
-          creatorId: newTeam.creatorId, // 添加创建者ID
-          memberIds: newTeam.members?.map((m: any) => m.id) || [],
-          createdAt: new Date(newTeam.createdAt),
-        }],
-      }))
+      
+      // 重新获取团队列表以确保数据同步
+      await get().fetchTeams()
+      
+      showToast.success('创建成功', `团队 "${newTeam.name}" 已创建`)
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg })
+      showToast.error('创建失败', errorMsg)
       throw error
     }
   },
 
   updateTeam: async (id, updatedTeam) => {
-    const originalTeams = get().teams
-    set((state) => ({
-      teams: state.teams.map((team) => 
-        team.id === id ? { ...team, ...updatedTeam } : team
-      ),
-    }))
-
     try {
-      const updated = await teamAPI.update(id, updatedTeam)
-      set((state) => ({
-        teams: state.teams.map((team) =>
-          team.id === id ? {
-            id: updated.id,
-            name: updated.name,
-            description: updated.description,
-            color: updated.color,
-            creatorId: updated.creatorId, // 添加创建者ID
-            memberIds: updated.members?.map((m: any) => m.id) || [],
-            createdAt: new Date(updated.createdAt),
-          } : team
-        ),
-      }))
+      await teamAPI.update(id, updatedTeam)
+      
+      // 重新获取团队列表以确保数据同步
+      await get().fetchTeams()
+      
+      showToast.success('更新成功', '团队信息已更新')
     } catch (error) {
-      set({ teams: originalTeams, error: handleAPIError(error) })
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      showToast.error('更新失败', errorMsg)
       throw error
     }
   },
 
   deleteTeam: async (id) => {
-    const originalTeams = get().teams
-    set((state) => ({
-      teams: state.teams.filter((team) => team.id !== id),
-    }))
-
     try {
       await teamAPI.delete(id)
+      
+      // 重新获取团队列表以确保数据同步
+      await get().fetchTeams()
+      
+      showToast.success('删除成功', '团队已删除')
     } catch (error) {
-      set({ teams: originalTeams, error: handleAPIError(error) })
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      showToast.error('删除失败', errorMsg)
       throw error
     }
   },
