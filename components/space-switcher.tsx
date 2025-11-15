@@ -33,22 +33,29 @@ export function SpaceSwitcher() {
         return
       }
 
+      console.log("Fetching organizations with token:", token.substring(0, 20) + "...")
       const response = await fetch("/api/organizations", {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
       })
+      console.log("Response status:", response.status)
       const data = await response.json()
+      console.log("Organizations data:", data)
       
       if (data.success) {
         setOrganizations(data.data)
         
         // 从用户信息中获取当前组织
         const userStr = localStorage.getItem("currentUser")
+        console.log("Current user from localStorage:", userStr)
         if (userStr) {
           const user = JSON.parse(userStr)
+          console.log("Current organization ID:", user.currentOrganizationId)
           setCurrentOrgId(user.currentOrganizationId)
         }
+      } else {
+        console.error("Failed to fetch organizations:", data.error)
       }
     } catch (error) {
       console.error("获取组织列表失败:", error)
@@ -136,7 +143,9 @@ export function SpaceSwitcher() {
         )}
         disabled={isLoading}
       >
-        <span className="text-foreground">My Space</span>
+        <span className="text-foreground">
+          {currentOrg?.name || "选择空间"}
+        </span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">

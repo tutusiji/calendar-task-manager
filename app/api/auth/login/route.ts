@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
         avatar: true,
         gender: true,
         role: true,
-        isAdmin: true
+        isAdmin: true,
+        currentOrganizationId: true
       }
     })
 
