@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams
     const unreadOnly = searchParams.get("unreadOnly") === "true"
 
+    console.log("查询消息列表，用户ID:", auth.userId, "仅未读:", unreadOnly)
+
     // 获取30天内的消息
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
@@ -35,9 +37,15 @@ export async function GET(req: NextRequest) {
       take: 100, // 最多返回100条
     })
 
+    console.log("查询到消息数量:", notifications.length)
+
     return successResponse(notifications)
   } catch (error) {
     console.error("获取消息列表失败:", error)
+    if (error instanceof Error) {
+      console.error("错误详情:", error.message)
+      console.error("错误堆栈:", error.stack)
+    }
     return errorResponse("获取消息列表失败")
   }
 }
