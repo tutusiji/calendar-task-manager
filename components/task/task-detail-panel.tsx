@@ -69,25 +69,26 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
         endTime: endTime || undefined,
         type: taskType,
         projectId,
-        teamId: teamId === "none" ? undefined : teamId, // 保存团队ID
-        userId: assigneeId || currentUser.id, // 使用选择的负责人ID
+        teamId: teamId === "none" ? undefined : teamId,
+        userId: assigneeId || currentUser.id,
       }
 
+      // await API 调用,确保创建成功(数据刷新在Store内部后台执行)
       await addTask(newTask)
 
+      // 更新设置
       if (rememberProject) {
         updateSettings({ lastSelectedProjectId: projectId, rememberLastProject: true })
       } else {
         updateSettings({ rememberLastProject: false })
       }
 
-      // 显示成功提示
+      // API 成功后立即显示提示并关闭弹窗
       toast({
         variant: 'success' as any,
         title: "创建成功",
         description: `任务「${title}」已创建`,
       })
-
       onClose()
     } catch (error) {
       console.error('Failed to create task:', error)
@@ -265,7 +266,10 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">无团队</SelectItem>
-                  {teams.map((team) => (
+                  {teams
+                    .filter(t => currentUser && t.memberIds.includes(currentUser.id))
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
@@ -290,7 +294,17 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                   <SelectValue placeholder="请选择项目" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
+                  {projects
+                    .filter(p => currentUser && p.memberIds.includes(currentUser.id))
+                    .sort((a, b) => {
+                      // 个人事务项目置顶
+                      const aIsPersonal = a.name.includes('个人事务')
+                      const bIsPersonal = b.name.includes('个人事务')
+                      if (aIsPersonal && !bIsPersonal) return -1
+                      if (!aIsPersonal && bIsPersonal) return 1
+                      return a.name.localeCompare(b.name)
+                    })
+                    .map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />

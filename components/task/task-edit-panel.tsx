@@ -62,6 +62,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
     setIsSubmitting(true)
 
     try {
+      // await API 调用,确保更新成功(数据刷新在Store内部后台执行)
       await updateTask(task.id, {
         title: title.trim(),
         description: description.trim() || undefined,
@@ -71,16 +72,16 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
         endTime: endTime || undefined,
         type: taskType,
         projectId,
-        teamId: teamId === "none" ? undefined : teamId, // 保存团队ID
-        userId: assigneeId, // 更新负责人
+        teamId: teamId === "none" ? undefined : teamId,
+        userId: assigneeId,
       })
 
+      // API 成功后立即显示提示并关闭弹窗
       toast({
         variant: 'success' as any,
         title: "保存成功",
         description: `任务「${title}」已更新`,
       })
-
       onClose()
     } catch (error) {
       console.error('Failed to update task:', error)
@@ -100,14 +101,15 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
     setIsDeleting(true)
 
     try {
+      // await API 调用,确保删除成功(数据刷新在Store内部后台执行)
       await deleteTask(task.id)
       
+      // API 成功后立即显示提示并关闭弹窗
       toast({
         variant: 'success' as any,
         title: "删除成功",
         description: `任务「${task.title}」已删除`,
       })
-
       onClose()
     } catch (error) {
       console.error('Failed to delete task:', error)
@@ -292,7 +294,10 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">无团队</SelectItem>
-                  {teams.map((team) => (
+                  {teams
+                    .filter(t => currentUser && t.memberIds.includes(currentUser.id))
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
@@ -317,7 +322,17 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
                   <SelectValue placeholder="请选择项目" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
+                  {projects
+                    .filter(p => currentUser && p.memberIds.includes(currentUser.id))
+                    .sort((a, b) => {
+                      // 个人事务项目置顶
+                      const aIsPersonal = a.name.includes('个人事务')
+                      const bIsPersonal = b.name.includes('个人事务')
+                      if (aIsPersonal && !bIsPersonal) return -1
+                      if (!aIsPersonal && bIsPersonal) return 1
+                      return a.name.localeCompare(b.name)
+                    })
+                    .map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />

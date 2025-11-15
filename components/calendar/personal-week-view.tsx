@@ -92,11 +92,11 @@ export function PersonalWeekView() {
   const TASK_GAP = 4
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" key={`personal-week-${hideWeekends ? 'workdays' : 'fullweek'}`}>
       {/* Week day headers */}
       <div className="flex border-b border-border bg-muted/30">
         {weekDays.map((day, index) => (
-          <div key={index} className="flex-1 border-r border-border px-4 py-3 text-center last:border-r-0">
+          <div key={`day-${index}-${hideWeekends ? '5' : '7'}`} className="flex-1 border-r border-border px-4 py-3 text-center last:border-r-0">
             <div className="text-xs text-muted-foreground">{getWeekDayName(day.getDay())}</div>
             <div className="mt-1 text-sm font-medium text-foreground">{day.getDate()}</div>
           </div>
@@ -110,7 +110,7 @@ export function PersonalWeekView() {
 
           return (
             <div 
-              key={index} 
+              key={`task-day-${index}-${hideWeekends ? '5' : '7'}`}
               className="flex-1 border-r border-border p-2 last:border-r-0 relative select-none"
             >
               {dayTasks.map((task) => (

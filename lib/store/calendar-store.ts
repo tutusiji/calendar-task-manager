@@ -447,27 +447,30 @@ export const useCalendarStore = create<CalendarStore>()(
     }
     
     try {
+      // await API 调用,确保任务创建成功
       await taskAPI.create(task as any)
       
-      // 创建任务可能导致后端自动添加成员,需要刷新项目/团队数据
-      if (task.projectId) {
-        await get().fetchProjects()
-      }
-      if (task.teamId) {
-        await get().fetchTeams()
-      }
+      // API 成功后,在后台刷新数据(不阻塞调用者)
+      Promise.all([
+        // 创建任务可能导致后端自动添加成员,需要刷新项目/团队数据
+        task.projectId ? get().fetchProjects() : Promise.resolve(),
+        task.teamId ? get().fetchTeams() : Promise.resolve(),
+        // 根据当前导航模式重新获取任务列表
+        (async () => {
+          const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
+          if (navigationMode === 'team' && selectedTeamId) {
+            await get().fetchTasks({ teamId: selectedTeamId })
+          } else if (navigationMode === 'project' && selectedProjectId) {
+            await get().fetchTasks({ projectId: selectedProjectId })
+          } else if (currentUser) {
+            await get().fetchTasks({ userId: currentUser.id })
+          }
+        })()
+      ]).catch((error: any) => {
+        console.error('Background data refresh failed after task creation:', error)
+      })
       
-      // 创建成功后，根据当前导航模式重新获取任务列表
-      const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
-      
-      if (navigationMode === 'team' && selectedTeamId) {
-        await get().fetchTasks({ teamId: selectedTeamId })
-      } else if (navigationMode === 'project' && selectedProjectId) {
-        await get().fetchTasks({ projectId: selectedProjectId })
-      } else if (currentUser) {
-        // my-days 模式：只获取当前用户的任务
-        await get().fetchTasks({ userId: currentUser.id })
-      }
+      // API 调用成功后立即返回,不等待数据刷新
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg })
@@ -503,66 +506,63 @@ export const useCalendarStore = create<CalendarStore>()(
       // 记录修改前的任务信息
       const originalTask = tasks.find(t => t.id === id)
       
+      // await API 调用,确保任务更新成功
       await taskAPI.update(id, updatedTask)
       
       // 检查是否需要刷新项目/团队数据(因为后端可能自动添加了新成员)
       const needRefreshProjects = updatedTask.projectId && updatedTask.projectId !== originalTask?.projectId
       const needRefreshTeams = updatedTask.teamId !== undefined && updatedTask.teamId !== originalTask?.teamId
       
-      // 如果项目或团队改变了,先刷新项目/团队数据再刷新任务
-      if (needRefreshProjects) {
-        await get().fetchProjects()
-      }
-      if (needRefreshTeams) {
-        await get().fetchTeams()
-      }
+      // API 成功后,在后台刷新数据(不阻塞调用者)
+      Promise.all([
+        needRefreshProjects ? get().fetchProjects() : Promise.resolve(),
+        needRefreshTeams ? get().fetchTeams() : Promise.resolve(),
+        // 根据当前导航模式重新获取任务列表
+        (async () => {
+          const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
+          
+          if (navigationMode === 'team' && selectedTeamId) {
+            await get().fetchTasks({ teamId: selectedTeamId })
+          } else if (navigationMode === 'project' && selectedProjectId) {
+            await get().fetchTasks({ projectId: selectedProjectId })
+          } else if (currentUser) {
+            await get().fetchTasks({ userId: currentUser.id })
+          }
+          
+          // 检查任务是否被移出当前视图并给出提示
+          let taskMovedOut = false
+          if (navigationMode === 'project' && selectedProjectId) {
+            if (updatedTask.projectId && updatedTask.projectId !== selectedProjectId) {
+              taskMovedOut = true
+            }
+          } else if (navigationMode === 'my-days' && currentUser) {
+            if (updatedTask.userId && updatedTask.userId !== currentUser.id) {
+              taskMovedOut = true
+            }
+          }
+          
+          if (taskMovedOut) {
+            const taskTitle = originalTask?.title || '任务'
+            if (navigationMode === 'project') {
+              const projects = get().projects
+              const newProject = projects.find(p => p.id === updatedTask.projectId)
+              showToast.success(
+                '任务已移动',
+                `「${taskTitle}」已移动到项目「${newProject?.name || '其他项目'}」`
+              )
+            } else if (navigationMode === 'my-days') {
+              showToast.success(
+                '任务已转移',
+                `「${taskTitle}」的负责人已变更，任务已从您的视图中移出`
+              )
+            }
+          }
+        })()
+      ]).catch((error: any) => {
+        console.error('Background data refresh failed after task update:', error)
+      })
       
-      // 更新成功后，根据当前导航模式重新获取任务列表
-      const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
-      
-      // 检查任务是否被移出当前视图
-      let taskMovedOut = false
-      if (navigationMode === 'project' && selectedProjectId) {
-        // 如果修改了projectId，且新项目不是当前项目
-        if (updatedTask.projectId && updatedTask.projectId !== selectedProjectId) {
-          taskMovedOut = true
-        }
-      } else if (navigationMode === 'team' && selectedTeamId) {
-        // 团队模式下，如果修改了负责人，检查新负责人是否在团队中
-        // 注意：这里逻辑比较复杂，暂时先重新加载
-      } else if (navigationMode === 'my-days' && currentUser) {
-        // 如果修改了负责人，且不再是当前用户
-        if (updatedTask.userId && updatedTask.userId !== currentUser.id) {
-          taskMovedOut = true
-        }
-      }
-      
-      // 重新加载任务列表
-      if (navigationMode === 'team' && selectedTeamId) {
-        await get().fetchTasks({ teamId: selectedTeamId })
-      } else if (navigationMode === 'project' && selectedProjectId) {
-        await get().fetchTasks({ projectId: selectedProjectId })
-      } else if (currentUser) {
-        // my-days 模式：只获取当前用户的任务
-        await get().fetchTasks({ userId: currentUser.id })
-      }
-      
-      // 如果任务被移出当前视图，给出提示
-      if (taskMovedOut) {
-        const taskTitle = originalTask?.title || '任务'
-        if (navigationMode === 'project') {
-          const newProject = projects.find(p => p.id === updatedTask.projectId)
-          showToast.success(
-            '任务已移动',
-            `「${taskTitle}」已移动到项目「${newProject?.name || '其他项目'}」`
-          )
-        } else if (navigationMode === 'my-days') {
-          showToast.success(
-            '任务已转移',
-            `「${taskTitle}」的负责人已变更，任务已从您的视图中移出`
-          )
-        }
-      }
+      // API 调用成功后立即返回,不等待数据刷新
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg })
@@ -595,19 +595,25 @@ export const useCalendarStore = create<CalendarStore>()(
     }
     
     try {
+      // await API 调用,确保任务删除成功
       await taskAPI.delete(id)
       
-      // 删除成功后，根据当前导航模式重新获取任务列表
-      const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
+      // API 成功后,在后台刷新任务列表(不阻塞调用者)
+      (async () => {
+        const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
+        
+        if (navigationMode === 'team' && selectedTeamId) {
+          await get().fetchTasks({ teamId: selectedTeamId })
+        } else if (navigationMode === 'project' && selectedProjectId) {
+          await get().fetchTasks({ projectId: selectedProjectId })
+        } else if (currentUser) {
+          await get().fetchTasks({ userId: currentUser.id })
+        }
+      })().catch((error: any) => {
+        console.error('Background data refresh failed after task deletion:', error)
+      })
       
-      if (navigationMode === 'team' && selectedTeamId) {
-        await get().fetchTasks({ teamId: selectedTeamId })
-      } else if (navigationMode === 'project' && selectedProjectId) {
-        await get().fetchTasks({ projectId: selectedProjectId })
-      } else if (currentUser) {
-        // my-days 模式：只获取当前用户的任务
-        await get().fetchTasks({ userId: currentUser.id })
-      }
+      // API 调用成功后立即返回,不等待数据刷新
     } catch (error) {
       const errorMsg = handleAPIError(error)
       set({ error: errorMsg })
@@ -968,7 +974,22 @@ export const useCalendarStore = create<CalendarStore>()(
     }),
 
   openTaskCreation: (startDate, endDate, userId, projectId, teamId) => {
-    const { navigationMode, selectedProjectId, selectedTeamId } = get()
+    const { navigationMode, selectedProjectId, selectedTeamId, projects, currentUser } = get()
+    
+    // 确定默认项目ID
+    let defaultProjectId: string | null = projectId || null
+    if (!defaultProjectId) {
+      if (navigationMode === 'project') {
+        defaultProjectId = selectedProjectId
+      } else if (navigationMode === 'my-days') {
+        // My Days 模式下,默认选中个人事务项目
+        const personalProject = currentUser 
+          ? projects.find(p => p.name.includes('个人事务') && p.memberIds.includes(currentUser.id))
+          : null
+        defaultProjectId = personalProject?.id || null
+      }
+    }
+    
     set({
       taskCreation: {
         isOpen: true,
@@ -976,7 +997,7 @@ export const useCalendarStore = create<CalendarStore>()(
         endDate,
         userId: userId || null,
         // 根据当前导航模式设置默认项目和团队
-        projectId: projectId || (navigationMode === 'project' ? selectedProjectId : null),
+        projectId: defaultProjectId,
         teamId: teamId || (navigationMode === 'team' ? selectedTeamId : null),
       },
     })

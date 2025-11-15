@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut } from "lucide-react"
+import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut, Pin } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { Button } from "@/components/ui/button"
@@ -325,7 +325,7 @@ export function NavigationMenu() {
           
           {projectsExpanded && (
             <div className="ml-6 mt-1 space-y-1">
-              {myProjects.map((project) => (
+              {myProjects.map((project, index) => (
                 <div
                   key={project.id}
                   className="group flex items-center gap-2 pr-2"
@@ -345,14 +345,18 @@ export function NavigationMenu() {
                       style={{ backgroundColor: project.color }}
                     />
                     <span className="truncate">{project.name}</span>
-                    {/* 创建者标识 */}
-                    {currentUser && project.creatorId === currentUser.id && (
+                    {/* 第一个项目(个人事务)显示图钉图标 */}
+                    {index === 0 && (
+                      <Pin className="h-3 w-3 text-muted-foreground shrink-0 ml-auto rotate-45" />
+                    )}
+                    {/* 创建者标识(非第一个项目) */}
+                    {index !== 0 && currentUser && project.creatorId === currentUser.id && (
                       <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
                     )}
                   </button>
                   
-                  {/* 个人事务项目不显示编辑/删除按钮 */}
-                  {!project.name.includes('个人事务') && (
+                  {/* 第一个项目(个人事务)不显示编辑/删除按钮 */}
+                  {index !== 0 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button

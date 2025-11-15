@@ -22,6 +22,11 @@ export function WeekView() {
   } = useCalendarStore()
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
+  
+  // 调试: 打印周天数
+  useEffect(() => {
+    console.log('WeekView - hideWeekends:', hideWeekends, 'weekDays.length:', weekDays.length)
+  }, [hideWeekends, weekDays.length])
 
   // 根据当前导航模式过滤要显示的用户
   const displayUsers = useMemo(() => {
@@ -59,13 +64,13 @@ export function WeekView() {
   }, [dragState.isCreating, dragMoveState.isMoving, cancelDragCreate, endDragMove])
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" key={`week-view-${hideWeekends ? 'workdays' : 'fullweek'}`}>
       {/* Week day headers */}
       <div className="flex border-b border-border bg-muted/30">
         <div className="w-[120px] shrink-0 border-r border-border px-4 py-3">
           <span className="text-sm font-medium text-muted-foreground">团队成员</span>
         </div>
-        <div className="flex flex-1">
+        <div key={`week-days-${hideWeekends ? '5' : '7'}`} className="flex flex-1">
           {weekDays.map((day, index) => (
             <div key={index} className="flex-1 border-r border-border px-4 py-3 text-center last:border-r-0">
               <div className="text-xs text-muted-foreground">{getWeekDayName(day.getDay())}</div>

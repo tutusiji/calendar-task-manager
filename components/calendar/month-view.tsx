@@ -200,7 +200,7 @@ export function MonthView() {
   return (
     <div className="flex h-full flex-col relative">
       {/* Week day headers */}
-      <div className="grid grid-cols-7 border-b border-border bg-muted/30 pr-[8px]">
+      <div className={`grid ${hideWeekends ? 'grid-cols-5' : 'grid-cols-7'} border-b border-border bg-muted/30 pr-[8px]`}>
         {weekDays.map((day) => (
           <div
             key={day}
@@ -216,7 +216,7 @@ export function MonthView() {
         {weeksWithTracks.map((week, weekIndex) => (
           <div 
             key={weekIndex} 
-            className="grid grid-cols-7 relative"
+            className={`grid ${hideWeekends ? 'grid-cols-5' : 'grid-cols-7'} relative`}
             style={{ minHeight: `${weekHeights[weekIndex]}px` }}
           >
             {week.days.map((day, dayIndex) => {
