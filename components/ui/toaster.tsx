@@ -28,10 +28,10 @@ export function Toaster() {
   }
 
   return (
-    <ToastProvider duration={3000}>
+    <ToastProvider>
       {toasts.map(function ({ id, title, description, action, variant, ...props }) {
         return (
-          <Toast key={id} variant={variant} {...props}>
+          <Toast key={id} variant={variant} duration={5000} {...props}>
             <div className="flex items-start gap-3 w-full">
               {getIcon(variant)}
               <div className="grid gap-1 flex-1">

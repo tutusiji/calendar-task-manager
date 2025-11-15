@@ -143,10 +143,11 @@ export function SpaceSwitcher() {
         )}
         disabled={isLoading}
       >
-        <span className="text-foreground">
+        <span className="text-foreground">My Space</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <span className="text-foreground font-semibold">
           {currentOrg?.name || "选择空间"}
         </span>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
         {organizations.map((org) => (
