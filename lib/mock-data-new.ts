@@ -47,6 +47,8 @@ export const mockTeams: Team[] = [
     description: "负责核心产品开发",
     color: "#3b82f6",
     memberIds: ["1", "2", "3"],
+    creatorId: "1", // 张三创建
+    taskPermission: "ALL_MEMBERS",
     createdAt: new Date("2024-01-01"),
   },
   {
@@ -55,6 +57,8 @@ export const mockTeams: Team[] = [
     description: "负责市场推广和品牌建设",
     color: "#10b981",
     memberIds: ["4", "5"],
+    creatorId: "4", // 赵六创建
+    taskPermission: "ALL_MEMBERS",
     createdAt: new Date("2024-01-15"),
   },
   {
@@ -63,6 +67,8 @@ export const mockTeams: Team[] = [
     description: "负责UI/UX设计",
     color: "#f59e0b",
     memberIds: ["6", "2"],
+    creatorId: "6", // 孙八创建
+    taskPermission: "CREATOR_ONLY", // 仅创建者可管理任务
     createdAt: new Date("2024-02-01"),
   },
 ]
@@ -75,6 +81,8 @@ export const mockProjects: Project[] = [
     color: "#3b82f6",
     memberIds: ["1", "2", "3"],
     teamId: "team-1",
+    creatorId: "1", // 张三创建
+    taskPermission: "ALL_MEMBERS",
     createdAt: new Date("2024-01-10"),
   },
   {
@@ -84,6 +92,8 @@ export const mockProjects: Project[] = [
     color: "#8b5cf6",
     memberIds: ["1", "3"],
     teamId: "team-1",
+    creatorId: "1", // 张三创建
+    taskPermission: "ALL_MEMBERS",
     createdAt: new Date("2024-02-01"),
   },
   {
@@ -93,6 +103,8 @@ export const mockProjects: Project[] = [
     color: "#10b981",
     memberIds: ["4", "5"],
     teamId: "team-2",
+    creatorId: "4", // 赵六创建
+    taskPermission: "CREATOR_ONLY", // 仅创建者可管理任务
     createdAt: new Date("2024-01-20"),
   },
   {
@@ -102,6 +114,8 @@ export const mockProjects: Project[] = [
     color: "#f59e0b",
     memberIds: ["6", "2"],
     teamId: "team-3",
+    creatorId: "6", // 孙八创建
+    taskPermission: "ALL_MEMBERS",
     createdAt: new Date("2024-02-10"),
   },
   {
@@ -110,6 +124,8 @@ export const mockProjects: Project[] = [
     description: "个人技能提升",
     color: "#ec4899",
     memberIds: ["1"],
+    creatorId: "1", // 张三创建
+    taskPermission: "ALL_MEMBERS",
     createdAt: new Date("2024-03-01"),
   },
 ]

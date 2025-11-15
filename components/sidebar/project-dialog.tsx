@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useCalendarStore } from "@/lib/store/calendar-store"
-import type { Project } from "@/lib/types"
+import type { Project, TaskPermission } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
 import { UserSingleSelector } from "../task/user-single-selector"
 
@@ -37,6 +38,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
   const [description, setDescription] = useState(project?.description || "")
   const [color, setColor] = useState(project?.color || PRESET_COLORS[0])
   const [teamId, setTeamId] = useState<string | undefined>(project?.teamId)
+  const [taskPermission, setTaskPermission] = useState<TaskPermission>(project?.taskPermission || "ALL_MEMBERS")
   const [memberIds, setMemberIds] = useState<string[]>(() => {
     // 初始化成员列表
     if (project?.memberIds) {
@@ -74,6 +76,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
         teamId: teamId || undefined,
         memberIds: finalMemberIds,
         creatorId, // 更新创建者
+        taskPermission, // 更新任务权限
       })
     } else {
       const newProject: Project = {
@@ -84,6 +87,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
         teamId: teamId || undefined,
         memberIds: finalMemberIds,
         creatorId: currentUser?.id || "", // 设置创建者
+        taskPermission, // 设置任务权限
         createdAt: new Date(),
       }
       addProject(newProject)
@@ -230,6 +234,42 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
               lockedUserIds={viewOnly ? memberIds : [creatorId]} // 查看模式下所有成员都锁定
               creatorId={creatorId} // 传入创建者ID用于显示标签
             />
+          </div>
+
+          {/* Task Permission */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">
+              协同权限
+            </Label>
+            <RadioGroup
+              value={taskPermission}
+              onValueChange={(value) => setTaskPermission(value as TaskPermission)}
+              disabled={viewOnly}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="ALL_MEMBERS" id="project-all-members" />
+                <Label htmlFor="project-all-members" className="font-normal cursor-pointer">
+                  <div className="flex flex-col">
+                    <span className="text-sm">所有成员</span>
+                    <span className="text-xs text-muted-foreground">
+                      项目成员之间可以互相创建、编辑和删除任务
+                    </span>
+                  </div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="CREATOR_ONLY" id="project-creator-only" />
+                <Label htmlFor="project-creator-only" className="font-normal cursor-pointer">
+                  <div className="flex flex-col">
+                    <span className="text-sm">仅创建人</span>
+                    <span className="text-xs text-muted-foreground">
+                      只有创建人可以给项目中所有成员创建、编辑和删除任务
+                    </span>
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
 
           {/* Actions */}

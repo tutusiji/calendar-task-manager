@@ -23,7 +23,7 @@ interface TaskEditPanelProps {
 }
 
 export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
-  const { updateTask, deleteTask, projects, fetchTasks, currentUser } = useCalendarStore()
+  const { updateTask, deleteTask, projects, teams, fetchTasks, currentUser } = useCalendarStore()
   const { toast } = useToast()
 
   const [title, setTitle] = useState(task.title)
@@ -35,8 +35,9 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   const [startTime, setStartTime] = useState(task.startTime || "")
   const [endTime, setEndTime] = useState(task.endTime || "")
   const [taskType, setTaskType] = useState<TaskType>(task.type)
+  const [teamId, setTeamId] = useState<string>(task.teamId || "none")
   const [projectId, setProjectId] = useState(task.projectId)
-  const [assigneeId, setAssigneeId] = useState(task.userId) // 负责人ID
+  const [assigneeId, setAssigneeId] = useState(task.userId) // 负责人 ID
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [projectError, setProjectError] = useState(false)
@@ -70,6 +71,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
         endTime: endTime || undefined,
         type: taskType,
         projectId,
+        teamId: teamId === "none" ? undefined : teamId, // 保存团队ID
         userId: assigneeId, // 更新负责人
       })
 
@@ -78,11 +80,6 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
         title: "保存成功",
         description: `任务「${title}」已更新`,
       })
-
-      // 刷新任务列表
-      if (currentUser) {
-        await fetchTasks({ userId: currentUser.id })
-      }
 
       onClose()
     } catch (error) {
@@ -110,11 +107,6 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
         title: "删除成功",
         description: `任务「${task.title}」已删除`,
       })
-
-      // 刷新任务列表
-      if (currentUser) {
-        await fetchTasks({ userId: currentUser.id })
-      }
 
       onClose()
     } catch (error) {
@@ -287,32 +279,58 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
             />
           </div>
 
-          {/* Project */}
-          <div className="space-y-2">
-            <Label htmlFor="project" className="text-sm font-medium">
-              归属项目 <span className="text-red-500">*</span>
-            </Label>
-            <Select value={projectId} onValueChange={(value) => {
-              setProjectId(value)
-              setProjectError(false)
-            }}>
-              <SelectTrigger className={cn(projectError && "border-red-500 ring-1 ring-red-500")}>
-                <SelectValue placeholder="请选择项目" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />
-                      {project.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {projectError && (
-              <p className="text-sm text-red-500">请选择一个项目</p>
-            )}
+          {/* Team and Project */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Team */}
+            <div className="space-y-2">
+              <Label htmlFor="team" className="text-sm font-medium">
+                所属团队
+              </Label>
+              <Select value={teamId} onValueChange={setTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择团队（可选）" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">无团队</SelectItem>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
+                        {team.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Project */}
+            <div className="space-y-2">
+              <Label htmlFor="project" className="text-sm font-medium">
+                归属项目 <span className="text-red-500">*</span>
+              </Label>
+              <Select value={projectId} onValueChange={(value) => {
+                setProjectId(value)
+                setProjectError(false)
+              }}>
+                <SelectTrigger className={cn(projectError && "border-red-500 ring-1 ring-red-500")}>
+                  <SelectValue placeholder="请选择项目" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />
+                        {project.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {projectError && (
+                <p className="text-sm text-red-500">请选择一个项目</p>
+              )}
+            </div>
           </div>
 
           {/* Actions */}

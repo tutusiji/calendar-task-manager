@@ -30,13 +30,6 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        projects: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         creator: {
           select: {
             id: true,
@@ -47,8 +40,7 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            members: true,
-            projects: true
+            members: true
           }
         }
       },

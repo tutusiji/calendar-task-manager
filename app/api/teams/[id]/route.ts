@@ -146,14 +146,7 @@ export async function DELETE(
 
     // 检查团队是否存在
     const existingTeam = await prisma.team.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: {
-            projects: true
-          }
-        }
-      }
+      where: { id }
     })
 
     if (!existingTeam) {
@@ -169,11 +162,6 @@ export async function DELETE(
     // 权限验证：只有创建者或超级管理员可以删除团队
     if (existingTeam.creatorId !== auth.userId && !currentUser?.isAdmin) {
       return forbiddenResponse('只有团队创建者或超级管理员可以删除团队')
-    }
-
-    // 检查是否有项目
-    if (existingTeam._count.projects > 0) {
-      return validationErrorResponse('该团队下还有项目，无法删除')
     }
 
     // 删除团队（会级联删除成员关系）

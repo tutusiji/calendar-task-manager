@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useCalendarStore } from "@/lib/store/calendar-store"
-import type { Team } from "@/lib/types"
+import type { Team, TaskPermission } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
 import { UserSingleSelector } from "../task/user-single-selector"
 
@@ -35,6 +36,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
   const [name, setName] = useState(team?.name || "")
   const [description, setDescription] = useState(team?.description || "")
   const [color, setColor] = useState(team?.color || PRESET_COLORS[0])
+  const [taskPermission, setTaskPermission] = useState<TaskPermission>(team?.taskPermission || "ALL_MEMBERS")
   const [memberIds, setMemberIds] = useState<string[]>(() => {
     // 初始化成员列表
     if (team?.memberIds) {
@@ -71,6 +73,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
         color,
         memberIds: finalMemberIds,
         creatorId, // 更新创建者
+        taskPermission, // 更新任务权限
       })
     } else {
       const newTeam: Team = {
@@ -80,6 +83,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
         color,
         memberIds: finalMemberIds,
         creatorId: currentUser?.id || "", // 设置创建者
+        taskPermission, // 设置任务权限
         createdAt: new Date(),
       }
       addTeam(newTeam)
@@ -196,6 +200,42 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
               lockedUserIds={viewOnly ? memberIds : [creatorId]} // 查看模式锁定所有成员,编辑模式锁定创建者
               creatorId={creatorId} // 传入创建者ID用于显示标签
             />
+          </div>
+
+          {/* Task Permission */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">
+              协同权限
+            </Label>
+            <RadioGroup
+              value={taskPermission}
+              onValueChange={(value) => setTaskPermission(value as TaskPermission)}
+              disabled={viewOnly}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="ALL_MEMBERS" id="all-members" />
+                <Label htmlFor="all-members" className="font-normal cursor-pointer">
+                  <div className="flex flex-col">
+                    <span className="text-sm">所有成员</span>
+                    <span className="text-xs text-muted-foreground">
+                      团队成员之间可以互相创建、编辑和删除任务
+                    </span>
+                  </div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="CREATOR_ONLY" id="creator-only" />
+                <Label htmlFor="creator-only" className="font-normal cursor-pointer">
+                  <div className="flex flex-col">
+                    <span className="text-sm">仅创建人</span>
+                    <span className="text-xs text-muted-foreground">
+                      只有创建人可以给团队中所有成员创建、编辑和删除任务
+                    </span>
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
 
           {/* Actions */}

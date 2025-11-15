@@ -24,13 +24,6 @@ export async function GET(
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        team: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         members: {
           include: {
             user: {
@@ -103,7 +96,7 @@ export async function PUT(
       return forbiddenResponse('只有项目创建者或超级管理员可以修改项目')
     }
 
-    const { name, description, color, teamId, memberIds, creatorId } = body
+    const { name, description, color, memberIds, creatorId } = body
 
     // 验证必填字段
     if (name !== undefined && (!name || name.trim() === '')) {
@@ -126,32 +119,11 @@ export async function PUT(
       }
     }
 
-    // 如果提供了团队ID，验证团队存在且用户有权访问
-    if (teamId !== undefined && teamId !== null) {
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
-        include: {
-          members: {
-            where: { userId: auth.userId }
-          }
-        }
-      })
-
-      if (!team) {
-        return validationErrorResponse('团队不存在')
-      }
-
-      if (team.members.length === 0) {
-        return forbiddenResponse('您不是该团队成员')
-      }
-    }
-
     // 准备更新数据
     const updateData: any = {}
     if (name !== undefined) updateData.name = sanitizeString(name, 200)
     if (description !== undefined) updateData.description = description ? sanitizeString(description, 2000) : null
     if (color !== undefined) updateData.color = color
-    if (teamId !== undefined) updateData.teamId = teamId
     if (creatorId !== undefined) updateData.creatorId = creatorId
 
     // 处理成员更新
@@ -191,13 +163,6 @@ export async function PUT(
       where: { id },
       data: updateData,
       include: {
-        team: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         members: {
           include: {
             user: {

@@ -47,9 +47,13 @@ export async function GET(request: NextRequest) {
         return validationErrorResponse('无权访问该团队的任务')
       }
 
-      // 查询该团队下所有项目的任务（不限制userId）
-      where.project = {
-        teamId
+      // 查询该团队所有成员的任务（不限制项目）
+      const teamMemberIds = await prisma.teamMember.findMany({
+        where: { teamId },
+        select: { userId: true }
+      })
+      where.userId = {
+        in: teamMemberIds.map(m => m.userId)
       }
     } else if (projectId) {
       // 验证用户是否是项目成员
@@ -137,8 +141,14 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            color: true,
-            teamId: true
+            color: true
+          }
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            color: true
           }
         }
       },
@@ -165,7 +175,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error
 
     const body = await request.json()
-    const { title, description, startDate, endDate, startTime, endTime, type, projectId } = body
+    const { title, description, startDate, endDate, startTime, endTime, type, projectId, teamId, userId } = body
 
     // 验证必填字段
     const requiredValidation = validateRequiredFields(body, [
@@ -209,9 +219,7 @@ export async function POST(request: NextRequest) {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        members: {
-          where: { userId: auth.userId }
-        }
+        members: true
       }
     })
 
@@ -219,15 +227,57 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse('项目不存在')
     }
 
-    if (project.members.length === 0) {
+    // 检查当前用户是否有权限在该项目中创建任务
+    const currentUserIsMember = project.members.some(m => m.userId === auth.userId)
+    if (!currentUserIsMember) {
       return validationErrorResponse('无权在该项目中创建任务')
+    }
+
+    // 确定任务负责人(如果未指定则使用当前用户)
+    const taskUserId = userId || auth.userId
+
+    // 如果指定了其他负责人,确保该用户在项目中
+    if (taskUserId !== auth.userId) {
+      const assigneeIsMember = project.members.some(m => m.userId === taskUserId)
+      if (!assigneeIsMember) {
+        // 自动将负责人添加到项目中
+        await prisma.projectMember.create({
+          data: {
+            projectId,
+            userId: taskUserId
+          }
+        })
+      }
+    }
+
+    // 如果指定了团队,确保负责人在团队中
+    if (teamId) {
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        include: {
+          members: true
+        }
+      })
+
+      if (team) {
+        const userInTeam = team.members.some(m => m.userId === taskUserId)
+        if (!userInTeam) {
+          // 自动将负责人添加到团队中
+          await prisma.teamMember.create({
+            data: {
+              teamId,
+              userId: taskUserId
+            }
+          })
+        }
+      }
     }
 
     // 清理输入
     const cleanTitle = sanitizeString(title, 200)
     const cleanDescription = description ? sanitizeString(description, 2000) : null
 
-    // 创建任务（使用当前用户作为任务所有者）
+    // 创建任务
     const task = await prisma.task.create({
       data: {
         title: cleanTitle,
@@ -237,8 +287,9 @@ export async function POST(request: NextRequest) {
         startTime,
         endTime,
         type,
-        userId: auth.userId, // 使用认证用户的 ID
-        projectId
+        userId: taskUserId, // 使用指定的负责人或当前用户
+        projectId,
+        teamId: teamId || null // 保存团队ID
       },
       include: {
         user: {
@@ -251,6 +302,13 @@ export async function POST(request: NextRequest) {
           }
         },
         project: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
+        team: {
           select: {
             id: true,
             name: true,

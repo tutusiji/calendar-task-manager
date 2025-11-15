@@ -1,5 +1,7 @@
 export type TaskType = "daily" | "meeting" | "vacation"
 
+export type TaskPermission = "ALL_MEMBERS" | "CREATOR_ONLY"
+
 export interface Task {
   id: string
   title: string
@@ -10,6 +12,7 @@ export interface Task {
   endTime?: string
   type: TaskType
   projectId: string
+  teamId?: string // 任务可以选择性地关联到团队
   userId: string
 }
 
@@ -20,6 +23,7 @@ export interface Team {
   color: string
   memberIds: string[]
   creatorId: string // 创建者ID
+  taskPermission: TaskPermission // 任务权限
   createdAt: Date
 }
 
@@ -29,8 +33,8 @@ export interface Project {
   description?: string
   color: string
   memberIds: string[]
-  teamId?: string // 项目可以属于某个团队
   creatorId: string // 创建者ID
+  taskPermission: TaskPermission // 任务权限
   createdAt: Date
 }
 

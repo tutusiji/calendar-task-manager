@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
     if (auth.error) return auth.error
 
     const { searchParams } = new URL(request.url)
-    const teamId = searchParams.get('teamId')
 
     // 只获取用户是成员的项目
     const where: any = {
@@ -19,21 +18,10 @@ export async function GET(request: NextRequest) {
         }
       }
     }
-    
-    if (teamId) {
-      where.teamId = teamId
-    }
 
     const projects = await prisma.project.findMany({
       where,
       include: {
-        team: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         members: {
           include: {
             user: {
@@ -85,7 +73,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, color, description, teamId, memberIds, creatorId } = body
+    const { name, color, description, memberIds, creatorId } = body
 
     if (!name || !color) {
       return NextResponse.json(
@@ -112,7 +100,6 @@ export async function POST(request: NextRequest) {
         name,
         color,
         description,
-        teamId,
         creatorId, // 设置创建者
         members: memberIds
           ? {

@@ -229,9 +229,9 @@ export function NavigationMenu() {
                   className="group flex items-center gap-2 pr-2"
                 >
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setNavigationMode("team")
-                      setSelectedTeamId(team.id)
+                      await setSelectedTeamId(team.id)
                     }}
                     className={cn(
                       "flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
@@ -331,9 +331,9 @@ export function NavigationMenu() {
                   className="group flex items-center gap-2 pr-2"
                 >
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setNavigationMode("project")
-                      setSelectedProjectId(project.id)
+                      await setSelectedProjectId(project.id)
                     }}
                     className={cn(
                       "flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",

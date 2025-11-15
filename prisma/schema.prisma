@@ -35,36 +35,35 @@ model User {
 
 // 团队模型
 model Team {
-  id          String       @id @default(cuid())
-  name        String
-  color       String
-  description String?
-  creatorId   String
-  creator     User         @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  members     TeamMember[]
-  projects    Project[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id             String         @id @default(cuid())
+  name           String
+  color          String
+  description    String?
+  creatorId      String
+  creator        User           @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members        TeamMember[]
+  tasks          Task[]         // 团队可以有多个任务
+  taskPermission TaskPermission @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([creatorId])
 }
 
 // 项目模型
 model Project {
-  id          String          @id @default(cuid())
-  name        String
-  color       String
-  description String?
-  teamId      String?
-  team        Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  creatorId   String
-  creator     User            @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  members     ProjectMember[]
-  tasks       Task[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  name           String
+  color          String
+  description    String?
+  creatorId      String
+  creator        User            @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members        ProjectMember[]
+  tasks          Task[]
+  taskPermission TaskPermission  @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  @@index([teamId])
   @@index([creatorId])
 }
 
@@ -82,12 +81,15 @@ model Task {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  teamId      String?  // 任务可以选择性地关联到团队
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([startDate, endDate])
   @@index([userId])
   @@index([projectId])
+  @@index([teamId])
 }
 
 // 任务类型枚举
@@ -95,6 +97,12 @@ enum TaskType {
   daily
   meeting
   vacation
+}
+
+// 任务权限枚举
+enum TaskPermission {
+  ALL_MEMBERS   // 所有成员都可以创建/编辑/删除任务
+  CREATOR_ONLY  // 仅创建者可以创建/编辑/删除任务
 }
 
 // 团队成员关系

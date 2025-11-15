@@ -6,6 +6,7 @@ import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationM
 import { taskAPI, projectAPI, userAPI, teamAPI, handleAPIError } from "../api-client"
 import { showToast } from "../toast"
 import { useLoadingDelay } from "../../hooks/use-loading-delay"
+import { canManageTaskInProject, canManageTaskInTeam, getPermissionDeniedMessage } from "../utils/permission-utils"
 
 interface CalendarStore {
   // Data
@@ -59,6 +60,8 @@ interface CalendarStore {
     startDate: Date | null
     endDate: Date | null
     userId: string | null // 创建任务时指定的用户ID
+    projectId: string | null // 默认选中的项目ID
+    teamId: string | null // 默认选中的团队ID
   }
 
   taskEdit: {
@@ -98,8 +101,8 @@ interface CalendarStore {
   setListLayoutColumns: (columns: ListLayoutColumns) => void // 设置清单布局列数
   setViewMode: (mode: ViewMode) => void
   setNavigationMode: (mode: NavigationMode) => void
-  setSelectedTeamId: (id: string | null) => void
-  setSelectedProjectId: (id: string | null) => void
+  setSelectedTeamId: (id: string | null) => Promise<void>
+  setSelectedProjectId: (id: string | null) => Promise<void>
   setCurrentDate: (date: Date) => void
   setSelectedDate: (date: Date | null) => void
   toggleWeekends: () => void // 切换周末显示/隐藏
@@ -122,7 +125,7 @@ interface CalendarStore {
   endDragMove: () => void
   cancelDragMove: () => void
 
-  openTaskCreation: (startDate: Date, endDate: Date, userId?: string) => void
+  openTaskCreation: (startDate: Date, endDate: Date, userId?: string, projectId?: string, teamId?: string) => void
   closeTaskCreation: () => void
 
   openTaskEdit: (task: Task) => void
@@ -194,6 +197,8 @@ export const useCalendarStore = create<CalendarStore>()(
         startDate: null,
         endDate: null,
         userId: null,
+        projectId: null,
+        teamId: null,
       },
 
       taskEdit: {
@@ -283,6 +288,7 @@ export const useCalendarStore = create<CalendarStore>()(
         color: project.color,
         teamId: project.teamId,
         creatorId: project.creatorId, // 添加创建者ID
+        taskPermission: project.taskPermission || "ALL_MEMBERS", // 任务权限
         // members 是 ProjectMember 数组，每个有 user 属性
         memberIds: project.members?.map((m: any) => m.user?.id || m.userId) || [],
         createdAt: new Date(project.createdAt),
@@ -351,6 +357,7 @@ export const useCalendarStore = create<CalendarStore>()(
         description: team.description,
         color: team.color,
         creatorId: team.creatorId, // 添加创建者ID
+        taskPermission: team.taskPermission || "ALL_MEMBERS", // 任务权限
         // members 是 TeamMember 数组，每个有 user 属性
         memberIds: team.members?.map((m: any) => m.user?.id || m.userId) || [],
         createdAt: new Date(team.createdAt),
@@ -392,14 +399,24 @@ export const useCalendarStore = create<CalendarStore>()(
       }
     }
     
+    // 先加载用户、团队和项目数据
     await Promise.all([
       store.fetchUsers(),
       store.fetchTeams(),
       store.fetchProjects(),
     ])
     
-    // 加载当前用户的任务
-    if (currentUser) {
+    // 根据持久化的导航状态加载对应的任务
+    const { navigationMode, selectedTeamId, selectedProjectId } = get()
+    
+    if (navigationMode === 'team' && selectedTeamId) {
+      // 团队模式：加载该团队的任务
+      await store.fetchTasks({ teamId: selectedTeamId })
+    } else if (navigationMode === 'project' && selectedProjectId) {
+      // 项目模式：加载该项目的任务
+      await store.fetchTasks({ projectId: selectedProjectId })
+    } else if (currentUser) {
+      // my-days 模式：加载当前用户的任务
       await store.fetchTasks({ userId: currentUser.id })
     }
   },
@@ -408,8 +425,37 @@ export const useCalendarStore = create<CalendarStore>()(
 
   // Actions
   addTask: async (task) => {
+    const { currentUser, projects, teams } = get()
+    
+    // 权限检查
+    if (currentUser) {
+      const project = projects.find(p => p.id === task.projectId)
+      if (project) {
+        const hasPermission = canManageTaskInProject(
+          currentUser.id,
+          project,
+          currentUser.isAdmin
+        )
+        
+        if (!hasPermission) {
+          const errorMsg = getPermissionDeniedMessage(project.taskPermission)
+          set({ error: errorMsg })
+          showToast.error('权限不足', errorMsg)
+          throw new Error(errorMsg)
+        }
+      }
+    }
+    
     try {
       await taskAPI.create(task as any)
+      
+      // 创建任务可能导致后端自动添加成员,需要刷新项目/团队数据
+      if (task.projectId) {
+        await get().fetchProjects()
+      }
+      if (task.teamId) {
+        await get().fetchTeams()
+      }
       
       // 创建成功后，根据当前导航模式重新获取任务列表
       const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
@@ -430,12 +476,68 @@ export const useCalendarStore = create<CalendarStore>()(
   },
 
   updateTask: async (id, updatedTask) => {
+    const { currentUser, projects, tasks } = get()
+    
+    // 权限检查
+    if (currentUser) {
+      const task = tasks.find(t => t.id === id)
+      const project = task ? projects.find(p => p.id === task.projectId) : null
+      
+      if (project) {
+        const hasPermission = canManageTaskInProject(
+          currentUser.id,
+          project,
+          currentUser.isAdmin
+        )
+        
+        if (!hasPermission) {
+          const errorMsg = getPermissionDeniedMessage(project.taskPermission)
+          set({ error: errorMsg })
+          showToast.error('权限不足', errorMsg)
+          throw new Error(errorMsg)
+        }
+      }
+    }
+    
     try {
+      // 记录修改前的任务信息
+      const originalTask = tasks.find(t => t.id === id)
+      
       await taskAPI.update(id, updatedTask)
+      
+      // 检查是否需要刷新项目/团队数据(因为后端可能自动添加了新成员)
+      const needRefreshProjects = updatedTask.projectId && updatedTask.projectId !== originalTask?.projectId
+      const needRefreshTeams = updatedTask.teamId !== undefined && updatedTask.teamId !== originalTask?.teamId
+      
+      // 如果项目或团队改变了,先刷新项目/团队数据再刷新任务
+      if (needRefreshProjects) {
+        await get().fetchProjects()
+      }
+      if (needRefreshTeams) {
+        await get().fetchTeams()
+      }
       
       // 更新成功后，根据当前导航模式重新获取任务列表
       const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
       
+      // 检查任务是否被移出当前视图
+      let taskMovedOut = false
+      if (navigationMode === 'project' && selectedProjectId) {
+        // 如果修改了projectId，且新项目不是当前项目
+        if (updatedTask.projectId && updatedTask.projectId !== selectedProjectId) {
+          taskMovedOut = true
+        }
+      } else if (navigationMode === 'team' && selectedTeamId) {
+        // 团队模式下，如果修改了负责人，检查新负责人是否在团队中
+        // 注意：这里逻辑比较复杂，暂时先重新加载
+      } else if (navigationMode === 'my-days' && currentUser) {
+        // 如果修改了负责人，且不再是当前用户
+        if (updatedTask.userId && updatedTask.userId !== currentUser.id) {
+          taskMovedOut = true
+        }
+      }
+      
+      // 重新加载任务列表
       if (navigationMode === 'team' && selectedTeamId) {
         await get().fetchTasks({ teamId: selectedTeamId })
       } else if (navigationMode === 'project' && selectedProjectId) {
@@ -443,6 +545,23 @@ export const useCalendarStore = create<CalendarStore>()(
       } else if (currentUser) {
         // my-days 模式：只获取当前用户的任务
         await get().fetchTasks({ userId: currentUser.id })
+      }
+      
+      // 如果任务被移出当前视图，给出提示
+      if (taskMovedOut) {
+        const taskTitle = originalTask?.title || '任务'
+        if (navigationMode === 'project') {
+          const newProject = projects.find(p => p.id === updatedTask.projectId)
+          showToast.success(
+            '任务已移动',
+            `「${taskTitle}」已移动到项目「${newProject?.name || '其他项目'}」`
+          )
+        } else if (navigationMode === 'my-days') {
+          showToast.success(
+            '任务已转移',
+            `「${taskTitle}」的负责人已变更，任务已从您的视图中移出`
+          )
+        }
       }
     } catch (error) {
       const errorMsg = handleAPIError(error)
@@ -452,6 +571,29 @@ export const useCalendarStore = create<CalendarStore>()(
   },
 
   deleteTask: async (id) => {
+    const { currentUser, projects, tasks } = get()
+    
+    // 权限检查
+    if (currentUser) {
+      const task = tasks.find(t => t.id === id)
+      const project = task ? projects.find(p => p.id === task.projectId) : null
+      
+      if (project) {
+        const hasPermission = canManageTaskInProject(
+          currentUser.id,
+          project,
+          currentUser.isAdmin
+        )
+        
+        if (!hasPermission) {
+          const errorMsg = getPermissionDeniedMessage(project.taskPermission)
+          set({ error: errorMsg })
+          showToast.error('权限不足', errorMsg)
+          throw new Error(errorMsg)
+        }
+      }
+    }
+    
     try {
       await taskAPI.delete(id)
       
@@ -616,26 +758,30 @@ export const useCalendarStore = create<CalendarStore>()(
       }
     }
   },
-  setSelectedTeamId: (id) => {
+  setSelectedTeamId: async (id) => {
     set({ selectedTeamId: id })
-    // 切换团队时，重新获取该团队的任务
+    // 切换团队时，先刷新团队数据(可能有新成员),再获取任务
     if (id) {
+      // 刷新团队列表以获取最新成员信息
+      await get().fetchTeams()
       // 获取团队的任务（会获取团队成员的所有任务）
-      get().fetchTasks({ teamId: id })
+      await get().fetchTasks({ teamId: id })
     } else {
       // 如果清空选择，获取所有任务
-      get().fetchTasks()
+      await get().fetchTasks()
     }
   },
-  setSelectedProjectId: (id) => {
+  setSelectedProjectId: async (id) => {
     set({ selectedProjectId: id })
-    // 切换项目时，重新获取该项目的任务
+    // 切换项目时，先刷新项目数据(可能有新成员),再获取任务
     if (id) {
+      // 刷新项目列表以获取最新成员信息
+      await get().fetchProjects()
       // 获取项目的任务
-      get().fetchTasks({ projectId: id })
+      await get().fetchTasks({ projectId: id })
     } else {
       // 如果清空选择，获取所有任务
-      get().fetchTasks()
+      await get().fetchTasks()
     }
   },
   setCurrentDate: (date) => set({ currentDate: date }),
@@ -821,15 +967,20 @@ export const useCalendarStore = create<CalendarStore>()(
       },
     }),
 
-  openTaskCreation: (startDate, endDate, userId) =>
+  openTaskCreation: (startDate, endDate, userId, projectId, teamId) => {
+    const { navigationMode, selectedProjectId, selectedTeamId } = get()
     set({
       taskCreation: {
         isOpen: true,
         startDate,
         endDate,
         userId: userId || null,
+        // 根据当前导航模式设置默认项目和团队
+        projectId: projectId || (navigationMode === 'project' ? selectedProjectId : null),
+        teamId: teamId || (navigationMode === 'team' ? selectedTeamId : null),
       },
-    }),
+    })
+  },
 
   closeTaskCreation: () =>
     set({
@@ -838,6 +989,8 @@ export const useCalendarStore = create<CalendarStore>()(
         startDate: null,
         endDate: null,
         userId: null,
+        projectId: null,
+        teamId: null,
       },
     }),
 

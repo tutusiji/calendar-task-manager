@@ -24,7 +24,7 @@ interface TaskDetailPanelProps {
 }
 
 export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanelProps) {
-  const { addTask, projects, currentUser, settings, updateSettings, taskCreation, fetchTasks } = useCalendarStore()
+  const { addTask, projects, teams, currentUser, settings, updateSettings, taskCreation, fetchTasks } = useCalendarStore()
   const { toast } = useToast()
 
   const [title, setTitle] = useState("")
@@ -32,10 +32,11 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [taskType, setTaskType] = useState<TaskType>("daily")
-  const [projectId, setProjectId] = useState(settings.lastSelectedProjectId || "personal")
+  const [teamId, setTeamId] = useState<string>(taskCreation.teamId || "none")
+  const [projectId, setProjectId] = useState(taskCreation.projectId || settings.lastSelectedProjectId || "personal")
   const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
   const [showNewProject, setShowNewProject] = useState(false)
-  const [assigneeId, setAssigneeId] = useState(taskCreation.userId || currentUser?.id || "") // 负责人ID
+  const [assigneeId, setAssigneeId] = useState(taskCreation.userId || currentUser?.id || "") // 负责人 ID
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [projectError, setProjectError] = useState(false)
 
@@ -68,6 +69,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
         endTime: endTime || undefined,
         type: taskType,
         projectId,
+        teamId: teamId === "none" ? undefined : teamId, // 保存团队ID
         userId: assigneeId || currentUser.id, // 使用选择的负责人ID
       }
 
@@ -85,11 +87,6 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
         title: "创建成功",
         description: `任务「${title}」已创建`,
       })
-
-      // 刷新任务列表
-      if (currentUser) {
-        await fetchTasks({ userId: currentUser.id })
-      }
 
       onClose()
     } catch (error) {
@@ -255,17 +252,41 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
             />
           </div>
 
-          {/* Project */}
-          <div className="space-y-2">
-            <Label htmlFor="project" className="text-sm font-medium">
-              归属项目 <span className="text-red-500">*</span>
-            </Label>
-            <div className="flex gap-2">
+          {/* Team and Project */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Team */}
+            <div className="space-y-2">
+              <Label htmlFor="team" className="text-sm font-medium">
+                所属团队
+              </Label>
+              <Select value={teamId} onValueChange={setTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择团队（可选）" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">无团队</SelectItem>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
+                        {team.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Project */}
+            <div className="space-y-2">
+              <Label htmlFor="project" className="text-sm font-medium">
+                归属项目 <span className="text-red-500">*</span>
+              </Label>
               <Select value={projectId} onValueChange={(value) => {
                 setProjectId(value)
                 setProjectError(false)
               }}>
-                <SelectTrigger className={cn("flex-1", projectError && "border-red-500 ring-1 ring-red-500")}>
+                <SelectTrigger className={cn(projectError && "border-red-500 ring-1 ring-red-500")}>
                   <SelectValue placeholder="请选择项目" />
                 </SelectTrigger>
                 <SelectContent>
@@ -279,13 +300,10 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                   ))}
                 </SelectContent>
               </Select>
-              <Button type="button" variant="outline" size="icon" onClick={() => setShowNewProject(true)}>
-                <Plus className="h-4 w-4" />
-              </Button>
+              {projectError && (
+                <p className="text-sm text-red-500">请选择一个项目</p>
+              )}
             </div>
-            {projectError && (
-              <p className="text-sm text-red-500">请选择一个项目</p>
-            )}
           </div>
 
           {/* Remember Project */}

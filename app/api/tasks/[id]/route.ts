@@ -42,8 +42,14 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            color: true,
-            teamId: true
+            color: true
+          }
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            color: true
           }
         }
       }
@@ -96,19 +102,74 @@ export async function PUT(
 
     // 检查任务是否存在
     const existingTask = await prisma.task.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        project: {
+          include: {
+            members: {
+              select: {
+                userId: true
+              }
+            }
+          }
+        },
+        team: {
+          include: {
+            members: {
+              select: {
+                userId: true
+              }
+            }
+          }
+        }
+      }
     })
 
     if (!existingTask) {
       return notFoundResponse('任务不存在')
     }
 
-    // 权限验证：只能修改自己的任务
-    if (existingTask.userId !== auth.userId) {
-      return forbiddenResponse('无权修改此任务')
+    // 获取当前用户信息
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { isAdmin: true }
+    })
+
+    // 协同权限验证：检查是否有权限修改任务
+    let hasPermission = false
+    
+    // 1. 超级管理员拥有所有权限
+    if (currentUser?.isAdmin) {
+      hasPermission = true
+    }
+    // 2. 任务创建者始终有权限
+    else if (existingTask.userId === auth.userId) {
+      hasPermission = true
+    }
+    // 3. 检查项目的协同权限
+    else if (existingTask.project) {
+      const isMember = existingTask.project.members.some(m => m.userId === auth.userId)
+      if (isMember && existingTask.project.taskPermission === 'ALL_MEMBERS') {
+        hasPermission = true
+      } else if (isMember && existingTask.project.creatorId === auth.userId) {
+        hasPermission = true
+      }
+    }
+    // 4. 检查团队的协同权限
+    else if (existingTask.team) {
+      const isMember = existingTask.team.members.some(m => m.userId === auth.userId)
+      if (isMember && existingTask.team.taskPermission === 'ALL_MEMBERS') {
+        hasPermission = true
+      } else if (isMember && existingTask.team.creatorId === auth.userId) {
+        hasPermission = true
+      }
     }
 
-    const { title, description, startDate, endDate, startTime, endTime, type, projectId } = body
+    if (!hasPermission) {
+      return forbiddenResponse('无权修改此任务。根据协同权限设置，只有任务创建者或拥有协同权限的成员可以修改任务')
+    }
+
+    const { title, description, startDate, endDate, startTime, endTime, type, projectId, teamId, userId } = body
 
     // 特别验证项目ID（如果提供）
     if (projectId !== undefined && (!projectId || projectId.trim() === '')) {
@@ -140,14 +201,12 @@ export async function PUT(
       }
     }
 
-    // 如果更改项目，验证项目访问权限
+    // 如果更改项目，验证项目访问权限并自动添加任务负责人为成员
     if (projectId && projectId !== existingTask.projectId) {
       const project = await prisma.project.findUnique({
         where: { id: projectId },
         include: {
-          members: {
-            where: { userId: auth.userId }
-          }
+          members: true
         }
       })
 
@@ -155,8 +214,52 @@ export async function PUT(
         return validationErrorResponse('目标项目不存在')
       }
 
-      if (project.members.length === 0) {
+      // 检查当前用户是否有权限访问目标项目
+      const hasAccess = project.members.some(m => m.userId === auth.userId)
+      if (!hasAccess) {
         return forbiddenResponse('无权访问目标项目')
+      }
+
+      // 确定任务的负责人（可能正在被修改）
+      const taskUserId = userId !== undefined ? userId : existingTask.userId
+      
+      // 检查任务负责人是否在新项目中
+      const userInProject = project.members.some(m => m.userId === taskUserId)
+      if (!userInProject) {
+        // 自动将任务负责人添加到新项目中
+        await prisma.projectMember.create({
+          data: {
+            projectId,
+            userId: taskUserId
+          }
+        })
+      }
+    }
+
+    // 如果更改团队，自动添加任务负责人为团队成员
+    if (teamId !== undefined && teamId !== null && teamId !== existingTask.teamId) {
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        include: {
+          members: true
+        }
+      })
+
+      if (team) {
+        // 确定任务的负责人（可能正在被修改）
+        const taskUserId = userId !== undefined ? userId : existingTask.userId
+        
+        // 检查任务负责人是否在新团队中
+        const userInTeam = team.members.some(m => m.userId === taskUserId)
+        if (!userInTeam) {
+          // 自动将任务负责人添加到新团队中
+          await prisma.teamMember.create({
+            data: {
+              teamId,
+              userId: taskUserId
+            }
+          })
+        }
       }
     }
 
@@ -170,6 +273,8 @@ export async function PUT(
     if (endTime !== undefined) updateData.endTime = endTime
     if (type !== undefined) updateData.type = type
     if (projectId !== undefined) updateData.projectId = projectId
+    if (teamId !== undefined) updateData.teamId = teamId || null // 支持更新teamId
+    if (userId !== undefined) updateData.userId = userId // 支持更新负责人（协同权限）
 
     // 更新任务
     const task = await prisma.task.update({
@@ -186,6 +291,13 @@ export async function PUT(
           }
         },
         project: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
+        team: {
           select: {
             id: true,
             name: true,
