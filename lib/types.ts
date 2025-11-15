@@ -2,6 +2,26 @@ export type TaskType = "daily" | "meeting" | "vacation"
 
 export type TaskPermission = "ALL_MEMBERS" | "CREATOR_ONLY"
 
+export type OrgMemberRole = "OWNER" | "ADMIN" | "MEMBER"
+
+export interface Organization {
+  id: string
+  name: string
+  description?: string
+  isVerified: boolean
+  creatorId: string
+  memberIds: string[]
+  createdAt: Date
+}
+
+export interface OrganizationMember {
+  id: string
+  userId: string
+  organizationId: string
+  role: OrgMemberRole
+  createdAt: Date
+}
+
 export interface Task {
   id: string
   title: string
@@ -21,6 +41,7 @@ export interface Team {
   name: string
   description?: string
   color: string
+  organizationId: string
   memberIds: string[]
   creatorId: string // 创建者ID
   taskPermission: TaskPermission // 任务权限
@@ -32,6 +53,7 @@ export interface Project {
   name: string
   description?: string
   color: string
+  organizationId: string
   memberIds: string[]
   creatorId: string // 创建者ID
   taskPermission: TaskPermission // 任务权限
@@ -47,6 +69,7 @@ export interface User {
   gender?: string // 性别
   role?: string // 职业
   isAdmin?: boolean // 是否为超级管理员
+  currentOrganizationId?: string // 当前选择的组织ID
 }
 
 export interface CalendarSettings {

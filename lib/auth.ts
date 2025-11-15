@@ -1,5 +1,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { prisma } from './prisma'
+import { cookies } from 'next/headers'
 
 // JWT 密钥（生产环境应从环境变量读取）
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production'
@@ -68,4 +70,45 @@ export function extractToken(authorizationHeader: string | null): string | null 
   }
   
   return authorizationHeader
+}
+
+/**
+ * 获取当前登录用户的完整信息
+ * @returns 用户对象，未登录返回 null
+ */
+export async function getCurrentUser() {
+  try {
+    // 从 cookie 中获取 token
+    const cookieStore = cookies()
+    const tokenCookie = cookieStore.get('token')
+    
+    if (!tokenCookie) {
+      return null
+    }
+
+    const decoded = verifyToken(tokenCookie.value)
+    if (!decoded) {
+      return null
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        avatar: true,
+        gender: true,
+        role: true,
+        isAdmin: true,
+        currentOrganizationId: true,
+      },
+    })
+
+    return user
+  } catch (error) {
+    console.error('Error getting current user:', error)
+    return null
+  }
 }

@@ -12,13 +12,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, LogOut, Settings } from "lucide-react"
+import { User, LogOut, Settings, Building2 } from "lucide-react"
 import { UserProfileDialog } from "./user-profile-dialog"
+import { OrganizationManagementDialog } from "./organization-management-dialog"
 
 export function UserMenu() {
   const router = useRouter()
   const { currentUser } = useCalendarStore()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [organizationOpen, setOrganizationOpen] = useState(false)
 
   const handleLogout = () => {
     // 清除本地存储的用户信息
@@ -69,6 +71,13 @@ export function UserMenu() {
             <User className="mr-2 h-4 w-4" />
             <span>个人信息</span>
           </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => setOrganizationOpen(true)} 
+            className="cursor-pointer"
+          >
+            <Building2 className="mr-2 h-4 w-4" />
+            <span>空间管理</span>
+          </DropdownMenuItem>
           <DropdownMenuItem className="cursor-pointer">
             <Settings className="mr-2 h-4 w-4" />
             <span>设置</span>
@@ -82,6 +91,7 @@ export function UserMenu() {
       </DropdownMenu>
 
       <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+      <OrganizationManagementDialog open={organizationOpen} onOpenChange={setOrganizationOpen} />
     </>
   )
 }

@@ -1,10 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { authenticate } from '@/lib/middleware'
 
-// GET /api/users - 获取用户列表
-export async function GET() {
+// GET /api/users - 获取用户列表（同一组织内）
+export async function GET(request: NextRequest) {
   try {
+    const auth = await authenticate(request)
+    if (auth.error) return auth.error
+
+    // 获取用户的当前组织
+    const user = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { currentOrganizationId: true },
+    })
+
+    if (!user || !user.currentOrganizationId) {
+      return NextResponse.json({
+        success: true,
+        data: []
+      })
+    }
+
+    // 获取同一组织内的所有用户
     const users = await prisma.user.findMany({
+      where: {
+        organizationMembers: {
+          some: {
+            organizationId: user.currentOrganizationId
+          }
+        }
+      },
       select: {
         id: true,
         name: true,

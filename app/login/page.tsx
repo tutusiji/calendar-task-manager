@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 import { authAPI } from "@/lib/api-client"
+import { OrganizationSelector } from "@/components/organization-selector"
 
 export default function AuthPage() {
   const router = useRouter()
@@ -31,6 +32,8 @@ export default function AuthPage() {
     name: "",
     email: "",
     role: "",
+    organization: "",
+    organizationId: null as string | null,
     password: "",
     confirmPassword: ""
   })
@@ -72,6 +75,13 @@ export default function AuthPage() {
       return
     }
 
+    // 验证组织
+    if (!registerData.organization || registerData.organization.trim() === "") {
+      setError("请输入或选择空间/组织")
+      setIsLoading(false)
+      return
+    }
+
     // 验证密码
     if (registerData.password !== registerData.confirmPassword) {
       setError("两次输入的密码不一致")
@@ -86,7 +96,15 @@ export default function AuthPage() {
     }
 
     try {
-      const user = await authAPI.register(registerData)
+      const user = await authAPI.register({
+        username: registerData.username,
+        name: registerData.name,
+        email: registerData.email,
+        role: registerData.role,
+        password: registerData.password,
+        organization: registerData.organization,
+        organizationId: registerData.organizationId,
+      })
       
       // 保存用户信息到 localStorage
       localStorage.setItem("currentUser", JSON.stringify(user))
@@ -248,6 +266,19 @@ export default function AuthPage() {
                       disabled={isLoading}
                     />
                   </div>
+
+                  <OrganizationSelector
+                    value={registerData.organization}
+                    onChange={(value, org) => {
+                      setRegisterData({ 
+                        ...registerData, 
+                        organization: value,
+                        organizationId: org?.id || null
+                      })
+                    }}
+                    disabled={isLoading}
+                    required
+                  />
 
                   <div className="space-y-2">
                     <Label htmlFor="register-role">

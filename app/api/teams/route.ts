@@ -8,9 +8,23 @@ export async function GET(request: NextRequest) {
     const auth = await authenticate(request)
     if (auth.error) return auth.error
 
-    // 只获取用户是成员的团队
+    // 获取用户信息以获取当前组织
+    const user = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { currentOrganizationId: true },
+    })
+
+    if (!user || !user.currentOrganizationId) {
+      return NextResponse.json({
+        success: true,
+        data: []
+      })
+    }
+
+    // 只获取当前组织内用户是成员的团队
     const teams = await prisma.team.findMany({
       where: {
+        organizationId: user.currentOrganizationId,
         members: {
           some: {
             userId: auth.userId
@@ -91,11 +105,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 获取用户的当前组织
+    const user = await prisma.user.findUnique({
+      where: { id: creatorId },
+      select: { currentOrganizationId: true },
+    })
+
+    if (!user || !user.currentOrganizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'User must be in an organization'
+        },
+        { status: 400 }
+      )
+    }
+
     const team = await prisma.team.create({
       data: {
         name,
         color,
         description,
+        organizationId: user.currentOrganizationId,
         creatorId, // 设置创建者
         members: memberIds
           ? {

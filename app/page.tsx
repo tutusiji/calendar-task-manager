@@ -14,6 +14,7 @@ import { MiniCalendar } from "@/components/sidebar/mini-calendar"
 import { NavigationMenu } from "@/components/sidebar/navigation-menu"
 import { UserMenu } from "@/components/user-menu"
 import { MainNavigation } from "@/components/navigation/main-navigation"
+import { SpaceSwitcher } from "@/components/space-switcher"
 import { ListView } from "@/components/views/list-view"
 import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
@@ -172,8 +173,12 @@ export default function Home() {
       <div className="flex flex-1 flex-col">
         {/* Top Bar with Main Navigation and View Controls */}
         <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
-          {/* Left: Main Navigation (日历/清单/统计) */}
-          <MainNavigation />
+          {/* Left: Space Switcher + Main Navigation (日历/清单/统计) */}
+          <div className="flex items-center gap-4">
+            <SpaceSwitcher />
+            <div className="h-6 w-px bg-border" />
+            <MainNavigation />
+          </div>
           
           {/* Right: View Toggle and User Menu */}
           <div className="flex items-center gap-4">

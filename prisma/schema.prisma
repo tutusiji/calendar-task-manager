@@ -13,24 +13,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// 组织/空间模型
+model Organization {
+  id                    String               @id @default(cuid())
+  name                  String               @unique // 组织名称，全局唯一
+  description           String?
+  isVerified            Boolean              @default(false) // 是否已认证
+  creatorId             String
+  creator               User                 @relation("OrganizationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members               OrganizationMember[]
+  teams                 Team[]
+  projects              Project[]
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([creatorId])
+  @@index([name])
+}
+
+// 组织成员关系
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           OrgMemberRole @default(MEMBER) // 成员角色
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+// 组织成员角色枚举
+enum OrgMemberRole {
+  OWNER   // 所有者
+  ADMIN   // 管理员
+  MEMBER  // 普通成员
+}
+
 // 用户模型
 model User {
-  id             String          @id @default(cuid())
-  username       String          @unique @default("") // 用户名，用于登录
-  password       String          @default("") // 密码（加密存储）
-  name           String // 真实姓名/显示名称
-  email          String // 邮箱，仅作为个人资料
-  avatar         String?
-  gender         String?         @default("未设置") // 性别
-  role           String?         @default("未设置") // 职业
-  isAdmin        Boolean         @default(false) // 是否为超级管理员
-  tasks          Task[]
-  teamMembers    TeamMember[]
-  projectMembers ProjectMember[]
-  createdTeams   Team[]          @relation("TeamCreator")
-  createdProjects Project[]      @relation("ProjectCreator")
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                     String               @id @default(cuid())
+  username               String               @unique @default("") // 用户名，用于登录
+  password               String               @default("") // 密码（加密存储）
+  name                   String               // 真实姓名/显示名称
+  email                  String               // 邮箱，仅作为个人资料
+  avatar                 String?
+  gender                 String?              @default("未设置") // 性别
+  role                   String?              @default("未设置") // 职业
+  isAdmin                Boolean              @default(false) // 是否为超级管理员
+  currentOrganizationId  String?              // 当前选择的组织ID
+  tasks                  Task[]
+  teamMembers            TeamMember[]
+  projectMembers         ProjectMember[]
+  createdTeams           Team[]               @relation("TeamCreator")
+  createdProjects        Project[]            @relation("ProjectCreator")
+  createdOrganizations   Organization[]       @relation("OrganizationCreator")
+  organizationMembers    OrganizationMember[]
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 }
 
 // 团队模型
@@ -39,6 +82,8 @@ model Team {
   name           String
   color          String
   description    String?
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creatorId      String
   creator        User           @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members        TeamMember[]
@@ -48,6 +93,7 @@ model Team {
   updatedAt      DateTime       @updatedAt
 
   @@index([creatorId])
+  @@index([organizationId])
 }
 
 // 项目模型
@@ -56,6 +102,8 @@ model Project {
   name           String
   color          String
   description    String?
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creatorId      String
   creator        User            @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members        ProjectMember[]
@@ -65,6 +113,7 @@ model Project {
   updatedAt      DateTime        @updatedAt
 
   @@index([creatorId])
+  @@index([organizationId])
 }
 
 // 任务模型

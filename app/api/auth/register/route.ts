@@ -19,7 +19,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { username, password, name, email, avatar, role } = body
+    const { username, password, name, email, avatar, role, organization, organizationId } = body
 
     // 验证必填字段
     const requiredValidation = validateRequiredFields(body, [
@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
       'password',
       'name',
       'email',
-      'role'
+      'role',
+      'organization'
     ])
     if (!requiredValidation.valid) {
       return validationErrorResponse(requiredValidation.message!)
@@ -69,12 +70,13 @@ export async function POST(request: NextRequest) {
     // 清理输入数据
     const cleanName = sanitizeString(name, 100)
     const cleanEmail = sanitizeString(email, 100)
+    const cleanOrganization = sanitizeString(organization, 100)
 
     // 哈希密码
     const hashedPassword = await hashPassword(password)
 
-    // 创建新用户和个人项目（使用事务）
-    const user = await prisma.$transaction(async (tx: any) => {
+    // 创建新用户、组织和个人项目（使用事务）
+    const result = await prisma.$transaction(async (tx: any) => {
       // 创建用户
       const newUser = await tx.user.create({
         data: {
@@ -96,12 +98,49 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // 处理组织
+      let orgId = organizationId
+      
+      if (organizationId) {
+        // 用户选择了已有组织，直接加入
+        await tx.organizationMember.create({
+          data: {
+            userId: newUser.id,
+            organizationId: organizationId,
+            role: 'MEMBER'
+          }
+        })
+      } else {
+        // 用户输入了新组织名称，创建新组织
+        const newOrg = await tx.organization.create({
+          data: {
+            name: cleanOrganization,
+            creatorId: newUser.id,
+            isVerified: false,
+            members: {
+              create: {
+                userId: newUser.id,
+                role: 'OWNER'
+              }
+            }
+          }
+        })
+        orgId = newOrg.id
+      }
+
+      // 设置用户的当前组织
+      await tx.user.update({
+        where: { id: newUser.id },
+        data: { currentOrganizationId: orgId }
+      })
+
       // 为新用户创建专属的"个人事务"项目
       await tx.project.create({
         data: {
           name: `${cleanName}的个人事务`,
           color: '#3b82f6',
           description: '个人日常任务和事项',
+          organizationId: orgId,
           creatorId: newUser.id,
           members: {
             create: {
@@ -111,15 +150,15 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      return newUser
+      return { ...newUser, currentOrganizationId: orgId }
     })
 
     // 生成 JWT Token
-    const token = generateToken({ userId: user.id })
+    const token = generateToken({ userId: result.id })
 
     return successResponse(
       {
-        user,
+        user: result,
         token
       },
       '注册成功',
