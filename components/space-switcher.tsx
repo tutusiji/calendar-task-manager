@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { getToken } from "@/lib/api-client"
 
 interface Organization {
   id: string
@@ -26,7 +27,17 @@ export function SpaceSwitcher() {
   // 获取用户的组织列表
   const fetchOrganizations = async () => {
     try {
-      const response = await fetch("/api/organizations")
+      const token = getToken()
+      if (!token) {
+        console.error("No token found")
+        return
+      }
+
+      const response = await fetch("/api/organizations", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
       const data = await response.json()
       
       if (data.success) {
@@ -53,10 +64,16 @@ export function SpaceSwitcher() {
 
     setIsLoading(true)
     try {
+      const token = getToken()
+      if (!token) {
+        throw new Error("未登录")
+      }
+
       const response = await fetch("/api/organizations/switch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({ organizationId: orgId }),
       })
@@ -112,16 +129,15 @@ export function SpaceSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium",
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium",
           "hover:bg-muted/50 transition-colors",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
           isLoading && "opacity-50 cursor-not-allowed"
         )}
         disabled={isLoading}
       >
-        <span className="text-muted-foreground">My Space</span>
+        <span className="text-foreground">My Space</span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        <span className="font-semibold">{currentOrg?.name || "选择空间"}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
         {organizations.map((org) => (

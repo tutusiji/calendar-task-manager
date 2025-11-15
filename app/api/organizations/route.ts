@@ -6,13 +6,10 @@ import { authenticate } from "@/lib/middleware"
 // GET /api/organizations - 获取用户的所有组织
 export async function GET(req: NextRequest) {
   try {
-    const auth = await authenticate(req)
-    if (auth.error) return auth.error
-
     const searchParams = req.nextUrl.searchParams
     const search = searchParams.get("search")
 
-    // 如果有搜索参数，则搜索所有组织（用于注册时的搜索）
+    // 如果有搜索参数，则搜索所有组织（用于注册时的搜索，不需要认证）
     if (search) {
       const organizations = await prisma.organization.findMany({
         where: {
@@ -32,7 +29,11 @@ export async function GET(req: NextRequest) {
       return successResponse(organizations)
     }
 
-    // 否则返回用户所属的所有组织
+    // 否则需要认证才能获取用户的组织列表
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
+
+    // 返回用户所属的所有组织
     const organizationMembers = await prisma.organizationMember.findMany({
       where: {
         userId: auth.userId,

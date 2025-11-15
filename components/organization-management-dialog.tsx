@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban } from "lucide-react"
+import { getToken } from "@/lib/api-client"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,7 +75,17 @@ export function OrganizationManagementDialog({
 
   const fetchOrganizations = async () => {
     try {
-      const response = await fetch("/api/organizations")
+      const token = getToken()
+      if (!token) {
+        console.error("No token found")
+        return
+      }
+
+      const response = await fetch("/api/organizations", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
       const data = await response.json()
       
       if (data.success) {
@@ -103,10 +114,16 @@ export function OrganizationManagementDialog({
 
     setIsLoading(true)
     try {
+      const token = getToken()
+      if (!token) {
+        throw new Error("未登录")
+      }
+
       const response = await fetch(`/api/organizations/${editingOrg.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify(formData),
       })
@@ -144,8 +161,16 @@ export function OrganizationManagementDialog({
 
     setIsLoading(true)
     try {
+      const token = getToken()
+      if (!token) {
+        throw new Error("未登录")
+      }
+
       const response = await fetch(`/api/organizations/${deleteOrgId}`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       })
 
       const data = await response.json()
