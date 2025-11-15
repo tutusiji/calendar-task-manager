@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware"
 import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationMode, MainViewMode, ListGroupMode, ListLayoutColumns } from "../types"
 import { taskAPI, projectAPI, userAPI, teamAPI, handleAPIError } from "../api-client"
 import { showToast } from "../toast"
+import { useLoadingDelay } from "../../hooks/use-loading-delay"
 
 interface CalendarStore {
   // Data
@@ -226,7 +227,10 @@ export const useCalendarStore = create<CalendarStore>()(
   },
 
   fetchTasks: async (filters) => {
+    const loadingDelay = useLoadingDelay()
+    loadingDelay.start()
     set({ isLoadingTasks: true, error: null })
+    
     try {
       const apiFilters: any = {}
       if (filters) {
@@ -244,16 +248,31 @@ export const useCalendarStore = create<CalendarStore>()(
         startDate: new Date(task.startDate),
         endDate: new Date(task.endDate),
       }))
-      set({ tasks, isLoadingTasks: false })
+      
+      // 先更新数据
+      set({ tasks })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingTasks: false })
     } catch (error) {
       const errorMsg = handleAPIError(error)
-      set({ error: errorMsg, isLoadingTasks: false })
+      set({ error: errorMsg })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingTasks: false })
       showToast.error('获取任务失败', errorMsg)
     }
   },
 
   fetchProjects: async () => {
+    const loadingDelay = useLoadingDelay()
+    loadingDelay.start()
     set({ isLoadingProjects: true, error: null })
+    
     try {
       const projectsData = await projectAPI.getAll()
       // 转换数据格式
@@ -272,28 +291,57 @@ export const useCalendarStore = create<CalendarStore>()(
       // 默认选中所有项目
       const selectedProjectIds = projects.map((p: Project) => p.id)
       
-      set({ projects, selectedProjectIds, isLoadingProjects: false })
+      // 先更新数据
+      set({ projects, selectedProjectIds })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingProjects: false })
     } catch (error) {
       const errorMsg = handleAPIError(error)
-      set({ error: errorMsg, isLoadingProjects: false })
+      set({ error: errorMsg })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingProjects: false })
       showToast.error('获取项目失败', errorMsg)
     }
   },
 
   fetchUsers: async () => {
+    const loadingDelay = useLoadingDelay()
+    loadingDelay.start()
     set({ isLoadingUsers: true, error: null })
+    
     try {
       const users = await userAPI.getAll()
-      set({ users, isLoadingUsers: false })
+      
+      // 先更新数据
+      set({ users })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingUsers: false })
     } catch (error) {
       const errorMsg = handleAPIError(error)
-      set({ error: errorMsg, isLoadingUsers: false })
+      set({ error: errorMsg })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingUsers: false })
       showToast.error('获取用户失败', errorMsg)
     }
   },
 
   fetchTeams: async () => {
+    const loadingDelay = useLoadingDelay()
+    loadingDelay.start()
     set({ isLoadingTeams: true, error: null })
+    
     try {
       const teamsData = await teamAPI.getAll()
       // 转换数据格式
@@ -307,10 +355,22 @@ export const useCalendarStore = create<CalendarStore>()(
         memberIds: team.members?.map((m: any) => m.user?.id || m.userId) || [],
         createdAt: new Date(team.createdAt),
       }))
-      set({ teams, isLoadingTeams: false })
+      
+      // 先更新数据
+      set({ teams })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingTeams: false })
     } catch (error) {
       const errorMsg = handleAPIError(error)
-      set({ error: errorMsg, isLoadingTeams: false })
+      set({ error: errorMsg })
+      
+      // 确保 loading 至少显示指定时间
+      await loadingDelay.waitForMinDuration()
+      
+      set({ isLoadingTeams: false })
       showToast.error('获取团队失败', errorMsg)
     }
   },

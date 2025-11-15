@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { CalendarHeader } from "@/components/calendar/calendar-header"
@@ -23,6 +23,8 @@ import { LoadingLogo } from "@/components/loading-logo"
 
 export default function Home() {
   const router = useRouter()
+  const [showLoading, setShowLoading] = useState(false)
+  
   const { 
     viewMode, 
     navigationMode, 
@@ -56,6 +58,20 @@ export default function Home() {
 
   // 显示加载状态
   const isLoading = isLoadingTasks || isLoadingProjects || isLoadingUsers || isLoadingTeams
+
+  // 处理 loading 的淡入淡出效果
+  useEffect(() => {
+    if (isLoading) {
+      // 立即显示 loading（淡入）
+      setShowLoading(true)
+    } else {
+      // 延迟隐藏 loading，让淡出动画完成
+      const timer = setTimeout(() => {
+        setShowLoading(false)
+      }, 300) // 与 CSS transition 时间一致
+      return () => clearTimeout(timer)
+    }
+  }, [isLoading])
 
   // 显示错误提示
   useEffect(() => {
@@ -168,8 +184,12 @@ export default function Home() {
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
-          {isLoadingTasks && (
-            <div className="absolute inset-0 bg-background/50 z-40 flex items-center justify-center">
+          {showLoading && (
+            <div 
+              className={`absolute inset-0 bg-background/50 z-40 flex items-center justify-center transition-opacity duration-300 ${
+                isLoading ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
               <LoadingLogo />
             </div>
           )}
