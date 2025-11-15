@@ -41,6 +41,10 @@ export function NotificationItem({
 }: NotificationItemProps) {
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
+  // 根据metadata中的status判断是否已处理
+  const [isHandled, setIsHandled] = useState(
+    notification.metadata?.status === "APPROVED" || notification.metadata?.status === "REJECTED"
+  )
 
   const getIcon = () => {
     switch (notification.type) {
@@ -84,9 +88,12 @@ export function NotificationItem({
         toast({
           title: "已同意",
           description: "已同意加入申请",
+          duration: 3000,
         })
         // 标记消息为已读
         onMarkAsRead(notification.id)
+        // 标记为已处理
+        setIsHandled(true)
         // 刷新列表
         onActionComplete()
       } else {
@@ -94,6 +101,7 @@ export function NotificationItem({
           title: "操作失败",
           description: data.error || "无法处理申请",
           variant: "destructive",
+          duration: 3000,
         })
       }
     } catch (error) {
@@ -102,6 +110,7 @@ export function NotificationItem({
         title: "操作失败",
         description: "网络错误，请稍后重试",
         variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setIsProcessing(false)
@@ -135,9 +144,12 @@ export function NotificationItem({
         toast({
           title: "已拒绝",
           description: "已拒绝加入申请",
+          duration: 3000,
         })
         // 标记消息为已读
         onMarkAsRead(notification.id)
+        // 标记为已处理
+        setIsHandled(true)
         // 刷新列表
         onActionComplete()
       } else {
@@ -145,6 +157,7 @@ export function NotificationItem({
           title: "操作失败",
           description: data.error || "无法处理申请",
           variant: "destructive",
+          duration: 3000,
         })
       }
     } catch (error) {
@@ -153,6 +166,7 @@ export function NotificationItem({
         title: "操作失败",
         description: "网络错误，请稍后重试",
         variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setIsProcessing(false)
@@ -166,19 +180,19 @@ export function NotificationItem({
           <Button
             size="sm"
             onClick={handleApprove}
-            disabled={isProcessing}
+            disabled={isProcessing || isHandled}
             className="flex-1"
           >
-            同意
+            {isHandled ? "已同意" : "同意"}
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={handleReject}
-            disabled={isProcessing}
+            disabled={isProcessing || isHandled}
             className="flex-1"
           >
-            拒绝
+            {isHandled ? "已拒绝" : "拒绝"}
           </Button>
         </div>
       )

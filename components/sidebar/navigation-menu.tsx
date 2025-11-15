@@ -347,7 +347,7 @@ export function NavigationMenu() {
                     <span className="truncate">{project.name}</span>
                     {/* 第一个项目(个人事务)显示图钉图标 */}
                     {index === 0 && (
-                      <Pin className="h-3 w-3 text-muted-foreground shrink-0 ml-auto rotate-45" />
+                      <Pin className="h-3 w-3 text-muted-foreground shrink-0 ml-auto translate-x-[-6px] rotate-45" />
                     )}
                     {/* 创建者标识(非第一个项目) */}
                     {index !== 0 && currentUser && project.creatorId === currentUser.id && (

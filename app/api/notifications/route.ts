@@ -37,9 +37,40 @@ export async function GET(req: NextRequest) {
       take: 100, // 最多返回100条
     })
 
-    console.log("查询到消息数量:", notifications.length)
+    // 对于加入申请通知，附加请求的当前状态
+    const enrichedNotifications = await Promise.all(
+      notifications.map(async (notif: any) => {
+        if (
+          notif.type === "ORG_JOIN_REQUEST" &&
+          notif.metadata &&
+          typeof notif.metadata === "object" &&
+          "requestId" in notif.metadata
+        ) {
+          try {
+            const request = await (prisma as any).organizationJoinRequest.findUnique({
+              where: { id: notif.metadata.requestId },
+              select: { status: true },
+            })
+            if (request) {
+              return {
+                ...notif,
+                metadata: {
+                  ...notif.metadata,
+                  status: request.status,
+                },
+              }
+            }
+          } catch (error) {
+            console.error("获取请求状态失败:", error)
+          }
+        }
+        return notif
+      })
+    )
 
-    return successResponse(notifications)
+    console.log("查询到消息数量:", enrichedNotifications.length)
+
+    return successResponse(enrichedNotifications)
   } catch (error) {
     console.error("获取消息列表失败:", error)
     if (error instanceof Error) {

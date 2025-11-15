@@ -16,7 +16,7 @@ const cangji = localFont({
 })
 
 export const metadata: Metadata = {
-  title: 'OxHorse Planner - 牛马日常',
+  title: 'OxHorse Planner - 牛马日记',
   description: 'Happy every day with OxHorse Planner',
   generator: 'v0.app',
   icons: {

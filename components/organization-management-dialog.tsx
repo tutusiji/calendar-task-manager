@@ -211,6 +211,7 @@ export function OrganizationManagementDialog({
           toast({
             title: "申请已提交",
             description: `已向 ${formData.name} 提交加入申请，请等待审核`,
+            duration: 3000,
           })
           setIsCreating(false)
           setFormData({ name: "", description: "" })
@@ -221,6 +222,7 @@ export function OrganizationManagementDialog({
             title: "申请失败",
             description: data.error || "无法提交申请",
             variant: "destructive",
+            duration: 3000,
           })
         }
       } catch (error) {
@@ -489,7 +491,7 @@ export function OrganizationManagementDialog({
               variant="outline"
             >
               <Plus className="h-4 w-4 mr-2" />
-              新增空间
+              新增/加入 空间
             </Button>
             {organizations.map((org) => (
               <div
