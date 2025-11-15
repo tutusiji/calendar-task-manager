@@ -1,0 +1,321 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2 } from "lucide-react"
+
+export default function AuthPage() {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  // 登录表单
+  const [loginData, setLoginData] = useState({
+    username: "",
+    password: ""
+  })
+
+  // 注册表单
+  const [registerData, setRegisterData] = useState({
+    username: "",
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
+  })
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(loginData)
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // 保存用户信息到 localStorage
+        localStorage.setItem("currentUser", JSON.stringify(data.data))
+        
+        // 跳转到主页
+        router.push("/")
+        router.refresh()
+      } else {
+        setError(data.error || "登录失败")
+      }
+    } catch (err) {
+      setError("网络错误，请稍后重试")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+
+    // 验证密码
+    if (registerData.password !== registerData.confirmPassword) {
+      setError("两次输入的密码不一致")
+      setIsLoading(false)
+      return
+    }
+
+    if (registerData.password.length < 6) {
+      setError("密码长度至少为 6 位")
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: registerData.name,
+          email: registerData.email,
+          password: registerData.password
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setSuccess("注册成功！请登录")
+        // 清空表单
+        setRegisterData({
+          name: "",
+          email: "",
+          password: "",
+          confirmPassword: ""
+        })
+        // 3 秒后自动切换到登录标签
+        setTimeout(() => {
+          const loginTab = document.querySelector('[value="login"]') as HTMLElement
+          loginTab?.click()
+        }, 2000)
+      } else {
+        setError(data.error || "注册失败")
+      }
+    } catch (err) {
+      setError("网络错误，请稍后重试")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="OxHorse Planner Logo"
+              width={80}
+              height={80}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <h1 className="text-3xl font-bold bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent">
+            OxHorse Planner
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">Every day so happy</p>
+        </div>
+
+        <Tabs defaultValue="login" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">登录</TabsTrigger>
+            <TabsTrigger value="register">注册</TabsTrigger>
+          </TabsList>
+
+          {/* 登录标签 */}
+          <TabsContent value="login">
+            <Card>
+              <CardHeader>
+                <CardTitle>欢迎回来</CardTitle>
+                <CardDescription>输入您的用户名和密码登录</CardDescription>
+              </CardHeader>
+              <form onSubmit={handleLogin}>
+                <CardContent className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="login-username">用户名</Label>
+                    <Input
+                      id="login-username"
+                      type="text"
+                      placeholder="请输入用户名"
+                      value={loginData.username}
+                      onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password">密码</Label>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" className="w-full mt-8" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        登录中...
+                      </>
+                    ) : (
+                      "登录"
+                    )}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+
+          {/* 注册标签 */}
+          <TabsContent value="register">
+            <Card>
+              <CardHeader>
+                <CardTitle>创建账户</CardTitle>
+                <CardDescription>填写以下信息注册新账户</CardDescription>
+              </CardHeader>
+              <form onSubmit={handleRegister}>
+                <CardContent className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {success && (
+                    <Alert>
+                      <AlertDescription className="text-green-600">{success}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="register-username">用户名</Label>
+                    <Input
+                      id="register-username"
+                      type="text"
+                      placeholder="请输入用户名（用于登录）"
+                      value={registerData.username}
+                      onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="register-name">姓名</Label>
+                    <Input
+                      id="register-name"
+                      type="text"
+                      placeholder="张三"
+                      value={registerData.name}
+                      onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">邮箱</Label>
+                    <Input
+                      id="register-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={registerData.email}
+                      onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">密码</Label>
+                    <Input
+                      id="register-password"
+                      type="password"
+                      placeholder="至少 6 位"
+                      value={registerData.password}
+                      onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                      required
+                      disabled={isLoading}
+                      minLength={6}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="register-confirm-password">确认密码</Label>
+                    <Input
+                      id="register-confirm-password"
+                      type="password"
+                      placeholder="再次输入密码"
+                      value={registerData.confirmPassword}
+                      onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                      required
+                      disabled={isLoading}
+                      minLength={6}
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" className="w-full  mt-8" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        注册中...
+                      </>
+                    ) : (
+                      "注册"
+                    )}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          登录即表示您同意我们的服务条款和隐私政策
+        </p>
+      </div>
+    </div>
+  )
+}

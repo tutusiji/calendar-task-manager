@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
+import { Toaster } from '@/components/ui/toaster'
 // import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="en" className={cangji.variable}>
       <body className={`font-sans antialiased`}>
         {children}
+        <Toaster />
         {/* <Analytics /> */}
       </body>
     </html>

@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { CalendarHeader } from "@/components/calendar/calendar-header"
 import { MonthView } from "@/components/calendar/month-view"
@@ -17,7 +19,45 @@ import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 
 export default function Home() {
-  const { viewMode, navigationMode, mainViewMode, taskCreation, closeTaskCreation, taskEdit, closeTaskEdit } = useCalendarStore()
+  const router = useRouter()
+  const { 
+    viewMode, 
+    navigationMode, 
+    mainViewMode, 
+    taskCreation, 
+    closeTaskCreation, 
+    taskEdit, 
+    closeTaskEdit,
+    fetchAllData,
+    isLoadingTasks,
+    isLoadingProjects,
+    isLoadingUsers,
+    isLoadingTeams,
+    error,
+  } = useCalendarStore()
+
+  // 检查登录状态并加载数据
+  useEffect(() => {
+    const currentUser = localStorage.getItem("currentUser")
+    if (!currentUser) {
+      router.push("/login")
+      return
+    }
+
+    // 加载所有数据
+    fetchAllData()
+  }, [router, fetchAllData])
+
+  // 显示加载状态
+  const isLoading = isLoadingTasks || isLoadingProjects || isLoadingUsers || isLoadingTeams
+
+  // 显示错误提示
+  useEffect(() => {
+    if (error) {
+      console.error('Store error:', error)
+      // 可以在这里添加 toast 通知
+    }
+  }, [error])
 
   // 根据 navigationMode 决定渲染哪个视图
   const renderCalendarView = () => {
@@ -65,6 +105,16 @@ export default function Home() {
 
   return (
     <div className="flex h-screen">
+      {/* 加载状态覆盖层 */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-sm text-muted-foreground">加载数据中...</p>
+          </div>
+        </div>
+      )}
+
       <aside className="w-72 border-r border-border bg-background flex flex-col">
         {/* Logo */}
         <div className="border-b border-border bg-card px-6 py-[18px]">

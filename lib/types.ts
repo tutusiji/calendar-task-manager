@@ -34,9 +34,10 @@ export interface Project {
 
 export interface User {
   id: string
-  name: string
+  username: string // 用户名，用于登录
+  name: string // 显示名称
   avatar: string
-  email: string
+  email: string // 邮箱（个人资料）
 }
 
 export interface CalendarSettings {

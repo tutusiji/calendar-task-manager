@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useToast } from "@/hooks/use-toast"
 import type { Task, TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
@@ -22,7 +23,8 @@ interface TaskEditPanelProps {
 }
 
 export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
-  const { updateTask, deleteTask, projects } = useCalendarStore()
+  const { updateTask, deleteTask, projects, fetchTasks, currentUser } = useCalendarStore()
+  const { toast } = useToast()
 
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description || "")
@@ -35,31 +37,79 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   const [taskType, setTaskType] = useState<TaskType>(task.type)
   const [projectId, setProjectId] = useState(task.projectId)
   const [assigneeId, setAssigneeId] = useState(task.userId) // 负责人ID
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!title.trim() || !dateRange.from) return
 
-    updateTask(task.id, {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      startDate: dateRange.from,
-      endDate: dateRange.to || dateRange.from,
-      startTime: startTime || undefined,
-      endTime: endTime || undefined,
-      type: taskType,
-      projectId,
-      userId: assigneeId, // 更新负责人
-    })
+    setIsSubmitting(true)
 
-    onClose()
+    try {
+      await updateTask(task.id, {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        startDate: dateRange.from,
+        endDate: dateRange.to || dateRange.from,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
+        type: taskType,
+        projectId,
+        userId: assigneeId, // 更新负责人
+      })
+
+      toast({
+        title: "保存成功",
+        description: `任务「${title}」已更新`,
+      })
+
+      // 刷新任务列表
+      if (currentUser) {
+        await fetchTasks({ userId: currentUser.id })
+      }
+
+      onClose()
+    } catch (error) {
+      console.error('Failed to update task:', error)
+      toast({
+        title: "保存失败",
+        description: "更新任务失败，请重试",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleDelete = () => {
-    if (confirm("确定要删除这个事项吗？")) {
-      deleteTask(task.id)
+  const handleDelete = async () => {
+    if (!confirm("确定要删除这个事项吗？")) return
+
+    setIsDeleting(true)
+
+    try {
+      await deleteTask(task.id)
+      
+      toast({
+        title: "删除成功",
+        description: `任务「${task.title}」已删除`,
+      })
+
+      // 刷新任务列表
+      if (currentUser) {
+        await fetchTasks({ userId: currentUser.id })
+      }
+
       onClose()
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+      toast({
+        title: "删除失败",
+        description: "删除任务失败，请重试",
+        variant: "destructive",
+      })
+      setIsDeleting(false)
     }
   }
 
@@ -99,10 +149,16 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-semibold text-foreground">编辑事项</h2>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleDelete} className="text-red-500 hover:text-red-600">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleDelete} 
+              className="text-red-500 hover:text-red-600"
+              disabled={isDeleting || isSubmitting}
+            >
               <Trash2 className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} disabled={isDeleting || isSubmitting}>
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -240,11 +296,21 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1 bg-transparent">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="flex-1 bg-transparent"
+              disabled={isSubmitting || isDeleting}
+            >
               取消
             </Button>
-            <Button type="submit" className="flex-1" disabled={!title.trim() || !dateRange.from}>
-              保存更改
+            <Button 
+              type="submit" 
+              className="flex-1" 
+              disabled={!title.trim() || !dateRange.from || isSubmitting || isDeleting}
+            >
+              {isSubmitting ? '保存中...' : '保存更改'}
             </Button>
           </div>
         </form>

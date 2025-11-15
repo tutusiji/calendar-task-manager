@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import {
   DropdownMenu,
@@ -15,12 +16,15 @@ import { User, LogOut, Settings } from "lucide-react"
 import { UserProfileDialog } from "./user-profile-dialog"
 
 export function UserMenu() {
+  const router = useRouter()
   const { currentUser } = useCalendarStore()
   const [profileOpen, setProfileOpen] = useState(false)
 
   const handleLogout = () => {
-    // 这里可以添加登出逻辑
-    console.log("Logout clicked")
+    // 清除本地存储的用户信息
+    localStorage.removeItem("currentUser")
+    // 跳转到登录页
+    router.push("/login")
   }
 
   const handleProfile = () => {
@@ -30,6 +34,11 @@ export function UserMenu() {
   // 获取用户名首字母作为头像后备
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase()
+  }
+
+  // 如果没有当前用户，不渲染
+  if (!currentUser) {
+    return null
   }
 
   return (

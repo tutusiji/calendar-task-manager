@@ -48,7 +48,7 @@ export function MonthView() {
   // 根据导航模式过滤任务
   const filteredTasks = useMemo(() => {
     // My Days 模式：只显示当前用户在选中项目中的任务
-    if (navigationMode === "my-days") {
+    if (navigationMode === "my-days" && currentUser) {
       if (selectedProjectIds.length === 0) {
         return []
       }
@@ -88,7 +88,7 @@ export function MonthView() {
     selectedTeamId, 
     selectedProjectId, 
     selectedProjectIds, 
-    currentUser.id,
+    currentUser?.id,
     getTeamById,
     getProjectById
   ])

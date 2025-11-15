@@ -64,12 +64,19 @@ export function UserMultiSelector({ selectedUserIds, onUserChange }: UserMultiSe
                       </AvatarFallback>
                     </Avatar>
                     <span>{user.name}</span>
-                    <button
+                    <span
                       onClick={(e) => removeUser(userId, e)}
-                      className="ml-1 rounded-full hover:bg-muted"
+                      className="ml-1 rounded-full hover:bg-muted cursor-pointer inline-flex items-center justify-center"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          removeUser(userId, e as any)
+                        }
+                      }}
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </span>
                   </Badge>
                 )
               })

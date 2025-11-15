@@ -3,7 +3,7 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationMode, MainViewMode, ListGroupMode, ListLayoutColumns } from "../types"
-import { mockTasks, mockProjects, mockUsers, mockTeams } from "../mock-data-new"
+import { taskAPI, projectAPI, userAPI, teamAPI, handleAPIError } from "../api-client"
 
 interface CalendarStore {
   // Data
@@ -11,7 +11,16 @@ interface CalendarStore {
   projects: Project[]
   users: User[]
   teams: Team[]
-  currentUser: User
+  currentUser: User | null
+
+  // Loading states
+  isLoadingTasks: boolean
+  isLoadingProjects: boolean
+  isLoadingUsers: boolean
+  isLoadingTeams: boolean
+  
+  // Error states
+  error: string | null
 
   // View state
   mainViewMode: MainViewMode // "calendar" | "list" | "stats" 主视图模式
@@ -58,18 +67,26 @@ interface CalendarStore {
   // Settings
   settings: CalendarSettings
 
+  // Data Loading Actions
+  fetchTasks: (filters?: { userId?: string; projectId?: string; teamId?: string; startDate?: Date; endDate?: Date }) => Promise<void>
+  fetchProjects: () => Promise<void>
+  fetchUsers: () => Promise<void>
+  fetchTeams: () => Promise<void>
+  fetchAllData: () => Promise<void>
+  setCurrentUserFromStorage: () => void
+
   // Actions
-  addTask: (task: Task) => void
-  updateTask: (id: string, task: Partial<Task>) => void
-  deleteTask: (id: string) => void
+  addTask: (task: Omit<Task, 'id'>) => Promise<void>
+  updateTask: (id: string, task: Partial<Task>) => Promise<void>
+  deleteTask: (id: string) => Promise<void>
 
-  addTeam: (team: Team) => void
-  updateTeam: (id: string, team: Partial<Team>) => void
-  deleteTeam: (id: string) => void
+  addTeam: (team: Omit<Team, 'id' | 'createdAt'> & { memberIds: string[] }) => Promise<void>
+  updateTeam: (id: string, team: Partial<Team> & { memberIds?: string[] }) => Promise<void>
+  deleteTeam: (id: string) => Promise<void>
 
-  addProject: (project: Project) => void
-  updateProject: (id: string, project: Partial<Project>) => void
-  deleteProject: (id: string) => void
+  addProject: (project: Omit<Project, 'id' | 'createdAt'> & { memberIds: string[] }) => Promise<void>
+  updateProject: (id: string, project: Partial<Project> & { memberIds?: string[] }) => Promise<void>
+  deleteProject: (id: string) => Promise<void>
 
   setMainViewMode: (mode: MainViewMode) => void // 设置主视图模式
   setListGroupMode: (mode: ListGroupMode) => void // 设置清单分组模式
@@ -82,6 +99,7 @@ interface CalendarStore {
   setSelectedDate: (date: Date | null) => void
   toggleWeekends: () => void // 切换周末显示/隐藏
   setTaskBarSize: (size: "compact" | "comfortable") => void // 设置任务条大小
+  setError: (error: string | null) => void
 
   // 项目过滤
   toggleProjectFilter: (projectId: string) => void
@@ -122,11 +140,20 @@ export const useCalendarStore = create<CalendarStore>()(
   persist(
     (set, get) => ({
       // Initial data
-      tasks: mockTasks,
-      projects: mockProjects,
-      users: mockUsers,
-      teams: mockTeams,
-      currentUser: mockUsers[0],
+      tasks: [],
+      projects: [],
+      users: [],
+      teams: [],
+      currentUser: null,
+
+      // Loading states
+      isLoadingTasks: false,
+      isLoadingProjects: false,
+      isLoadingUsers: false,
+      isLoadingTeams: false,
+
+      // Error state
+      error: null,
 
       // Initial view state
       mainViewMode: "calendar", // 默认日历视图
@@ -138,7 +165,7 @@ export const useCalendarStore = create<CalendarStore>()(
       selectedProjectId: null,
       currentDate: new Date(),
       selectedDate: null,
-      selectedProjectIds: mockProjects.map(p => p.id), // 默认选中所有项目
+      selectedProjectIds: [], // 初始为空，等项目加载后设置
       hideWeekends: false, // 默认显示周末
       taskBarSize: "compact", // 默认紧凑型
 
@@ -175,42 +202,309 @@ export const useCalendarStore = create<CalendarStore>()(
         lastSelectedProjectId: "personal",
       },
 
-  // Actions
-  addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
+  // Data Loading Actions
+  setCurrentUserFromStorage: () => {
+    if (typeof window !== 'undefined') {
+      const currentUserStr = localStorage.getItem('currentUser')
+      if (currentUserStr) {
+        try {
+          const user = JSON.parse(currentUserStr)
+          set({ currentUser: user })
+        } catch (e) {
+          console.error('Failed to parse current user:', e)
+        }
+      }
+    }
+  },
 
-  updateTask: (id, updatedTask) =>
+  fetchTasks: async (filters) => {
+    set({ isLoadingTasks: true, error: null })
+    try {
+      const apiFilters: any = {}
+      if (filters) {
+        if (filters.userId) apiFilters.userId = filters.userId
+        if (filters.projectId) apiFilters.projectId = filters.projectId
+        if (filters.teamId) apiFilters.teamId = filters.teamId
+        if (filters.startDate) apiFilters.startDate = filters.startDate.toISOString()
+        if (filters.endDate) apiFilters.endDate = filters.endDate.toISOString()
+      }
+
+      const tasksData = await taskAPI.getAll(apiFilters)
+      // 转换日期字符串为 Date 对象
+      const tasks = tasksData.map((task: any) => ({
+        ...task,
+        startDate: new Date(task.startDate),
+        endDate: new Date(task.endDate),
+      }))
+      set({ tasks, isLoadingTasks: false })
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg, isLoadingTasks: false })
+      console.error('Failed to fetch tasks:', error)
+    }
+  },
+
+  fetchProjects: async () => {
+    set({ isLoadingProjects: true, error: null })
+    try {
+      const projectsData = await projectAPI.getAll()
+      // 转换数据格式
+      const projects = projectsData.map((project: any) => ({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        color: project.color,
+        teamId: project.teamId,
+        // members 是 ProjectMember 数组，每个有 user 属性
+        memberIds: project.members?.map((m: any) => m.user?.id || m.userId) || [],
+        createdAt: new Date(project.createdAt),
+      }))
+      
+      // 默认选中所有项目
+      const selectedProjectIds = projects.map((p: Project) => p.id)
+      
+      set({ projects, selectedProjectIds, isLoadingProjects: false })
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg, isLoadingProjects: false })
+      console.error('Failed to fetch projects:', error)
+    }
+  },
+
+  fetchUsers: async () => {
+    set({ isLoadingUsers: true, error: null })
+    try {
+      const users = await userAPI.getAll()
+      set({ users, isLoadingUsers: false })
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg, isLoadingUsers: false })
+      console.error('Failed to fetch users:', error)
+    }
+  },
+
+  fetchTeams: async () => {
+    set({ isLoadingTeams: true, error: null })
+    try {
+      const teamsData = await teamAPI.getAll()
+      // 转换数据格式
+      const teams = teamsData.map((team: any) => ({
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        color: team.color,
+        // members 是 TeamMember 数组，每个有 user 属性
+        memberIds: team.members?.map((m: any) => m.user?.id || m.userId) || [],
+        createdAt: new Date(team.createdAt),
+      }))
+      set({ teams, isLoadingTeams: false })
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg, isLoadingTeams: false })
+      console.error('Failed to fetch teams:', error)
+    }
+  },
+
+  fetchAllData: async () => {
+    const store = get()
+    store.setCurrentUserFromStorage()
+    await Promise.all([
+      store.fetchUsers(),
+      store.fetchTeams(),
+      store.fetchProjects(),
+    ])
+    // 加载当前用户的任务
+    if (store.currentUser) {
+      await store.fetchTasks({ userId: store.currentUser.id })
+    }
+  },
+
+  setError: (error) => set({ error }),
+
+  // Actions
+  addTask: async (task) => {
+    try {
+      const newTask = await taskAPI.create(task as any)
+      set((state) => ({
+        tasks: [...state.tasks, {
+          ...newTask,
+          startDate: new Date(newTask.startDate),
+          endDate: new Date(newTask.endDate),
+        }],
+      }))
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      throw error
+    }
+  },
+
+  updateTask: async (id, updatedTask) => {
+    // 乐观更新
+    const originalTasks = get().tasks
     set((state) => ({
       tasks: state.tasks.map((task) => (task.id === id ? { ...task, ...updatedTask } : task)),
-    })),
+    }))
 
-  deleteTask: (id) =>
+    try {
+      const updated = await taskAPI.update(id, updatedTask)
+      set((state) => ({
+        tasks: state.tasks.map((task) => 
+          task.id === id ? {
+            ...updated,
+            startDate: new Date(updated.startDate),
+            endDate: new Date(updated.endDate),
+          } : task
+        ),
+      }))
+    } catch (error) {
+      // 回滚
+      set({ tasks: originalTasks, error: handleAPIError(error) })
+      throw error
+    }
+  },
+
+  deleteTask: async (id) => {
+    // 乐观更新
+    const originalTasks = get().tasks
     set((state) => ({
       tasks: state.tasks.filter((task) => task.id !== id),
-    })),
+    }))
 
-  addProject: (project) => set((state) => ({ projects: [...state.projects, project] })),
+    try {
+      await taskAPI.delete(id)
+    } catch (error) {
+      // 回滚
+      set({ tasks: originalTasks, error: handleAPIError(error) })
+      throw error
+    }
+  },
 
-  updateProject: (id, updatedProject) =>
+  addProject: async (project) => {
+    try {
+      const newProject = await projectAPI.create(project as any)
+      set((state) => ({
+        projects: [...state.projects, {
+          id: newProject.id,
+          name: newProject.name,
+          description: newProject.description,
+          color: newProject.color,
+          teamId: newProject.teamId,
+          memberIds: newProject.members?.map((m: any) => m.id) || [],
+          createdAt: new Date(newProject.createdAt),
+        }],
+      }))
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      throw error
+    }
+  },
+
+  updateProject: async (id, updatedProject) => {
+    const originalProjects = get().projects
     set((state) => ({
-      projects: state.projects.map((project) => (project.id === id ? { ...project, ...updatedProject } : project)),
-    })),
+      projects: state.projects.map((project) => 
+        project.id === id ? { ...project, ...updatedProject } : project
+      ),
+    }))
 
-  deleteProject: (id) =>
+    try {
+      const updated = await projectAPI.update(id, updatedProject)
+      set((state) => ({
+        projects: state.projects.map((project) =>
+          project.id === id ? {
+            id: updated.id,
+            name: updated.name,
+            description: updated.description,
+            color: updated.color,
+            teamId: updated.teamId,
+            memberIds: updated.members?.map((m: any) => m.id) || [],
+            createdAt: new Date(updated.createdAt),
+          } : project
+        ),
+      }))
+    } catch (error) {
+      set({ projects: originalProjects, error: handleAPIError(error) })
+      throw error
+    }
+  },
+
+  deleteProject: async (id) => {
+    const originalProjects = get().projects
     set((state) => ({
       projects: state.projects.filter((project) => project.id !== id),
-    })),
+    }))
 
-  addTeam: (team) => set((state) => ({ teams: [...state.teams, team] })),
+    try {
+      await projectAPI.delete(id)
+    } catch (error) {
+      set({ projects: originalProjects, error: handleAPIError(error) })
+      throw error
+    }
+  },
 
-  updateTeam: (id, updatedTeam) =>
+  addTeam: async (team) => {
+    try {
+      const newTeam = await teamAPI.create(team as any)
+      set((state) => ({
+        teams: [...state.teams, {
+          id: newTeam.id,
+          name: newTeam.name,
+          description: newTeam.description,
+          color: newTeam.color,
+          memberIds: newTeam.members?.map((m: any) => m.id) || [],
+          createdAt: new Date(newTeam.createdAt),
+        }],
+      }))
+    } catch (error) {
+      const errorMsg = handleAPIError(error)
+      set({ error: errorMsg })
+      throw error
+    }
+  },
+
+  updateTeam: async (id, updatedTeam) => {
+    const originalTeams = get().teams
     set((state) => ({
-      teams: state.teams.map((team) => (team.id === id ? { ...team, ...updatedTeam } : team)),
-    })),
+      teams: state.teams.map((team) => 
+        team.id === id ? { ...team, ...updatedTeam } : team
+      ),
+    }))
 
-  deleteTeam: (id) =>
+    try {
+      const updated = await teamAPI.update(id, updatedTeam)
+      set((state) => ({
+        teams: state.teams.map((team) =>
+          team.id === id ? {
+            id: updated.id,
+            name: updated.name,
+            description: updated.description,
+            color: updated.color,
+            memberIds: updated.members?.map((m: any) => m.id) || [],
+            createdAt: new Date(updated.createdAt),
+          } : team
+        ),
+      }))
+    } catch (error) {
+      set({ teams: originalTeams, error: handleAPIError(error) })
+      throw error
+    }
+  },
+
+  deleteTeam: async (id) => {
+    const originalTeams = get().teams
     set((state) => ({
       teams: state.teams.filter((team) => team.id !== id),
-    })),
+    }))
+
+    try {
+      await teamAPI.delete(id)
+    } catch (error) {
+      set({ teams: originalTeams, error: handleAPIError(error) })
+      throw error
+    }
+  },
 
   setMainViewMode: (mode) => set({ mainViewMode: mode }),
   setListGroupMode: (mode) => set({ listGroupMode: mode }),

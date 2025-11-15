@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useToast } from "@/hooks/use-toast"
 import type { TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
@@ -23,7 +24,8 @@ interface TaskDetailPanelProps {
 }
 
 export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanelProps) {
-  const { addTask, projects, currentUser, settings, updateSettings, taskCreation } = useCalendarStore()
+  const { addTask, projects, currentUser, settings, updateSettings, taskCreation, fetchTasks } = useCalendarStore()
+  const { toast } = useToast()
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -33,35 +35,59 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
   const [projectId, setProjectId] = useState(settings.lastSelectedProjectId || "personal")
   const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
   const [showNewProject, setShowNewProject] = useState(false)
-  const [assigneeId, setAssigneeId] = useState(taskCreation.userId || currentUser.id) // 负责人ID
+  const [assigneeId, setAssigneeId] = useState(taskCreation.userId || currentUser?.id || "") // 负责人ID
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title.trim()) return
+    if (!title.trim() || !currentUser) return
 
-    const newTask = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      description: description.trim() || undefined,
-      startDate,
-      endDate,
-      startTime: startTime || undefined,
-      endTime: endTime || undefined,
-      type: taskType,
-      projectId,
-      userId: assigneeId, // 使用选择的负责人ID
+    setIsSubmitting(true)
+
+    try {
+      const newTask = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        startDate,
+        endDate,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
+        type: taskType,
+        projectId,
+        userId: assigneeId || currentUser.id, // 使用选择的负责人ID
+      }
+
+      await addTask(newTask)
+
+      if (rememberProject) {
+        updateSettings({ lastSelectedProjectId: projectId, rememberLastProject: true })
+      } else {
+        updateSettings({ rememberLastProject: false })
+      }
+
+      // 显示成功提示
+      toast({
+        title: "创建成功",
+        description: `任务「${title}」已创建`,
+      })
+
+      // 刷新任务列表
+      if (currentUser) {
+        await fetchTasks({ userId: currentUser.id })
+      }
+
+      onClose()
+    } catch (error) {
+      console.error('Failed to create task:', error)
+      toast({
+        title: "创建失败",
+        description: "创建任务失败，请重试",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
-
-    addTask(newTask)
-
-    if (rememberProject) {
-      updateSettings({ lastSelectedProjectId: projectId, rememberLastProject: true })
-    } else {
-      updateSettings({ rememberLastProject: false })
-    }
-
-    onClose()
   }
 
   const getTaskTypeColor = (type: TaskType) => {
@@ -256,11 +282,11 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1 bg-transparent">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1 bg-transparent" disabled={isSubmitting}>
               取消
             </Button>
-            <Button type="submit" className="flex-1" disabled={!title.trim()}>
-              创建事项
+            <Button type="submit" className="flex-1" disabled={!title.trim() || isSubmitting}>
+              {isSubmitting ? '创建中...' : '创建事项'}
             </Button>
           </div>
         </form>
