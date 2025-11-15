@@ -33,8 +33,40 @@ export async function GET(request: NextRequest) {
     // 构建查询条件
     const where: any = {}
 
-    // 权限验证：用户只能查看自己的任务或所在团队的任务
-    if (userId) {
+    // 权限验证和查询逻辑
+    if (teamId) {
+      // 验证用户是否是团队成员
+      const teamMember = await prisma.teamMember.findFirst({
+        where: {
+          teamId,
+          userId: auth.userId
+        }
+      })
+
+      if (!teamMember) {
+        return validationErrorResponse('无权访问该团队的任务')
+      }
+
+      // 查询该团队下所有项目的任务（不限制userId）
+      where.project = {
+        teamId
+      }
+    } else if (projectId) {
+      // 验证用户是否是项目成员
+      const projectMember = await prisma.projectMember.findFirst({
+        where: {
+          projectId,
+          userId: auth.userId
+        }
+      })
+
+      if (!projectMember) {
+        return validationErrorResponse('无权访问该项目的任务')
+      }
+
+      // 查询该项目的所有任务（不限制userId）
+      where.projectId = projectId
+    } else if (userId) {
       // 如果指定了 userId，检查是否是当前用户
       if (userId !== auth.userId) {
         // 检查是否在同一团队
@@ -55,42 +87,8 @@ export async function GET(request: NextRequest) {
       }
       where.userId = userId
     } else {
-      // 如果未指定 userId，默认只查看当前用户的任务
+      // 如果未指定任何过滤条件，默认只查看当前用户的任务
       where.userId = auth.userId
-    }
-
-    if (projectId) {
-      // 验证用户是否是项目成员
-      const projectMember = await prisma.projectMember.findFirst({
-        where: {
-          projectId,
-          userId: auth.userId
-        }
-      })
-
-      if (!projectMember) {
-        return validationErrorResponse('无权访问该项目的任务')
-      }
-
-      where.projectId = projectId
-    }
-
-    if (teamId) {
-      // 验证用户是否是团队成员
-      const teamMember = await prisma.teamMember.findFirst({
-        where: {
-          teamId,
-          userId: auth.userId
-        }
-      })
-
-      if (!teamMember) {
-        return validationErrorResponse('无权访问该团队的任务')
-      }
-
-      where.project = {
-        teamId
-      }
     }
 
     // 日期范围过滤

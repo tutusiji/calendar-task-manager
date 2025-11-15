@@ -19,6 +19,7 @@ import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getToken } from "@/lib/api-client"
 import { showToast } from "@/lib/toast"
+import { LoadingLogo } from "@/components/loading-logo"
 
 export default function Home() {
   const router = useRouter()
@@ -117,16 +118,6 @@ export default function Home() {
 
   return (
     <div className="flex h-screen">
-      {/* 加载状态覆盖层 */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-sm text-muted-foreground">加载数据中...</p>
-          </div>
-        </div>
-      )}
-
       <aside className="w-72 border-r border-border bg-background flex flex-col">
         {/* Logo */}
         <div className="border-b border-border bg-card px-6 py-[18px]">
@@ -176,7 +167,12 @@ export default function Home() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col relative">
+          {isLoadingTasks && (
+            <div className="absolute inset-0 bg-background/50 z-40 flex items-center justify-center">
+              <LoadingLogo />
+            </div>
+          )}
           {renderMainContent()}
         </div>
       </div>

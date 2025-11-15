@@ -351,9 +351,15 @@ export const useCalendarStore = create<CalendarStore>()(
     try {
       await taskAPI.create(task as any)
       
-      // 创建成功后，重新获取任务列表
-      const currentUser = get().currentUser
-      if (currentUser) {
+      // 创建成功后，根据当前导航模式重新获取任务列表
+      const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
+      
+      if (navigationMode === 'team' && selectedTeamId) {
+        await get().fetchTasks({ teamId: selectedTeamId })
+      } else if (navigationMode === 'project' && selectedProjectId) {
+        await get().fetchTasks({ projectId: selectedProjectId })
+      } else if (currentUser) {
+        // my-days 模式：只获取当前用户的任务
         await get().fetchTasks({ userId: currentUser.id })
       }
     } catch (error) {
@@ -367,9 +373,15 @@ export const useCalendarStore = create<CalendarStore>()(
     try {
       await taskAPI.update(id, updatedTask)
       
-      // 更新成功后，重新获取任务列表
-      const currentUser = get().currentUser
-      if (currentUser) {
+      // 更新成功后，根据当前导航模式重新获取任务列表
+      const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
+      
+      if (navigationMode === 'team' && selectedTeamId) {
+        await get().fetchTasks({ teamId: selectedTeamId })
+      } else if (navigationMode === 'project' && selectedProjectId) {
+        await get().fetchTasks({ projectId: selectedProjectId })
+      } else if (currentUser) {
+        // my-days 模式：只获取当前用户的任务
         await get().fetchTasks({ userId: currentUser.id })
       }
     } catch (error) {
@@ -383,9 +395,15 @@ export const useCalendarStore = create<CalendarStore>()(
     try {
       await taskAPI.delete(id)
       
-      // 删除成功后，重新获取任务列表
-      const currentUser = get().currentUser
-      if (currentUser) {
+      // 删除成功后，根据当前导航模式重新获取任务列表
+      const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
+      
+      if (navigationMode === 'team' && selectedTeamId) {
+        await get().fetchTasks({ teamId: selectedTeamId })
+      } else if (navigationMode === 'project' && selectedProjectId) {
+        await get().fetchTasks({ projectId: selectedProjectId })
+      } else if (currentUser) {
+        // my-days 模式：只获取当前用户的任务
         await get().fetchTasks({ userId: currentUser.id })
       }
     } catch (error) {
@@ -527,9 +545,39 @@ export const useCalendarStore = create<CalendarStore>()(
   setListGroupMode: (mode) => set({ listGroupMode: mode }),
   setListLayoutColumns: (columns) => set({ listLayoutColumns: columns }),
   setViewMode: (mode) => set({ viewMode: mode }),
-  setNavigationMode: (mode) => set({ navigationMode: mode, selectedTeamId: null, selectedProjectId: null }),
-  setSelectedTeamId: (id) => set({ selectedTeamId: id }),
-  setSelectedProjectId: (id) => set({ selectedProjectId: id }),
+  setNavigationMode: (mode) => {
+    set({ navigationMode: mode, selectedTeamId: null, selectedProjectId: null })
+    
+    // 切换到 my-days 模式时，加载当前用户的任务
+    if (mode === 'my-days') {
+      const currentUser = get().currentUser
+      if (currentUser) {
+        get().fetchTasks({ userId: currentUser.id })
+      }
+    }
+  },
+  setSelectedTeamId: (id) => {
+    set({ selectedTeamId: id })
+    // 切换团队时，重新获取该团队的任务
+    if (id) {
+      // 获取团队的任务（会获取团队成员的所有任务）
+      get().fetchTasks({ teamId: id })
+    } else {
+      // 如果清空选择，获取所有任务
+      get().fetchTasks()
+    }
+  },
+  setSelectedProjectId: (id) => {
+    set({ selectedProjectId: id })
+    // 切换项目时，重新获取该项目的任务
+    if (id) {
+      // 获取项目的任务
+      get().fetchTasks({ projectId: id })
+    } else {
+      // 如果清空选择，获取所有任务
+      get().fetchTasks()
+    }
+  },
   setCurrentDate: (date) => set({ currentDate: date }),
   setSelectedDate: (date) => set({ selectedDate: date }),
   toggleWeekends: () => set((state) => ({ hideWeekends: !state.hideWeekends })),

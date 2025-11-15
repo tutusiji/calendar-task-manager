@@ -221,7 +221,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
         zIndex: isBeingDragged ? 50 : 10,
       }}
     >
-      <div className="flex items-center gap-1 truncate h-full">
+      <div className="flex items-center gap-1 truncate h-full ml-1">
         {showUserInfo && user && (
           <>
             <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white")}>
