@@ -69,7 +69,7 @@ export function UserMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleProfile} className="cursor-pointer">
             <User className="mr-2 h-4 w-4" />
-            <span>个人信息</span>
+            <span>个人中心</span>
           </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={() => setOrganizationOpen(true)} 
@@ -78,10 +78,10 @@ export function UserMenu() {
             <Building2 className="mr-2 h-4 w-4" />
             <span>空间管理</span>
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
+          {/* <DropdownMenuItem className="cursor-pointer">
             <Settings className="mr-2 h-4 w-4" />
             <span>设置</span>
-          </DropdownMenuItem>
+          </DropdownMenuItem> */}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
             <LogOut className="mr-2 h-4 w-4" />
