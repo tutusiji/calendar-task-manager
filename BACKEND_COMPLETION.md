@@ -173,7 +173,7 @@ A: 删除 `prisma/migrations` 文件夹，重新运行 `npx prisma migrate dev`
 
 ---
 
-**开发者**: GitHub Copilot
+**开发者**: tutusiji
 **完成时间**: 2025-11-15
 **Git 分支**: feature/backend-api
 **Commit**: beabc52
