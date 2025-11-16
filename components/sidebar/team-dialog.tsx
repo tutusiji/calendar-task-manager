@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { X } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +10,12 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Team, TaskPermission } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
 import { UserSingleSelector } from "../task/user-single-selector"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface TeamDialogProps {
   team?: Team // 如果提供则为编辑模式
@@ -76,51 +81,31 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
         taskPermission, // 更新任务权限
       })
     } else {
-      const newTeam: Team = {
-        id: `team-${Date.now()}`,
+      const newTeam = {
         name: name.trim(),
         description: description.trim() || undefined,
         color,
         memberIds: finalMemberIds,
         creatorId: currentUser?.id || "", // 设置创建者
         taskPermission, // 设置任务权限
-        createdAt: new Date(),
       }
-      addTeam(newTeam)
+      addTeam(newTeam as any)
     }
 
     onClose(true)
   }
 
-  // ESC 关闭支持
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        onClose(false)
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={() => onClose(false)} />
-
-      <div className="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold text-foreground">
+    <Dialog open={true} onOpenChange={(open) => !open && onClose(false)}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
             {viewOnly ? "查看团队" : isEditMode ? "编辑团队" : "新建团队"}
-          </h2>
-          <Button variant="ghost" size="icon" onClick={() => onClose(false)}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
@@ -250,7 +235,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
             )}
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            tasks: true
+            members: true
           }
         }
       },
@@ -64,11 +64,12 @@ export async function GET(request: NextRequest) {
 
     // 格式化响应数据，包含成员详细信息
     const formattedProjects = projects.map(project => {
-      const { members, ...projectData } = project
+      const { members, _count, ...projectData } = project
       return {
         ...projectData,
         memberIds: members.map(m => m.userId),
-        members: members.map(m => m.user)
+        members: members.map(m => m.user),
+        memberCount: _count.members
       }
     })
 

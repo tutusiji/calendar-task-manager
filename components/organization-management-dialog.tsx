@@ -13,10 +13,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban, Plus, LogOut } from "lucide-react"
+import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban, Plus, LogOut, Eye } from "lucide-react"
 import { getToken } from "@/lib/api-client"
+import { OrganizationDetailDialog } from "@/components/organization-detail-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +58,7 @@ export function OrganizationManagementDialog({
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null)
   const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null)
   const [leaveOrgId, setLeaveOrgId] = useState<string | null>(null)
+  const [viewingOrgId, setViewingOrgId] = useState<string | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
   const [isCreating, setIsCreating] = useState(false)
   const [searchResults, setSearchResults] = useState<Array<{
@@ -507,7 +510,9 @@ export function OrganizationManagementDialog({
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-lg">{org.name}</h3>
                       {org.isVerified && (
-                        <Shield className="h-4 w-4 text-blue-500" title="已认证" />
+                        <div title="已认证">
+                          <Shield className="h-4 w-4 text-blue-500" />
+                        </div>
                       )}
                       {getRoleBadge(org.role)}
                       {org.id === currentOrgId && (
@@ -522,6 +527,14 @@ export function OrganizationManagementDialog({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewingOrgId(org.id)}
+                      title="查看详情"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     {(org.role === "OWNER" || org.role === "ADMIN") && (
                       <Button
                         variant="ghost"
@@ -848,6 +861,14 @@ export function OrganizationManagementDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 查看空间详情对话框 */}
+      <OrganizationDetailDialog
+        organizationId={viewingOrgId}
+        organizationName={organizations.find(org => org.id === viewingOrgId)?.name}
+        open={!!viewingOrgId}
+        onOpenChange={(open) => !open && setViewingOrgId(null)}
+      />
     </>
   )
 }

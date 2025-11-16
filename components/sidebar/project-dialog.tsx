@@ -1,17 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { X } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Project, TaskPermission } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
 import { UserSingleSelector } from "../task/user-single-selector"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface ProjectDialogProps {
   project?: Project // 如果提供则为编辑模式
@@ -32,12 +36,11 @@ const PRESET_COLORS = [
 ]
 
 export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDialogProps) {
-  const { addProject, updateProject, teams, currentUser, users } = useCalendarStore()
+  const { addProject, updateProject, currentUser, users } = useCalendarStore()
   
   const [name, setName] = useState(project?.name || "")
   const [description, setDescription] = useState(project?.description || "")
   const [color, setColor] = useState(project?.color || PRESET_COLORS[0])
-  const [teamId, setTeamId] = useState<string | undefined>(project?.teamId)
   const [taskPermission, setTaskPermission] = useState<TaskPermission>(project?.taskPermission || "ALL_MEMBERS")
   const [memberIds, setMemberIds] = useState<string[]>(() => {
     // 初始化成员列表
@@ -73,58 +76,36 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
         name: name.trim(),
         description: description.trim() || undefined,
         color,
-        teamId: teamId || undefined,
         memberIds: finalMemberIds,
         creatorId, // 更新创建者
         taskPermission, // 更新任务权限
       })
     } else {
-      const newProject: Project = {
-        id: `project-${Date.now()}`,
+      const newProject = {
         name: name.trim(),
         description: description.trim() || undefined,
         color,
-        teamId: teamId || undefined,
         memberIds: finalMemberIds,
         creatorId: currentUser?.id || "", // 设置创建者
         taskPermission, // 设置任务权限
-        createdAt: new Date(),
       }
-      addProject(newProject)
+      addProject(newProject as any)
     }
 
     onClose(true)
   }
 
-  // ESC 关闭支持
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        onClose(false)
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={() => onClose(false)} />
-
-      <div className="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold text-foreground">
+    <Dialog open={true} onOpenChange={(open) => !open && onClose(false)}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
             {viewOnly ? "查看项目" : isEditMode ? "编辑项目" : "新建项目"}
-          </h2>
-          <Button variant="ghost" size="icon" onClick={() => onClose(false)}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
@@ -178,50 +159,20 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
             </div>
           </div>
 
-          {/* Team and Creator - 只在编辑模式时并排显示创建人，否则只显示团队 */}
-          <div className={isEditMode ? "grid grid-cols-2 gap-4" : "space-y-2"}>
-            {/* Team */}
+          {/* Creator - 只在编辑模式显示 */}
+          {isEditMode && (
             <div className="space-y-2">
-              <Label htmlFor="team" className="text-sm font-medium">
-                归属团队（可选）
+              <Label htmlFor="creator" className="text-sm font-medium">
+                创建人
               </Label>
-              <Select 
-                value={teamId || "none"} 
-                onValueChange={(value) => setTeamId(value === "none" ? undefined : value)}
-                disabled={viewOnly}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择团队" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">无</SelectItem>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
-                        {team.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <UserSingleSelector
+                selectedUserId={creatorId}
+                onUserChange={setCreatorId}
+                disabled={!canEditCreator || viewOnly}
+                placeholder="选择创建人"
+              />
             </div>
-
-            {/* Creator - 只在编辑模式显示 */}
-            {isEditMode && (
-              <div className="space-y-2">
-                <Label htmlFor="creator" className="text-sm font-medium">
-                  创建人
-                </Label>
-                <UserSingleSelector
-                  selectedUserId={creatorId}
-                  onUserChange={setCreatorId}
-                  disabled={!canEditCreator || viewOnly}
-                  placeholder="选择创建人"
-                />
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Members */}
           <div className="space-y-2">
@@ -284,7 +235,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
             )}
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

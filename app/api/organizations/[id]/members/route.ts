@@ -3,6 +3,73 @@ import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
 import { authenticate } from "@/lib/middleware"
 
+// GET /api/organizations/[id]/members - 获取组织成员列表
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await authenticate(req)
+    if (auth.error) return auth.error
+
+    const { id: organizationId } = await params
+
+    // 验证用户是否是该组织的成员
+    const currentMember = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: auth.userId,
+          organizationId,
+        },
+      },
+    })
+
+    if (!currentMember) {
+      return errorResponse("无权查看该组织成员", 403)
+    }
+
+    // 获取组织成员列表
+    const members = await prisma.organizationMember.findMany({
+      where: {
+        organizationId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          role: 'asc', // OWNER, ADMIN, MEMBER
+        },
+        {
+          createdAt: 'asc',
+        },
+      ],
+    })
+
+    // 格式化响应数据
+    const formattedMembers = members.map(member => ({
+      id: member.user.id,
+      name: member.user.name,
+      email: member.user.email,
+      avatar: member.user.avatar,
+      role: member.role,
+      joinedAt: member.createdAt,
+    }))
+
+    return successResponse(formattedMembers)
+  } catch (error) {
+    console.error("获取组织成员失败:", error)
+    return errorResponse("获取组织成员失败")
+  }
+}
+
 // POST /api/organizations/[id]/members - 添加成员到组织
 export async function POST(
   req: NextRequest,
