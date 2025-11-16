@@ -45,17 +45,53 @@ export function SpaceSwitcher() {
       const data = await response.json()
       console.log("Organizations data:", data)
       
-      if (data.success) {
+      if (data.success && data.data.length > 0) {
         setOrganizations(data.data)
         
         // 从用户信息中获取当前组织
         const userStr = localStorage.getItem("currentUser")
         console.log("Current user from localStorage:", userStr)
+        
+        let targetOrgId: string | null = null
+        
         if (userStr) {
           const user = JSON.parse(userStr)
           console.log("Current organization ID:", user.currentOrganizationId)
-          setCurrentOrgId(user.currentOrganizationId)
+          targetOrgId = user.currentOrganizationId
         }
+        
+        // 保险措施: 如果没有选中的组织,自动选择第一个
+        if (!targetOrgId) {
+          console.warn("No current organization found, selecting first organization as fallback")
+          targetOrgId = data.data[0].id
+          
+          // 更新后端和 localStorage
+          try {
+            const switchResponse = await fetch("/api/organizations/switch", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+              },
+              body: JSON.stringify({ organizationId: targetOrgId }),
+            })
+            
+            const switchData = await switchResponse.json()
+            if (switchData.success) {
+              // 更新 localStorage 中的用户信息
+              if (userStr) {
+                const user = JSON.parse(userStr)
+                user.currentOrganizationId = targetOrgId
+                localStorage.setItem("currentUser", JSON.stringify(user))
+                console.log("Updated currentOrganizationId to:", targetOrgId)
+              }
+            }
+          } catch (error) {
+            console.error("Failed to switch to default organization:", error)
+          }
+        }
+        
+        setCurrentOrgId(targetOrgId)
       } else {
         console.error("Failed to fetch organizations:", data.error)
       }
@@ -67,6 +103,23 @@ export function SpaceSwitcher() {
   useEffect(() => {
     fetchOrganizations()
   }, [])
+
+  // 额外的保险检查: 监控 currentOrgId 和 organizations,确保始终有选中的组织
+  useEffect(() => {
+    if (organizations.length > 0 && !currentOrgId) {
+      console.warn("No organization selected, auto-selecting first one")
+      const firstOrgId = organizations[0].id
+      setCurrentOrgId(firstOrgId)
+      
+      // 更新 localStorage
+      const userStr = localStorage.getItem("currentUser")
+      if (userStr) {
+        const user = JSON.parse(userStr)
+        user.currentOrganizationId = firstOrgId
+        localStorage.setItem("currentUser", JSON.stringify(user))
+      }
+    }
+  }, [organizations, currentOrgId])
 
   const handleSwitchOrganization = async (orgId: string) => {
     if (orgId === currentOrgId) return
