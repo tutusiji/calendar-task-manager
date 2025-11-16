@@ -50,12 +50,36 @@ export async function POST(
       return forbiddenResponse('您不是该团队的成员')
     }
 
+    // 获取当前用户信息
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { id: true, name: true },
+    })
+
     // 删除成员关系
     await prisma.teamMember.delete({
       where: {
         id: membership.id
       }
     })
+
+    // 发送通知给创建者
+    if (currentUser && team.creatorId !== auth.userId) {
+      await prisma.notification.create({
+        data: {
+          userId: team.creatorId,
+          type: "TASK_ASSIGNED",
+          title: "成员退出团队",
+          content: `${currentUser.name} 退出了团队「${team.name}」`,
+          metadata: {
+            teamId: team.id,
+            teamName: team.name,
+            leaveMemberId: currentUser.id,
+            leaveMemberName: currentUser.name,
+          },
+        },
+      })
+    }
 
     return successResponse(
       { teamId: id },
