@@ -21,11 +21,13 @@ import {
   LogOut, 
   Trash2, 
   Crown,
-  User as UserIcon
+  User as UserIcon,
+  Key
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { AvatarUpload } from "@/components/avatar-upload"
 import { EditProfileDialog } from "@/components/edit-profile-dialog"
+import { ChangePasswordDialog } from "@/components/change-password-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Tooltip,
@@ -58,6 +60,7 @@ interface UserProfileDialogProps {
 export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps) {
   const { currentUser, teams, projects, setCurrentUser, fetchAllData } = useCalendarStore()
   const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [confirmLeaveTeam, setConfirmLeaveTeam] = useState<string | null>(null)
   const [confirmLeaveProject, setConfirmLeaveProject] = useState<string | null>(null)
   const [confirmDeleteTeam, setConfirmDeleteTeam] = useState<string | null>(null)
@@ -138,6 +141,18 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
     } catch (error: any) {
       console.error('Save profile failed:', error)
       showToast.error('保存失败', error.message || '请稍后重试')
+      throw error
+    }
+  }
+
+  // 处理修改密码
+  const handleChangePassword = async (data: { oldPassword: string; newPassword: string }) => {
+    try {
+      await userAPI.changePassword(data)
+      showToast.success('修改成功', '密码已更新，请牢记新密码')
+    } catch (error: any) {
+      console.error('Change password failed:', error)
+      showToast.error('修改失败', error.message || '请稍后重试')
       throw error
     }
   }
@@ -289,14 +304,24 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                       </Badge>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditProfileOpen(true)}
-                  >
-                    <Edit className="mr-2 h-4 w-4" />
-                    编辑资料
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditProfileOpen(true)}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      编辑资料
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setChangePasswordOpen(true)}
+                    >
+                      <Key className="mr-2 h-4 w-4" />
+                      修改密码
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -596,6 +621,13 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
         onOpenChange={setEditProfileOpen}
         currentUser={currentUser}
         onSave={handleSaveProfile}
+      />
+
+      {/* 修改密码对话框 */}
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+        onSave={handleChangePassword}
       />
 
       {/* 退出团队确认 */}

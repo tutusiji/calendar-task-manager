@@ -268,6 +268,16 @@ export const userAPI = {
       method: 'DELETE',
     })
   },
+
+  /**
+   * 修改密码
+   */
+  async changePassword(data: { oldPassword: string; newPassword: string }): Promise<void> {
+    return fetchAPI<void>('/users/change-password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
 }
 
 // ==================== 项目 API ====================
