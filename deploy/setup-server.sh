@@ -64,21 +64,42 @@ cd calendar-task-manager
 
 # 创建 .env 文件
 echo "9. 配置环境变量..."
+
+# 提示用户输入数据库密码
+echo ""
+read -sp "请输入数据库密码: " DB_PASSWORD
+echo ""
+read -sp "请再次确认密码: " DB_PASSWORD_CONFIRM
+echo ""
+
+if [ "$DB_PASSWORD" != "$DB_PASSWORD_CONFIRM" ]; then
+    echo "❌ 两次输入的密码不一致，请重新运行脚本"
+    exit 1
+fi
+
+# URL 编码密码中的特殊字符
+ENCODED_PASSWORD=$(echo -n "$DB_PASSWORD" | jq -sRr @uri)
+
 cat > .env << EOF
 # Database
-DATABASE_URL="postgresql://postgres:your_secure_password@postgres:5432/calendar_tasks?schema=public"
-POSTGRES_PASSWORD=your_secure_password
+DATABASE_URL="postgresql://postgres:${ENCODED_PASSWORD}@postgres:5432/calendar_tasks?schema=public"
+POSTGRES_PASSWORD=${DB_PASSWORD}
 
-# JWT Secret (请修改为随机字符串)
+# JWT Secret (已自动生成)
 JWT_SECRET=$(openssl rand -base64 32)
 
 # Production
 NODE_ENV=production
 EOF
 
-echo "请编辑 .env 文件设置安全的数据库密码："
-echo "nano .env"
-read -p "按回车继续..."
+echo ""
+echo "✅ .env 文件已创建"
+echo "数据库密码已设置（特殊字符已自动 URL 编码）"
+echo ""
+echo "如需修改配置，请编辑 .env 文件："
+echo "  nano .env"
+echo ""
+read -p "确认配置正确后，按回车继续..."
 
 # 配置 SSL 证书目录
 echo "10. 配置 SSL 证书目录..."
