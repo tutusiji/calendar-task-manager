@@ -6,13 +6,13 @@ import { authenticate } from "@/lib/middleware"
 // GET /api/organizations/[id] - 获取单个组织详情
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authenticate(req)
     if (auth.error) return auth.error
 
-    const { id } = params
+    const { id } = await params
 
     // 检查用户是否是该组织的成员
     const member = await prisma.organizationMember.findUnique({
@@ -108,13 +108,13 @@ export async function GET(
 // PUT /api/organizations/[id] - 更新组织
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authenticate(req)
     if (auth.error) return auth.error
 
-    const { id } = params
+    const { id } = await params
     const body = await req.json()
     const { name, description } = body
 
@@ -164,13 +164,13 @@ export async function PUT(
 // DELETE /api/organizations/[id] - 删除组织
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authenticate(req)
     if (auth.error) return auth.error
 
-    const { id } = params
+    const { id } = await params
 
     // 获取用户信息
     const currentUser = await prisma.user.findUnique({

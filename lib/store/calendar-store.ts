@@ -965,8 +965,36 @@ export const useCalendarStore = create<CalendarStore>()(
       }
     }),
 
-  endDragMove: () => {
-    // 只需要清除拖拽状态,任务已经在拖拽过程中更新了
+  endDragMove: async () => {
+    const state = get()
+    const { dragMoveState } = state
+    
+    // 如果有拖拽的任务且日期发生了变化，调用API保存
+    if (dragMoveState.task && dragMoveState.offsetDays !== 0) {
+      const task = dragMoveState.task
+      try {
+        // 调用API更新任务
+        const updatedTask = await taskAPI.update(task.id, {
+          startDate: task.startDate,
+          endDate: task.endDate,
+        })
+        
+        // 更新本地状态中的任务
+        set((state) => ({
+          tasks: state.tasks.map(t => t.id === updatedTask.id ? updatedTask : t)
+        }))
+        
+        // 显示成功通知
+        showToast.success("任务已更新", "任务时间已成功修改")
+      } catch (error) {
+        console.error("Failed to update task:", error)
+        // 发生错误时重新加载任务以恢复正确状态
+        await get().fetchTasks()
+        showToast.error("更新失败", "网络错误，请重试")
+      }
+    }
+    
+    // 清除拖拽状态
     set({
       dragMoveState: {
         isMoving: false,

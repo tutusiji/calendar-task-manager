@@ -321,7 +321,15 @@ export function OrganizationManagementDialog({
           description: "组织信息已更新",
         })
         setEditingOrg(null)
-        fetchOrganizations()
+        
+        // 刷新页面以更新所有组件中的组织信息
+        toast({
+          title: "数据已更新",
+          description: "页面将刷新以更新空间信息",
+        })
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
       } else {
         toast({
           title: "更新失败",
@@ -432,18 +440,14 @@ export function OrganizationManagementDialog({
         })
         setLeaveOrgId(null)
         
-        // 如果退出的是当前组织，刷新页面重新加载
-        if (leaveOrgId === currentOrgId) {
-          toast({
-            title: "空间已切换",
-            description: "页面将刷新以加载新空间的数据",
-          })
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
-        } else {
-          fetchOrganizations()
-        }
+        // 退出组织后，刷新页面以更新所有组件的组织列表
+        toast({
+          title: "空间已更新",
+          description: "页面将刷新以更新空间列表",
+        })
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
       } else {
         toast({
           title: "退出失败",

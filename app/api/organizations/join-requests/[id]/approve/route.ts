@@ -85,7 +85,26 @@ export async function POST(
         })
       }
 
-      // 4. 给申请人发送通知
+      // 4. 为新成员创建个人事务项目
+      const applicantName = request.applicant.name
+      const personalProjectName = `${applicantName}的个人事务`
+      
+      await tx.project.create({
+        data: {
+          name: personalProjectName,
+          color: "#8B5CF6", // 紫色
+          organizationId: request.organizationId,
+          creatorId: request.applicantId,
+          taskPermission: "CREATOR_ONLY",
+          members: {
+            create: {
+              userId: request.applicantId,
+            },
+          },
+        },
+      })
+
+      // 5. 给申请人发送通知
       await tx.notification.create({
         data: {
           userId: request.applicantId,

@@ -155,7 +155,7 @@ export default function Home() {
               <h1 className="text-[22px] font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent">
                 OxHorse Planner
               </h1>
-              <p className="text-[11px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>打工人必备的轻量任务管理工具</p>
+              <p className="text-[12px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>打工人必备的轻量任务管理工具</p>
             </div>
           </div>
         </div>

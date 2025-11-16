@@ -21,8 +21,13 @@ interface UserMultiSelectorProps {
 }
 
 export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [], creatorId }: UserMultiSelectorProps) {
-  const { users, getUserById } = useCalendarStore()
+  const { users, getUserById, currentUser } = useCalendarStore()
   const [open, setOpen] = useState(false)
+
+  // 过滤当前组织的用户
+  const organizationUsers = currentUser?.currentOrganizationId
+    ? users.filter(u => u.currentOrganizationId === currentUser.currentOrganizationId || !u.currentOrganizationId)
+    : users
 
   const getUserInitial = (name: string) => {
     return name.charAt(0).toUpperCase()
@@ -100,7 +105,7 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-2" align="start">
         <div className="space-y-1">
-          {users.map((user) => {
+          {organizationUsers.map((user) => {
             const isSelected = selectedUserIds.includes(user.id)
             const isLocked = lockedUserIds.includes(user.id)
             return (

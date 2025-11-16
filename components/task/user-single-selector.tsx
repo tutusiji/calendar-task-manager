@@ -25,8 +25,13 @@ export function UserSingleSelector({
   disabled = false,
   placeholder = "选择用户..."
 }: UserSingleSelectorProps) {
-  const { users, getUserById } = useCalendarStore()
+  const { users, getUserById, currentUser } = useCalendarStore()
   const [open, setOpen] = useState(false)
+
+  // 过滤当前组织的用户
+  const organizationUsers = currentUser?.currentOrganizationId
+    ? users.filter(u => u.currentOrganizationId === currentUser.currentOrganizationId || !u.currentOrganizationId)
+    : users
 
   const getUserInitial = (name: string) => {
     return name.charAt(0).toUpperCase()
@@ -81,7 +86,7 @@ export function UserSingleSelector({
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-2" align="start">
         <div className="space-y-1">
-          {users.map((user) => {
+          {organizationUsers.map((user) => {
             const isSelected = selectedUserId === user.id
             return (
               <button

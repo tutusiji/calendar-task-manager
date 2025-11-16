@@ -315,6 +315,34 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // 如果是为其他用户创建任务，发送站内信通知
+    if (taskUserId !== auth.userId) {
+      // 获取创建者信息
+      const creator = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { name: true }
+      })
+
+      if (creator) {
+        // 创建通知
+        await prisma.notification.create({
+          data: {
+            userId: taskUserId,
+            type: 'TASK_CREATED',
+            title: '新任务分配',
+            content: `${creator.name} 为您分配了新任务：${cleanTitle}`,
+            metadata: {
+              taskId: task.id,
+              projectId: task.projectId,
+              teamId: task.teamId,
+              creatorId: auth.userId,
+              creatorName: creator.name,
+            }
+          }
+        })
+      }
+    }
+
     return successResponse(task, '任务创建成功', 201)
   } catch (error) {
     console.error('Error creating task:', error)

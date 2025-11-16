@@ -32,10 +32,13 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         avatar: true,
         role: true,
+        isAdmin: true,
+        currentOrganizationId: true,
         createdAt: true
       },
       orderBy: {
