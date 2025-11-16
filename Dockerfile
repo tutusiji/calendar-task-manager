@@ -43,8 +43,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# 复制整个 node_modules（包含 Prisma）
+COPY --from=builder /app/node_modules ./node_modules
 
 # 修改文件权限
 RUN chown -R nextjs:nodejs /app

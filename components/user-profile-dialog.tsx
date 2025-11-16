@@ -712,12 +712,13 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
       {editingTeam && (
         <TeamDialog
           team={editingTeam}
-          onClose={() => {
+          onClose={(saved) => {
             setEditingTeam(null)
-            // 重新加载数据
-            loadAllTeamsAndProjects()
-            // 触发全局数据刷新
-            window.location.reload()
+            if (saved) {
+              // 只在保存成功时才重新加载数据和刷新页面
+              loadAllTeamsAndProjects()
+              window.location.reload()
+            }
           }}
         />
       )}
@@ -726,12 +727,13 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
       {editingProject && (
         <ProjectDialog
           project={editingProject}
-          onClose={() => {
+          onClose={(saved) => {
             setEditingProject(null)
-            // 重新加载数据
-            loadAllTeamsAndProjects()
-            // 触发全局数据刷新
-            window.location.reload()
+            if (saved) {
+              // 只在保存成功时才重新加载数据和刷新页面
+              loadAllTeamsAndProjects()
+              window.location.reload()
+            }
           }}
         />
       )}

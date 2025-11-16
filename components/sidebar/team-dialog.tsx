@@ -15,7 +15,7 @@ import { UserSingleSelector } from "../task/user-single-selector"
 interface TeamDialogProps {
   team?: Team // 如果提供则为编辑模式
   viewOnly?: boolean // 是否为查看模式
-  onClose: () => void
+  onClose: (saved?: boolean) => void
 }
 
 // 预设颜色
@@ -89,7 +89,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
       addTeam(newTeam)
     }
 
-    onClose()
+    onClose(true)
   }
 
   // ESC 关闭支持
@@ -97,7 +97,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        onClose()
+        onClose(false)
       }
     }
     window.addEventListener('keydown', handleKey)
@@ -106,7 +106,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
 
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={() => onClose(false)} />
 
       <div className="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
         {/* Header */}
@@ -114,7 +114,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
           <h2 className="text-lg font-semibold text-foreground">
             {viewOnly ? "查看团队" : isEditMode ? "编辑团队" : "新建团队"}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={() => onClose(false)}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -240,7 +240,7 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={() => onClose(false)}>
               {viewOnly ? "关闭" : "取消"}
             </Button>
             {!viewOnly && (

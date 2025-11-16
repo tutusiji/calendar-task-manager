@@ -16,7 +16,7 @@ import { UserSingleSelector } from "../task/user-single-selector"
 interface ProjectDialogProps {
   project?: Project // 如果提供则为编辑模式
   viewOnly?: boolean // 只读模式
-  onClose: () => void
+  onClose: (saved?: boolean) => void
 }
 
 // 预设颜色
@@ -93,7 +93,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
       addProject(newProject)
     }
 
-    onClose()
+    onClose(true)
   }
 
   // ESC 关闭支持
@@ -101,7 +101,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        onClose()
+        onClose(false)
       }
     }
     window.addEventListener('keydown', handleKey)
@@ -110,7 +110,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
 
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={() => onClose(false)} />
 
       <div className="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
         {/* Header */}
@@ -118,7 +118,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
           <h2 className="text-lg font-semibold text-foreground">
             {viewOnly ? "查看项目" : isEditMode ? "编辑项目" : "新建项目"}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={() => onClose(false)}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -274,7 +274,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={() => onClose(false)}>
               {viewOnly ? "关闭" : "取消"}
             </Button>
             {!viewOnly && (
