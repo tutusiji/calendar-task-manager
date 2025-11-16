@@ -15,7 +15,8 @@ RUN pnpm install --frozen-lockfile
 # 复制项目文件
 COPY . .
 
-# 生成 Prisma Client
+# 生成 Prisma Client（设置临时 DATABASE_URL，仅用于生成客户端代码）
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/calendar_tasks?schema=public"
 RUN npx prisma generate
 
 # 构建 Next.js 应用
