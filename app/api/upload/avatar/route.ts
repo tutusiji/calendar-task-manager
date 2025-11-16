@@ -8,14 +8,9 @@ import {
   serverErrorResponse
 } from '@/lib/api-response'
 
-// 配置上传文件大小限制（5MB）
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '5mb',
-    },
-  },
-}
+// Next.js 16+ App Router 使用新的配置方式
+export const maxDuration = 30 // 最大执行时间 30 秒
+export const dynamic = 'force-dynamic' // 强制动态渲染
 
 // POST /api/upload/avatar - 上传头像
 export async function POST(request: NextRequest) {

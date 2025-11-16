@@ -41,6 +41,22 @@ services:
     networks:
       - calendar-network
     command: sh -c "npx prisma migrate deploy && node server.js"
+  
+  # Prisma Studio - 数据库管理界面
+  prisma-studio:
+    image: ${DOCKER_IMAGE:-tutusiji/calendar-task-manager:latest}
+    container_name: calendar-prisma-studio
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/calendar_tasks?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - calendar-network
+    command: npx prisma studio --port 5555 --hostname 0.0.0.0
 
 volumes:
   postgres_data:
