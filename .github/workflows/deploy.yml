@@ -1,0 +1,58 @@
+name: Deploy to Aliyun Server
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            # 进入项目目录
+            cd /opt/calendar-task-manager
+            
+            # 拉取最新代码
+            git pull origin main
+            
+            # 停止并删除旧容器
+            docker-compose down
+            
+            # 重新构建并启动
+            docker-compose up -d --build
+            
+            # 清理未使用的镜像
+            docker image prune -f
+            
+            echo "部署完成！"
+
+      - name: Health Check
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            # 等待服务启动
+            sleep 10
+            
+            # 检查容器状态
+            docker-compose -f /opt/calendar-task-manager/docker-compose.yml ps
+            
+            # 检查应用健康状态
+            curl -f http://localhost:3000 || echo "应用未响应"
