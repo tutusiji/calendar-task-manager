@@ -86,6 +86,23 @@ export default function AuthPage() {
       // 保存用户信息到 localStorage
       localStorage.setItem("currentUser", JSON.stringify(user))
       
+      // 重置导航状态到 My Days (每次登录都重置)
+      const storeKey = "calendar-storage-v2"
+      const storeStr = localStorage.getItem(storeKey)
+      if (storeStr) {
+        try {
+          const store = JSON.parse(storeStr)
+          if (store.state) {
+            store.state.navigationMode = "my-days"
+            store.state.selectedTeamId = null
+            store.state.selectedProjectId = null
+            localStorage.setItem(storeKey, JSON.stringify(store))
+          }
+        } catch (e) {
+          console.error("Failed to reset navigation state:", e)
+        }
+      }
+      
       // 跳转到主页
       router.push("/")
       router.refresh()

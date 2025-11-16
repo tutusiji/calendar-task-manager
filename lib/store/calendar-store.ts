@@ -408,15 +408,50 @@ export const useCalendarStore = create<CalendarStore>()(
       store.fetchProjects(),
     ])
     
-    // 根据持久化的导航状态加载对应的任务
-    const { navigationMode, selectedTeamId, selectedProjectId } = get()
+    // 获取加载后的数据状态
+    const { navigationMode, selectedTeamId, selectedProjectId, teams, projects } = get()
+    
+    // 验证导航状态的有效性,确保选中的团队/项目仍然存在
+    let needsReset = false
     
     if (navigationMode === 'team' && selectedTeamId) {
-      // 团队模式：加载该团队的任务
-      await store.fetchTasks({ teamId: selectedTeamId })
+      // 检查选中的团队是否存在
+      const teamExists = teams.some(t => t.id === selectedTeamId)
+      if (!teamExists) {
+        console.warn(`Selected team ${selectedTeamId} no longer exists, resetting to My Days`)
+        needsReset = true
+      }
     } else if (navigationMode === 'project' && selectedProjectId) {
+      // 检查选中的项目是否存在
+      const projectExists = projects.some(p => p.id === selectedProjectId)
+      if (!projectExists) {
+        console.warn(`Selected project ${selectedProjectId} no longer exists, resetting to My Days`)
+        needsReset = true
+      }
+    } else if (navigationMode !== 'my-days') {
+      // 如果 navigationMode 不是合法值,重置
+      console.warn(`Invalid navigation mode ${navigationMode}, resetting to My Days`)
+      needsReset = true
+    }
+    
+    // 如果需要重置,设置为 My Days
+    if (needsReset) {
+      set({ 
+        navigationMode: 'my-days',
+        selectedTeamId: null,
+        selectedProjectId: null
+      })
+    }
+    
+    // 根据最终的导航状态加载对应的任务
+    const finalState = get()
+    
+    if (finalState.navigationMode === 'team' && finalState.selectedTeamId) {
+      // 团队模式：加载该团队的任务
+      await store.fetchTasks({ teamId: finalState.selectedTeamId })
+    } else if (finalState.navigationMode === 'project' && finalState.selectedProjectId) {
       // 项目模式：加载该项目的任务
-      await store.fetchTasks({ projectId: selectedProjectId })
+      await store.fetchTasks({ projectId: finalState.selectedProjectId })
     } else if (currentUser) {
       // my-days 模式：加载当前用户的任务
       await store.fetchTasks({ userId: currentUser.id })
