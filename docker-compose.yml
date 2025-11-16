@@ -30,7 +30,7 @@ services:
     container_name: calendar-app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "8100:3000"
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/calendar_tasks?schema=public
       NODE_ENV: production
