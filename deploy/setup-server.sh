@@ -64,10 +64,26 @@ cd calendar-task-manager
 
 # 创建 .env 文件
 echo "9. 配置环境变量..."
+
+# 提示用户输入数据库密码
+echo ""
+read -sp "请输入数据库密码: " DB_PASSWORD
+echo ""
+read -sp "请再次确认密码: " DB_PASSWORD_CONFIRM
+echo ""
+
+if [ "$DB_PASSWORD" != "$DB_PASSWORD_CONFIRM" ]; then
+    echo "❌ 两次输入的密码不一致，请重新运行脚本"
+    exit 1
+fi
+
+# URL 编码密码中的特殊字符
+ENCODED_PASSWORD=$(echo -n "$DB_PASSWORD" | jq -sRr @uri)
+
 cat > .env << EOF
 # Database
-DATABASE_URL="postgresql://postgres:%40Heima968%21@postgres:5432/calendar_tasks?schema=public"
-POSTGRES_PASSWORD=@Heima968!
+DATABASE_URL="postgresql://postgres:${ENCODED_PASSWORD}@postgres:5432/calendar_tasks?schema=public"
+POSTGRES_PASSWORD=${DB_PASSWORD}
 
 # JWT Secret (已自动生成)
 JWT_SECRET=$(openssl rand -base64 32)
@@ -77,10 +93,10 @@ NODE_ENV=production
 EOF
 
 echo ""
-echo "✅ .env 文件已创建，密码已设置为: @Heima968!"
-echo "注意: DATABASE_URL 中的密码已自动 URL 编码 (@ → %40, ! → %21)"
+echo "✅ .env 文件已创建"
+echo "数据库密码已设置（特殊字符已自动 URL 编码）"
 echo ""
-echo "如需修改密码，请编辑 .env 文件："
+echo "如需修改配置，请编辑 .env 文件："
 echo "  nano .env"
 echo ""
 read -p "确认配置正确后，按回车继续..."
