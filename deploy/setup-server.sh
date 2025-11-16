@@ -66,19 +66,24 @@ cd calendar-task-manager
 echo "9. 配置环境变量..."
 cat > .env << EOF
 # Database
-DATABASE_URL="postgresql://postgres:your_secure_password@postgres:5432/calendar_tasks?schema=public"
-POSTGRES_PASSWORD=your_secure_password
+DATABASE_URL="postgresql://postgres:%40Heima968%21@postgres:5432/calendar_tasks?schema=public"
+POSTGRES_PASSWORD=@Heima968!
 
-# JWT Secret (请修改为随机字符串)
+# JWT Secret (已自动生成)
 JWT_SECRET=$(openssl rand -base64 32)
 
 # Production
 NODE_ENV=production
 EOF
 
-echo "请编辑 .env 文件设置安全的数据库密码："
-echo "nano .env"
-read -p "按回车继续..."
+echo ""
+echo "✅ .env 文件已创建，密码已设置为: @Heima968!"
+echo "注意: DATABASE_URL 中的密码已自动 URL 编码 (@ → %40, ! → %21)"
+echo ""
+echo "如需修改密码，请编辑 .env 文件："
+echo "  nano .env"
+echo ""
+read -p "确认配置正确后，按回车继续..."
 
 # 配置 SSL 证书目录
 echo "10. 配置 SSL 证书目录..."
