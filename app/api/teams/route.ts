@@ -28,8 +28,15 @@ export async function GET(request: NextRequest) {
       },
       include: {
         members: {
-          select: {
-            userId: true
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true
+              }
+            }
           }
         },
         creator: {
@@ -51,12 +58,13 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // 格式化响应数据，只返回必要字段
+    // 格式化响应数据，包含成员详细信息
     const formattedTeams = teams.map(team => {
       const { members, ...teamData } = team
       return {
         ...teamData,
-        memberIds: members.map(m => m.userId)
+        memberIds: members.map(m => m.userId),
+        members: members.map(m => m.user)
       }
     })
 
