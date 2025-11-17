@@ -16,6 +16,16 @@ import type { Task, TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
 import { UserSelector } from "./user-selector"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface TaskEditPanelProps {
   task: Task
@@ -41,6 +51,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [projectError, setProjectError] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,9 +107,8 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   }
 
   const handleDelete = async () => {
-    if (!confirm("确定要删除这个事项吗？")) return
-
     setIsDeleting(true)
+    setShowDeleteConfirm(false)
 
     try {
       // await API 调用,确保删除成功(数据刷新在Store内部后台执行)
@@ -161,7 +171,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={handleDelete} 
+              onClick={() => setShowDeleteConfirm(true)} 
               className="text-red-500 hover:text-red-600"
               disabled={isDeleting || isSubmitting}
             >
@@ -369,6 +379,28 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
           </div>
         </form>
       </div>
+
+      {/* 删除确认对话框 */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除任务</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除任务「{task.title}」吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

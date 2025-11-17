@@ -335,9 +335,9 @@ export async function DELETE(
       return notFoundResponse('任务不存在')
     }
 
-    // 权限验证：只能删除自己的任务
+    // 权限验证：只有任务负责人（userId）可以删除任务
     if (existingTask.userId !== auth.userId) {
-      return forbiddenResponse('无权删除此任务')
+      return forbiddenResponse('无权删除此任务，只有任务负责人可以删除')
     }
 
     // 删除任务

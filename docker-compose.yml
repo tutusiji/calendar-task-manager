@@ -24,9 +24,11 @@ services:
 
   # Next.js 应用
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: calendar-task-manager:latest  # 改成这样
+    # 注释掉或删除 build 部分
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: calendar-app
     restart: unless-stopped
     ports:
