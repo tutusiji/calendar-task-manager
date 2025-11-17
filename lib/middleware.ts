@@ -11,6 +11,14 @@ export async function authenticate(request: NextRequest) {
   const authHeader = request.headers.get('Authorization')
   const token = extractToken(authHeader)
 
+  console.log('认证请求:', {
+    path: request.nextUrl.pathname,
+    method: request.method,
+    hasAuthHeader: !!authHeader,
+    hasToken: !!token,
+    authHeaderPrefix: authHeader?.substring(0, 20)
+  })
+
   if (!token) {
     return {
       error: unauthorizedResponse('未提供认证 Token')

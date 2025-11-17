@@ -47,6 +47,12 @@ export function verifyToken(token: string): { userId: string } | null {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
     return decoded
   } catch (error) {
+    // 添加详细的错误日志
+    console.error('Token 验证失败:', {
+      error: error instanceof Error ? error.message : error,
+      tokenLength: token?.length,
+      tokenPrefix: token?.substring(0, 20) + '...'
+    })
     return null
   }
 }
