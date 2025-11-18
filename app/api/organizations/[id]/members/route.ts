@@ -42,6 +42,12 @@ export async function GET(
             avatar: true,
           },
         },
+        inviter: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
       orderBy: [
         {
@@ -61,6 +67,10 @@ export async function GET(
       avatar: member.user.avatar,
       role: member.role,
       joinedAt: member.createdAt,
+      inviter: member.inviter ? {
+        id: member.inviter.id,
+        name: member.inviter.name,
+      } : null,
     }))
 
     return successResponse(formattedMembers)

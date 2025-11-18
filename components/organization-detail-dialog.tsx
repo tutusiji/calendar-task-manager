@@ -22,7 +22,17 @@ interface OrganizationDetailDialogProps {
 }
 
 interface OrgDetails {
-  members: Array<{ id: string; name: string; email: string; avatar?: string | null; role: string }>
+  members: Array<{ 
+    id: string
+    name: string
+    email: string
+    avatar?: string | null
+    role: string
+    inviter?: {
+      id: string
+      name: string
+    } | null
+  }>
   teams: Array<{ id: string; name: string; color: string; memberCount: number }>
   projects: Array<{ id: string; name: string; color: string; memberCount: number }>
 }
@@ -112,6 +122,11 @@ export function OrganizationDetailDialog({
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate text-base max-w-[120px]">{member.name}</div>
                         <div className="text-xs text-muted-foreground truncate">{member.email}</div>
+                        {member.inviter && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            邀请人: {member.inviter.name}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban, Plus, LogOut, Eye } from "lucide-react"
+import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban, Plus, LogOut, Eye, Copy, Check } from "lucide-react"
 import { organizationAPI } from "@/lib/api/organization"
 import { OrganizationDetailDialog } from "@/components/organization-detail-dialog"
 import {
@@ -74,6 +74,8 @@ export function OrganizationManagementDialog({
     name: "",
     description: "",
   })
+  const [inviteCodes, setInviteCodes] = useState<Record<string, string>>({}) // 存储每个组织的邀请码
+  const [copiedCode, setCopiedCode] = useState<string | null>(null) // 记录刚复制的邀请码
 
   useEffect(() => {
     if (open) {
@@ -92,6 +94,16 @@ export function OrganizationManagementDialog({
     try {
       const data = await organizationAPI.getAll()
       setOrganizations(data)
+      
+      // 为每个组织获取邀请码
+      for (const org of data) {
+        try {
+          const { inviteCode } = await organizationAPI.getInviteCode(org.id)
+          setInviteCodes(prev => ({ ...prev, [org.id]: inviteCode }))
+        } catch (error) {
+          console.error(`获取组织 ${org.name} 的邀请码失败:`, error)
+        }
+      }
     } catch (error) {
       console.error("获取组织列表失败:", error)
       toast({
@@ -337,11 +349,45 @@ export function OrganizationManagementDialog({
       console.error("退出空间失败:", error)
       toast({
         title: "退出失败",
-        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
+        description: error instanceof Error ? error.message : "退出空间失败",
         variant: "destructive",
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // 复制邀请码
+  const handleCopyInviteCode = async (orgId: string, orgName: string) => {
+    const code = inviteCodes[orgId]
+    if (!code) {
+      toast({
+        title: "邀请码未加载",
+        description: "请稍后再试",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedCode(orgId)
+      toast({
+        title: "已复制",
+        description: `${orgName} 的邀请码已复制到剪贴板`,
+      })
+      
+      // 3秒后清除复制状态
+      setTimeout(() => {
+        setCopiedCode(null)
+      }, 3000)
+    } catch (error) {
+      console.error("复制失败:", error)
+      toast({
+        title: "复制失败",
+        description: "无法复制邀请码",
+        variant: "destructive",
+      })
     }
   }
 
@@ -457,6 +503,28 @@ export function OrganizationManagementDialog({
                     <span>{org.projectCount || 0} 项目</span>
                   </div>
                 </div>
+
+                {/* 邀请码区域 */}
+                {inviteCodes[org.id] && (
+                  <div className="flex items-center gap-2 pt-3 border-t">
+                    <span className="text-sm text-muted-foreground">邀请码:</span>
+                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                      {inviteCodes[org.id]}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopyInviteCode(org.id, org.name)}
+                      className="h-7 px-2"
+                    >
+                      {copiedCode === org.id ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
 

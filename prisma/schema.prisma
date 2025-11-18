@@ -40,11 +40,16 @@ model OrganizationMember {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role           OrgMemberRole @default(MEMBER) // 成员角色
+  inviteCode     String?      @unique // 该用户在该组织的唯一邀请码
+  inviterId      String?      // 邀请人ID
+  inviter        User?        @relation("MemberInviter", fields: [inviterId], references: [id], onDelete: SetNull)
   createdAt      DateTime     @default(now())
 
   @@unique([userId, organizationId])
   @@index([userId])
   @@index([organizationId])
+  @@index([inviterId])
+  @@index([inviteCode])
 }
 
 // 组织成员角色枚举
@@ -65,6 +70,7 @@ model User {
   gender                 String?              @default("未设置") // 性别
   role                   String?              @default("未设置") // 职业
   isAdmin                Boolean              @default(false) // 是否为超级管理员
+  inviteCode             String?              @unique // 用户唯一邀请码（可选，注册时生成）
   currentOrganizationId  String?              // 当前选择的组织ID
   createdTasks           Task[]               @relation("TaskCreator") // 创建的任务
   assignedTasks          TaskAssignee[]       @relation("TaskAssignee") // 被分配的任务
@@ -74,9 +80,11 @@ model User {
   createdProjects        Project[]            @relation("ProjectCreator")
   createdOrganizations   Organization[]       @relation("OrganizationCreator")
   organizationMembers    OrganizationMember[]
+  invitedMembers         OrganizationMember[] @relation("MemberInviter") // 邀请的成员
   notifications          Notification[]
   joinRequestsAsApplicant OrganizationJoinRequest[] @relation("JoinRequestApplicant")
   joinRequestsAsHandler   OrganizationJoinRequest[] @relation("JoinRequestHandler")
+  joinRequestsAsInviter   OrganizationJoinRequest[] @relation("JoinRequestInviter") // 作为邀请人的加入请求
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
 }
@@ -224,6 +232,7 @@ enum NotificationType {
   ORG_JOIN_REQUEST       // 收到组织加入申请
   ORG_JOIN_APPROVED      // 组织加入申请通过
   ORG_JOIN_REJECTED      // 组织加入申请被拒绝
+  USER_INVITED_JOINED    // 你邀请的用户已加入组织
   TASK_CREATED           // 任务被创建
   TASK_UPDATED           // 任务被修改
   TASK_DELETED           // 任务被删除
@@ -239,6 +248,8 @@ model OrganizationJoinRequest {
   applicant      User                      @relation("JoinRequestApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
   status         JoinRequestStatus         @default(PENDING) // 申请状态
   message        String?                   // 申请留言
+  inviterId      String?                   // 邀请人ID（如果通过邀请码加入则记录）
+  inviter        User?                     @relation("JoinRequestInviter", fields: [inviterId], references: [id], onDelete: SetNull)
   handledBy      String?                   // 处理人ID
   handler        User?                     @relation("JoinRequestHandler", fields: [handledBy], references: [id], onDelete: SetNull)
   handledAt      DateTime?                 // 处理时间
@@ -248,6 +259,7 @@ model OrganizationJoinRequest {
 
   @@index([organizationId, status])
   @@index([applicantId, status])
+  @@index([inviterId])
   @@index([createdAt])
 }
 

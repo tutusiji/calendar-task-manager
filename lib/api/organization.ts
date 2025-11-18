@@ -28,6 +28,10 @@ export interface OrganizationMember {
   avatar?: string | null
   role: string
   joinedAt: Date
+  inviter?: {
+    id: string
+    name: string
+  } | null
 }
 
 export interface OrganizationTeam {
@@ -181,5 +185,21 @@ export const organizationAPI = {
    */
   async rejectJoinRequest(requestId: string, reason?: string): Promise<void> {
     return post<void>(`/organizations/join-requests/${requestId}/reject`, { reason })
+  },
+
+  // ==================== 邀请码管理 ====================
+
+  /**
+   * 获取当前用户在指定组织的邀请码
+   */
+  async getInviteCode(orgId: string): Promise<{ inviteCode: string }> {
+    return get<{ inviteCode: string }>(`/organizations/${orgId}/invite-code`)
+  },
+
+  /**
+   * 验证邀请码是否有效
+   */
+  async validateInviteCode(orgId: string, inviteCode: string): Promise<{ valid: boolean; inviterName: string }> {
+    return post<{ valid: boolean; inviterName: string }>(`/organizations/${orgId}/invite-code/validate`, { inviteCode })
   },
 }

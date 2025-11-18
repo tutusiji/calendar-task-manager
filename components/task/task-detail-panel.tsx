@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { X, Plus } from "lucide-react"
+import { X, Plus, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,12 @@ import { cn } from "@/lib/utils"
 import { UserSelector } from "./user-selector"
 import { UserMultiSelector } from "./user-multi-selector"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface TaskDetailPanelProps {
   startDate: Date
@@ -273,6 +279,16 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                 <div className="space-y-2">
                   <Label htmlFor="team" className="text-sm font-medium">
                     所属团队 <span className="text-red-500">*</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="inline-block ml-1 h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">如果没有团队,可以去个人中心加入团队或者自己先创建团队</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </Label>
                   <Select value={teamId} onValueChange={(value) => {
                     setTeamId(value)
