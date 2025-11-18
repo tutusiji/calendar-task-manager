@@ -133,20 +133,22 @@ export function ListView() {
         }
       })
     } else if (listGroupMode === "user") {
-      // 按人头分组
+      // 按人头分组（按任务负责人分组）
       const userMap = new Map<string, Task[]>()
       filteredTasks.forEach((task) => {
-        if (!userMap.has(task.userId)) {
-          userMap.set(task.userId, [])
+        // 优先使用第一个负责人，如果没有负责人则使用创建人
+        const userId = task.assignees?.[0]?.userId || task.creatorId
+        if (!userMap.has(userId)) {
+          userMap.set(userId, [])
         }
-        userMap.get(task.userId)!.push(task)
+        userMap.get(userId)!.push(task)
       })
 
       return Array.from(userMap.entries()).map(([userId, tasks]) => {
         const user = getUserById(userId)
         return {
           id: userId,
-          title: user?.name || "未知用户",
+          title: user?.name || user?.username || "未知用户",
           tasks: tasks.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()),
         }
       })
@@ -242,8 +244,8 @@ export function ListView() {
           </div>
         ) : (
           <div className={`grid gap-4 ${getGridClassName()}`}>
-            {groupedTasks.map((group) => (
-              <Card key={group.id} className="overflow-hidden">
+            {groupedTasks.map((group, groupIndex) => (
+              <Card key={`${listGroupMode}-${group.id}-${groupIndex}`} className="overflow-hidden">
                 <CardHeader className="pb-2 pt-3 px-4" style={{ borderLeftWidth: '3px', borderLeftColor: group.color || '#3b82f6' }}>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold truncate">{group.title}</CardTitle>
@@ -305,7 +307,7 @@ export function ListView() {
                               </div>
                             )}
 
-                            {user && (
+                            {user && listGroupMode !== "user" && (
                               <div className="flex items-center gap-1">
                                 <Avatar className="h-3 w-3">
                                   <AvatarImage src={user.avatar} alt={user.name} />
