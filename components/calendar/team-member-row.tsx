@@ -27,7 +27,12 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
     return tasks.filter(task => selectedProjectIds.includes(task.projectId))
   }, [tasks, selectedProjectIds])
 
-  const userTasks = useMemo(() => filteredTasks.filter((task) => task.userId === user.id), [filteredTasks, user.id])
+  const userTasks = useMemo(() => 
+    filteredTasks.filter((task) => 
+      task.assignees?.some(a => a.userId === user.id) || task.creatorId === user.id
+    ), 
+    [filteredTasks, user.id]
+  )
 
   // 为用户的任务分配轨道
   const userTasksWithTracks = useMemo(() => assignTaskTracks(userTasks), [userTasks])

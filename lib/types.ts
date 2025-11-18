@@ -69,7 +69,14 @@ export interface Task {
   type: TaskType
   projectId: string
   teamId?: string // 任务可以选择性地关联到团队
-  userId: string
+  creatorId: string // 创建人ID
+  creator?: User // 创建人信息（从 API 返回）
+  assignees?: Array<{ // 负责人列表（多个）
+    id: string
+    userId: string
+    taskId: string
+    user?: User
+  }>
 }
 
 export interface Team {

@@ -29,13 +29,26 @@ export async function GET(
     const task = await prisma.task.findUnique({
       where: { id },
       include: {
-        user: {
+        creator: {
           select: {
             id: true,
             username: true,
             name: true,
             email: true,
             avatar: true
+          }
+        },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                email: true,
+                avatar: true
+              }
+            }
           }
         },
         project: {
@@ -59,23 +72,30 @@ export async function GET(
       return notFoundResponse('任务不存在')
     }
 
-    // 权限验证：只能查看自己的任务或团队成员的任务
-    if (task.userId !== auth.userId) {
-      // 检查是否是同一团队成员
-      const isTeammate = await prisma.teamMember.findFirst({
-        where: {
-          userId: auth.userId,
-          team: {
-            projects: {
-              some: {
-                id: task.projectId
-              }
-            }
+    // 权限验证：只能查看自己负责的任务、自己创建的任务或团队成员的任务
+    const isAssignee = task.assignees.some(a => a.userId === auth.userId)
+    const isCreator = task.creatorId === auth.userId
+    
+    if (!isAssignee && !isCreator) {
+      // 检查是否是同一团队/项目成员
+      const hasAccess = await prisma.$or([
+        // 项目成员
+        prisma.projectMember.findFirst({
+          where: {
+            projectId: task.projectId,
+            userId: auth.userId
           }
-        }
-      })
+        }),
+        // 团队成员（如果任务关联了团队）
+        task.teamId ? prisma.teamMember.findFirst({
+          where: {
+            teamId: task.teamId,
+            userId: auth.userId
+          }
+        }) : Promise.resolve(null)
+      ])
 
-      if (!isTeammate) {
+      if (!hasAccess || !hasAccess.some(Boolean)) {
         return forbiddenResponse('无权查看此任务')
       }
     }
@@ -143,7 +163,7 @@ export async function PUT(
       hasPermission = true
     }
     // 2. 任务创建者始终有权限
-    else if (existingTask.userId === auth.userId) {
+    else if (existingTask.creatorId === auth.userId) {
       hasPermission = true
     }
     // 3. 检查项目的协同权限
@@ -220,19 +240,31 @@ export async function PUT(
         return forbiddenResponse('无权访问目标项目')
       }
 
-      // 确定任务的负责人（可能正在被修改）
-      const taskUserId = userId !== undefined ? userId : existingTask.userId
-      
-      // 检查任务负责人是否在新项目中
-      const userInProject = project.members.some(m => m.userId === taskUserId)
-      if (!userInProject) {
-        // 自动将任务负责人添加到新项目中
-        await prisma.projectMember.create({
-          data: {
-            projectId,
-            userId: taskUserId
-          }
+      // 确定任务的负责人列表（可能正在被修改）
+      let taskUserIds: string[] = []
+      if (userId !== undefined) {
+        taskUserIds = Array.isArray(userId) ? userId : [userId]
+      } else {
+        // 获取现有负责人
+        const existingAssignees = await prisma.taskAssignee.findMany({
+          where: { taskId: existingTask.id },
+          select: { userId: true }
         })
+        taskUserIds = existingAssignees.map(a => a.userId)
+      }
+      
+      // 检查所有负责人是否在新项目中
+      for (const taskUserId of taskUserIds) {
+        const userInProject = project.members.some(m => m.userId === taskUserId)
+        if (!userInProject) {
+          // 自动将任务负责人添加到新项目中
+          await prisma.projectMember.create({
+            data: {
+              projectId,
+              userId: taskUserId
+            }
+          })
+        }
       }
     }
 
@@ -246,19 +278,31 @@ export async function PUT(
       })
 
       if (team) {
-        // 确定任务的负责人（可能正在被修改）
-        const taskUserId = userId !== undefined ? userId : existingTask.userId
-        
-        // 检查任务负责人是否在新团队中
-        const userInTeam = team.members.some(m => m.userId === taskUserId)
-        if (!userInTeam) {
-          // 自动将任务负责人添加到新团队中
-          await prisma.teamMember.create({
-            data: {
-              teamId,
-              userId: taskUserId
-            }
+        // 确定任务的负责人列表（可能正在被修改）
+        let taskUserIds: string[] = []
+        if (userId !== undefined) {
+          taskUserIds = Array.isArray(userId) ? userId : [userId]
+        } else {
+          // 获取现有负责人
+          const existingAssignees = await prisma.taskAssignee.findMany({
+            where: { taskId: existingTask.id },
+            select: { userId: true }
           })
+          taskUserIds = existingAssignees.map(a => a.userId)
+        }
+        
+        // 检查所有负责人是否在新团队中
+        for (const taskUserId of taskUserIds) {
+          const userInTeam = team.members.some(m => m.userId === taskUserId)
+          if (!userInTeam) {
+            // 自动将任务负责人添加到新团队中
+            await prisma.teamMember.create({
+              data: {
+                teamId,
+                userId: taskUserId
+              }
+            })
+          }
         }
       }
     }
@@ -274,20 +318,50 @@ export async function PUT(
     if (type !== undefined) updateData.type = type
     if (projectId !== undefined) updateData.projectId = projectId
     if (teamId !== undefined) updateData.teamId = teamId || null // 支持更新teamId
-    if (userId !== undefined) updateData.userId = userId // 支持更新负责人（协同权限）
+
+    // 处理负责人更新
+    if (userId !== undefined) {
+      const newAssigneeIds = Array.isArray(userId) ? userId : [userId]
+      
+      // 先删除现有的负责人关系
+      await prisma.taskAssignee.deleteMany({
+        where: { taskId: id }
+      })
+      
+      // 创建新的负责人关系
+      await prisma.taskAssignee.createMany({
+        data: newAssigneeIds.map(assigneeId => ({
+          taskId: id,
+          userId: assigneeId
+        }))
+      })
+    }
 
     // 更新任务
     const task = await prisma.task.update({
       where: { id },
       data: updateData,
       include: {
-        user: {
+        creator: {
           select: {
             id: true,
             username: true,
             name: true,
             email: true,
             avatar: true
+          }
+        },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                email: true,
+                avatar: true
+              }
+            }
           }
         },
         project: {
@@ -328,22 +402,68 @@ export async function DELETE(
 
     // 检查任务是否存在
     const existingTask = await prisma.task.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        assignees: {
+          select: { userId: true }
+        }
+      }
     })
 
     if (!existingTask) {
       return notFoundResponse('任务不存在')
     }
 
-    // 权限验证：只有任务负责人（userId）可以删除任务
-    if (existingTask.userId !== auth.userId) {
+    // 权限验证：只有任务负责人可以删除任务
+    const isAssignee = existingTask.assignees.some(a => a.userId === auth.userId)
+    
+    if (!isAssignee) {
       return forbiddenResponse('无权删除此任务，只有任务负责人可以删除')
     }
+
+    // 记录任务信息用于通知
+    const taskTitle = existingTask.title
+    const creatorId = existingTask.creatorId
+    const allAssigneeIds = existingTask.assignees.map(a => a.userId)
+    
+    // 收集所有需要通知的用户ID（创建人 + 所有负责人），去重并排除删除者自己
+    const notifyUserIds = Array.from(new Set([creatorId, ...allAssigneeIds]))
+      .filter(id => id !== auth.userId)
 
     // 删除任务
     await prisma.task.delete({
       where: { id }
     })
+
+    // 发送站内信通知给创建人和所有负责人（除了删除者自己）
+    if (notifyUserIds.length > 0) {
+      try {
+        // 获取当前用户信息
+        const currentUser = await prisma.user.findUnique({
+          where: { id: auth.userId },
+          select: { name: true }
+        })
+
+        if (currentUser) {
+          await prisma.notification.createMany({
+            data: notifyUserIds.map(userId => ({
+              userId: userId,
+              type: 'TASK_DELETED',
+              title: '任务已被删除',
+              content: `${currentUser.name} 删除了任务「${taskTitle}」`,
+              metadata: {
+                deletedBy: auth.userId,
+                deletedByName: currentUser.name,
+                taskTitle: taskTitle
+              }
+            }))
+          })
+        }
+      } catch (notificationError) {
+        // 通知失败不影响删除操作
+        console.error('发送删除通知失败:', notificationError)
+      }
+    }
 
     return successResponse(null, '任务删除成功')
   } catch (error) {

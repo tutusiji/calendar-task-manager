@@ -62,18 +62,24 @@ export function ListView() {
     if (navigationMode === "my-days") {
       if (selectedProjectIds.length === 0) return []
       filtered = filtered.filter(
-        (task) => selectedProjectIds.includes(task.projectId) && task.userId === currentUser.id
+        (task) => selectedProjectIds.includes(task.projectId) && 
+          (task.assignees?.some(a => a.userId === currentUser.id) || task.creatorId === currentUser.id)
       )
     } else if (navigationMode === "team" && selectedTeamId) {
       const team = getTeamById(selectedTeamId)
       if (team) {
-        filtered = filtered.filter((task) => team.memberIds.includes(task.userId))
+        filtered = filtered.filter((task) => 
+          task.assignees?.some(a => team.memberIds.includes(a.userId)) ||
+          team.memberIds.includes(task.creatorId)
+        )
       }
     } else if (navigationMode === "project" && selectedProjectId) {
       const project = getProjectById(selectedProjectId)
       if (project) {
         filtered = filtered.filter(
-          (task) => task.projectId === selectedProjectId && project.memberIds.includes(task.userId)
+          (task) => task.projectId === selectedProjectId && 
+            (task.assignees?.some(a => project.memberIds.includes(a.userId)) ||
+            project.memberIds.includes(task.creatorId))
         )
       }
     } else {
@@ -175,7 +181,8 @@ export function ListView() {
     let content = `${group.title}\n\n`
     
     group.tasks.forEach((task) => {
-      const user = getUserById(task.userId)
+      const assigneeUserId = task.assignees?.[0]?.userId || task.creatorId
+      const user = getUserById(assigneeUserId)
       const project = getProjectById(task.projectId)
       const dateStr = format(new Date(task.startDate), "M月d日", { locale: zhCN })
       const timeStr = task.startTime ? ` ${task.startTime}` : ""
@@ -262,7 +269,8 @@ export function ListView() {
                 </CardHeader>
                 <CardContent className="space-y-2 pt-2 px-4 pb-3">
                   {group.tasks.map((task) => {
-                    const user = getUserById(task.userId)
+                    const assigneeUserId = task.assignees?.[0]?.userId || task.creatorId
+                    const user = getUserById(assigneeUserId)
                     const project = getProjectById(task.projectId)
 
                     return (

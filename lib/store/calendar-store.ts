@@ -573,7 +573,10 @@ export const useCalendarStore = create<CalendarStore>()(
               taskMovedOut = true
             }
           } else if (navigationMode === 'my-days' && currentUser) {
-            if (updatedTask.userId && updatedTask.userId !== currentUser.id) {
+            // 检查当前用户是否还是负责人之一
+            const isStillAssignee = updatedTask.assignees?.some((a: any) => a.userId === currentUser.id) ||
+              updatedTask.creatorId === currentUser.id
+            if (!isStillAssignee) {
               taskMovedOut = true
             }
           }
@@ -637,12 +640,13 @@ export const useCalendarStore = create<CalendarStore>()(
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
       })
       
       if (!response.ok) {
-        throw new Error('Failed to delete task')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || '删除任务失败')
       }
       
       // API 成功后,在后台刷新任务列表(不阻塞调用者)

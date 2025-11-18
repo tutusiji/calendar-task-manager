@@ -54,7 +54,8 @@ export function MonthView() {
       }
       return tasks.filter(task => 
         selectedProjectIds.includes(task.projectId) && 
-        task.userId === currentUser.id
+        task.assignees?.some(a => a.userId === currentUser.id) ||
+        task.creatorId === currentUser.id
       )
     }
     
@@ -62,7 +63,10 @@ export function MonthView() {
     if (navigationMode === "team" && selectedTeamId) {
       const team = getTeamById(selectedTeamId)
       if (team) {
-        return tasks.filter(task => team.memberIds.includes(task.userId))
+        return tasks.filter(task => 
+          task.assignees?.some(a => team.memberIds.includes(a.userId)) ||
+          team.memberIds.includes(task.creatorId)
+        )
       }
     }
     
@@ -72,7 +76,8 @@ export function MonthView() {
       if (project) {
         return tasks.filter(task => 
           task.projectId === selectedProjectId &&
-          project.memberIds.includes(task.userId)
+          (task.assignees?.some(a => project.memberIds.includes(a.userId)) ||
+          project.memberIds.includes(task.creatorId))
         )
       }
     }

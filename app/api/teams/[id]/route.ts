@@ -45,7 +45,7 @@ export async function PUT(
       return forbiddenResponse('只有团队创建者或超级管理员可以修改团队')
     }
 
-    const { name, description, color, memberIds, creatorId } = body
+    const { name, description, color, memberIds, creatorId, taskPermission } = body
 
     // 验证必填字段
     if (name !== undefined && (!name || name.trim() === '')) {
@@ -73,6 +73,7 @@ export async function PUT(
     if (description !== undefined) updateData.description = description ? sanitizeString(description, 2000) : null
     if (color !== undefined) updateData.color = color
     if (creatorId !== undefined) updateData.creatorId = creatorId
+    if (taskPermission !== undefined) updateData.taskPermission = taskPermission // 更新任务权限
 
     // 处理成员更新
     if (memberIds !== undefined && Array.isArray(memberIds)) {

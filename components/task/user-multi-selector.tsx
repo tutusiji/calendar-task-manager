@@ -18,9 +18,10 @@ interface UserMultiSelectorProps {
   onUserChange: (userIds: string[]) => void
   lockedUserIds?: string[] // 不可移除的用户ID列表
   creatorId?: string // 创建者ID，用于显示标签
+  disabled?: boolean // 是否禁用选择器
 }
 
-export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [], creatorId }: UserMultiSelectorProps) {
+export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [], creatorId, disabled = false }: UserMultiSelectorProps) {
   const { users, getUserById, currentUser } = useCalendarStore()
   const [open, setOpen] = useState(false)
 
@@ -55,12 +56,13 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className="w-full justify-start min-h-10 h-auto px-3 py-2"
         >
           <div className="flex flex-wrap gap-1 flex-1">
@@ -80,7 +82,7 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
                       </AvatarFallback>
                     </Avatar>
                     <span>{user.name}</span>
-                    {!isLocked && (
+                    {!isLocked && !disabled && (
                       <span
                         onClick={(e) => removeUser(userId, e)}
                         className="ml-1 rounded-full hover:bg-muted cursor-pointer inline-flex items-center justify-center"

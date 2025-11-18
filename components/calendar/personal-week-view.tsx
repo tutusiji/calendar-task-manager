@@ -35,7 +35,10 @@ export function PersonalWeekView() {
       ? tasks 
       : tasks.filter(task => selectedProjectIds.includes(task.projectId))
     
-    return filtered.filter(task => task.userId === currentUser.id)
+    return filtered.filter(task => 
+      task.assignees?.some(a => a.userId === currentUser.id) || 
+      task.creatorId === currentUser.id
+    )
   }, [tasks, selectedProjectIds, currentUser])
 
   // 为任务分配轨道

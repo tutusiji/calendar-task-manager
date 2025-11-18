@@ -86,10 +86,15 @@ export async function GET(request: NextRequest) {
           return validationErrorResponse('无权查看其他用户的任务')
         }
       }
-      where.userId = userId
+      // 查询该用户作为负责人的任务
+      where.assignees = {
+        some: { userId }
+      }
     } else {
-      // 如果未指定任何过滤条件，默认只查看当前用户的任务
-      where.userId = auth.userId
+      // 如果未指定任何过滤条件，默认只查看当前用户负责的任务
+      where.assignees = {
+        some: { userId: auth.userId }
+      }
     }
 
     // 日期范围过滤
@@ -125,13 +130,26 @@ export async function GET(request: NextRequest) {
     const tasks = await prisma.task.findMany({
       where,
       include: {
-        user: {
+        creator: {
           select: {
             id: true,
             username: true,
             name: true,
             email: true,
             avatar: true
+          }
+        },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                email: true,
+                avatar: true
+              }
+            }
           }
         },
         project: {
@@ -230,24 +248,24 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse('无权在该项目中创建任务')
     }
 
-    // 确定任务负责人(如果未指定则使用当前用户)
-    const taskUserId = userId || auth.userId
+    // 确定任务负责人列表(如果未指定则使用当前用户)
+    const assigneeUserIds = userId ? (Array.isArray(userId) ? userId : [userId]) : [auth.userId]
 
-    // 如果指定了其他负责人,确保该用户在项目中
-    if (taskUserId !== auth.userId) {
-      const assigneeIsMember = project.members.some(m => m.userId === taskUserId)
+    // 确保所有负责人都在项目中
+    for (const assigneeId of assigneeUserIds) {
+      const assigneeIsMember = project.members.some(m => m.userId === assigneeId)
       if (!assigneeIsMember) {
         // 自动将负责人添加到项目中
         await prisma.projectMember.create({
           data: {
             projectId,
-            userId: taskUserId
+            userId: assigneeId
           }
         })
       }
     }
 
-    // 如果指定了团队,确保负责人在团队中
+    // 如果指定了团队,确保所有负责人都在团队中
     if (teamId) {
       const team = await prisma.team.findUnique({
         where: { id: teamId },
@@ -257,15 +275,17 @@ export async function POST(request: NextRequest) {
       })
 
       if (team) {
-        const userInTeam = team.members.some(m => m.userId === taskUserId)
-        if (!userInTeam) {
-          // 自动将负责人添加到团队中
-          await prisma.teamMember.create({
-            data: {
-              teamId,
-              userId: taskUserId
-            }
-          })
+        for (const assigneeId of assigneeUserIds) {
+          const userInTeam = team.members.some(m => m.userId === assigneeId)
+          if (!userInTeam) {
+            // 自动将负责人添加到团队中
+            await prisma.teamMember.create({
+              data: {
+                teamId,
+                userId: assigneeId
+              }
+            })
+          }
         }
       }
     }
@@ -274,7 +294,7 @@ export async function POST(request: NextRequest) {
     const cleanTitle = sanitizeString(title, 200)
     const cleanDescription = description ? sanitizeString(description, 2000) : null
 
-    // 创建任务
+    // 创建任务（使用事务确保一致性）
     const task = await prisma.task.create({
       data: {
         title: cleanTitle,
@@ -284,18 +304,36 @@ export async function POST(request: NextRequest) {
         startTime,
         endTime,
         type,
-        userId: taskUserId, // 使用指定的负责人或当前用户
+        creatorId: auth.userId, // 创建人是当前用户
         projectId,
-        teamId: teamId || null // 保存团队ID
+        teamId: teamId || null, // 保存团队ID
+        assignees: {
+          create: assigneeUserIds.map(assigneeId => ({
+            userId: assigneeId
+          }))
+        }
       },
       include: {
-        user: {
+        creator: {
           select: {
             id: true,
             username: true,
             name: true,
             email: true,
             avatar: true
+          }
+        },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                email: true,
+                avatar: true
+              }
+            }
           }
         },
         project: {
@@ -315,8 +353,9 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // 如果是为其他用户创建任务，发送站内信通知
-    if (taskUserId !== auth.userId) {
+    // 为所有非创建人的负责人发送通知
+    const otherAssignees = assigneeUserIds.filter(id => id !== auth.userId)
+    if (otherAssignees.length > 0) {
       // 获取创建者信息
       const creator = await prisma.user.findUnique({
         where: { id: auth.userId },
@@ -324,11 +363,11 @@ export async function POST(request: NextRequest) {
       })
 
       if (creator) {
-        // 创建通知
-        await prisma.notification.create({
-          data: {
-            userId: taskUserId,
-            type: 'TASK_CREATED',
+        // 为每个其他负责人创建通知
+        await prisma.notification.createMany({
+          data: otherAssignees.map(assigneeId => ({
+            userId: assigneeId,
+            type: 'TASK_ASSIGNED',
             title: '新任务分配',
             content: `${creator.name} 为您分配了新任务：${cleanTitle}`,
             metadata: {
@@ -338,7 +377,7 @@ export async function POST(request: NextRequest) {
               creatorId: auth.userId,
               creatorName: creator.name,
             }
-          }
+          }))
         })
       }
     }

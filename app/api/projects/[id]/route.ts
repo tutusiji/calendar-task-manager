@@ -96,7 +96,7 @@ export async function PUT(
       return forbiddenResponse('只有项目创建者或超级管理员可以修改项目')
     }
 
-    const { name, description, color, memberIds, creatorId } = body
+    const { name, description, color, memberIds, creatorId, taskPermission } = body
 
     // 验证必填字段
     if (name !== undefined && (!name || name.trim() === '')) {
@@ -107,7 +107,7 @@ export async function PUT(
       return validationErrorResponse('项目颜色不能为空')
     }
 
-    // 如果要更改创建者，验证权限（只有创建者可以转让）
+    // 如果要更改创建者,验证权限（只有创建者可以转让）
     if (creatorId !== undefined && creatorId !== existingProject.creatorId) {
       // 验证新创建者存在
       const newCreator = await prisma.user.findUnique({
@@ -125,6 +125,7 @@ export async function PUT(
     if (description !== undefined) updateData.description = description ? sanitizeString(description, 2000) : null
     if (color !== undefined) updateData.color = color
     if (creatorId !== undefined) updateData.creatorId = creatorId
+    if (taskPermission !== undefined) updateData.taskPermission = taskPermission
 
     // 处理成员更新
     if (memberIds !== undefined && Array.isArray(memberIds)) {

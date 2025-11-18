@@ -25,7 +25,7 @@ services:
   # Next.js 应用
   app:
     image: calendar-task-manager:latest  # 改成这样
-    # 注释掉或删除 build 部分
+    # 注释掉或删除 build 部分rrrrr
     # build:
     #   context: .
     #   dockerfile: Dockerfile

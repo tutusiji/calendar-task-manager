@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, color, description, memberIds, creatorId } = body
+    const { name, color, description, memberIds, creatorId, taskPermission } = body
 
     if (!name || !color) {
       return NextResponse.json(
@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
         description,
         organizationId: user.currentOrganizationId,
         creatorId, // 设置创建者
+        taskPermission: taskPermission || 'ALL_MEMBERS', // 设置任务权限，默认为所有成员
         members: memberIds
           ? {
               create: memberIds.map((userId: string) => ({

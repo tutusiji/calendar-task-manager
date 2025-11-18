@@ -54,19 +54,25 @@ export function StatsView() {
         filtered = []
       } else {
         filtered = filtered.filter(
-          (task) => selectedProjectIds.includes(task.projectId) && task.userId === currentUser.id
+          (task) => selectedProjectIds.includes(task.projectId) && 
+            (task.assignees?.some(a => a.userId === currentUser.id) || task.creatorId === currentUser.id)
         )
       }
     } else if (navigationMode === "team" && selectedTeamId) {
       const team = getTeamById(selectedTeamId)
       if (team) {
-        filtered = filtered.filter((task) => team.memberIds.includes(task.userId))
+        filtered = filtered.filter((task) => 
+          task.assignees?.some(a => team.memberIds.includes(a.userId)) ||
+          team.memberIds.includes(task.creatorId)
+        )
       }
     } else if (navigationMode === "project" && selectedProjectId) {
       const project = getProjectById(selectedProjectId)
       if (project) {
         filtered = filtered.filter(
-          (task) => task.projectId === selectedProjectId && project.memberIds.includes(task.userId)
+          (task) => task.projectId === selectedProjectId && 
+            (task.assignees?.some(a => project.memberIds.includes(a.userId)) ||
+            project.memberIds.includes(task.creatorId))
         )
       }
     } else {
@@ -146,7 +152,8 @@ export function StatsView() {
     const userMap: Record<string, { name: string; count: number; days: number }> = {}
 
     filteredTasks.forEach((task) => {
-      const user = getUserById(task.userId)
+      const assigneeUserId = task.assignees?.[0]?.userId || task.creatorId
+      const user = getUserById(assigneeUserId)
       if (!user) return
 
       if (!userMap[user.id]) {

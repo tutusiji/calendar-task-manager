@@ -66,7 +66,8 @@ model User {
   role                   String?              @default("未设置") // 职业
   isAdmin                Boolean              @default(false) // 是否为超级管理员
   currentOrganizationId  String?              // 当前选择的组织ID
-  tasks                  Task[]
+  createdTasks           Task[]               @relation("TaskCreator") // 创建的任务
+  assignedTasks          TaskAssignee[]       @relation("TaskAssignee") // 被分配的任务
   teamMembers            TeamMember[]
   projectMembers         ProjectMember[]
   createdTeams           Team[]               @relation("TeamCreator")
@@ -130,8 +131,9 @@ model Task {
   startTime   String?
   endTime     String?
   type        TaskType
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creatorId   String   // 创建人ID
+  creator     User     @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  assignees   TaskAssignee[] // 负责人列表（多对多关系）
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   teamId      String?  // 任务可以选择性地关联到团队
@@ -140,9 +142,23 @@ model Task {
   updatedAt   DateTime @updatedAt
 
   @@index([startDate, endDate])
-  @@index([userId])
+  @@index([creatorId])
   @@index([projectId])
   @@index([teamId])
+}
+
+// 任务负责人关系表
+model TaskAssignee {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation("TaskAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
 }
 
 // 任务类型枚举
