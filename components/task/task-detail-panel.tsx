@@ -255,10 +255,10 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                           return a.name.localeCompare(b.name)
                         })
                         .map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
+                        <SelectItem key={project.id} value={project.id} title={project.name}>
                           <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />
-                            {project.name}
+                            <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
+                            <span className="truncate max-w-[130px]">{project.name}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -286,10 +286,10 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                         .filter(t => currentUser && t.memberIds.includes(currentUser.id))
                         .sort((a, b) => a.name.localeCompare(b.name))
                         .map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
+                        <SelectItem key={team.id} value={team.id} title={team.name}>
                           <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
-                            {team.name}
+                            <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: team.color }} />
+                            <span className="truncate max-w-[130px]">{team.name}</span>
                           </div>
                         </SelectItem>
                       ))}

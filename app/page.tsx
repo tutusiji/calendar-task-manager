@@ -163,7 +163,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <h1 className="text-[22px] font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent">
+              <h1 className="text-[22px] font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>
                 OxHorse Planner
               </h1>
               <p className="text-[12px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>打工人必备的轻量任务管理工具</p>

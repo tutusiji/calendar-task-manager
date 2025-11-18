@@ -33,12 +33,12 @@ export function OrganizationSelector({
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const debounceRef = useRef<NodeJS.Timeout>()
 
   // 搜索组织
   const searchOrganizations = async (search: string) => {
     if (!search.trim()) {
       setOrganizations([])
+      setIsLoading(false)
       return
     }
 
@@ -57,20 +57,14 @@ export function OrganizationSelector({
     }
   }
 
-  // 防抖搜索
+  // 防抖搜索 - 500ms 延迟
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-    }
-
-    debounceRef.current = setTimeout(() => {
+    const debounceTimer = setTimeout(() => {
       searchOrganizations(searchTerm)
-    }, 300)
+    }, 500)
 
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
+      clearTimeout(debounceTimer)
     }
   }, [searchTerm])
 
