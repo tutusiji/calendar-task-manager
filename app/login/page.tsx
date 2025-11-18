@@ -57,31 +57,15 @@ export default function AuthPage() {
       // 如果用户没有选中的组织,先获取组织列表并自动选择第一个
       if (!user.currentOrganizationId) {
         try {
-          const token = localStorage.getItem("token")
-          const orgsResponse = await fetch("/api/organizations", {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-          })
-          const orgsData = await orgsResponse.json()
+          const { organizationAPI } = await import("@/lib/api/organization")
+          const orgs = await organizationAPI.getAll()
           
-          if (orgsData.success && orgsData.data.length > 0) {
-            const firstOrgId = orgsData.data[0].id
+          if (orgs.length > 0) {
+            const firstOrgId = orgs[0].id
             
             // 调用切换组织 API
-            const switchResponse = await fetch("/api/organizations/switch", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-              },
-              body: JSON.stringify({ organizationId: firstOrgId }),
-            })
-            
-            const switchData = await switchResponse.json()
-            if (switchData.success) {
-              user.currentOrganizationId = firstOrgId
-            }
+            await organizationAPI.switch(firstOrgId)
+            user.currentOrganizationId = firstOrgId
           }
         } catch (error) {
           console.error("Failed to set default organization:", error)

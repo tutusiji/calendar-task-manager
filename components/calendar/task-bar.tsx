@@ -230,14 +230,14 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
         zIndex: isBeingDragged ? 50 : 10,
       }}
     >
-      <div className="flex items-center gap-1 truncate h-full">
+      <div className="taskbar flex items-center gap-1 truncate h-full">
         {showUserInfo && (
           <>
             {assigneeCount === 1 ? (
               // 单个负责人：显示头像和姓名
               assigneeUsers[0] && (
                 <>
-                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white")}>
+                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white ml-1")}>
                     <AvatarImage src={assigneeUsers[0].avatar} alt={assigneeUsers[0].name} />
                     <AvatarFallback className={cn("bg-white/20 text-white", avatarFallbackTextSize)}>
                       {getUserInitial(assigneeUsers[0].name)}
@@ -251,7 +251,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
               // 没有负责人：显示创建者
               fallbackUser && (
                 <>
-                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white")}>
+                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white ml-1")}>
                     <AvatarImage src={fallbackUser.avatar} alt={fallbackUser.name} />
                     <AvatarFallback className={cn("bg-white/20 text-white", avatarFallbackTextSize)}>
                       {getUserInitial(fallbackUser.name)}
@@ -279,7 +279,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
             ) : (
               // 4个或更多负责人：显示前3个头像 + "等N人"
               <>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0 ml-1">
                   <div className="flex items-center -space-x-1">
                     {assigneeUsers.map((user, index) => (
                       <Avatar key={user.id} className={cn(avatarSizeClass, "border border-white/30 bg-white")} style={{ zIndex: 3 - index }}>
@@ -297,8 +297,8 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
             )}
           </>
         )}
-        {task.startTime && <span className="text-[10px] opacity-90">{task.startTime}</span>}
-        <span className="truncate ml-1">{task.title}</span>
+        {task.startTime && <span className={cn("text-[10px] opacity-90", !showUserInfo && "ml-1")}>{task.startTime}</span>}
+        <span className={cn("truncate", !showUserInfo && !task.startTime && "ml-1")}>{task.title}</span>
       </div>
     </div>
   )

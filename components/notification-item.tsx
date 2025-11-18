@@ -13,7 +13,7 @@ import {
   Plus,
   Clock
 } from "lucide-react"
-import { getToken } from "@/lib/api-client"
+// Token 管理已由请求层统一处理
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -70,45 +70,25 @@ export function NotificationItem({
 
     setIsProcessing(true)
     try {
-      const token = getToken()
-      if (!token) throw new Error("未登录")
+      const { organizationAPI } = await import("@/lib/api/organization")
+      await organizationAPI.approveJoinRequest(notification.metadata.requestId)
 
-      const response = await fetch(
-        `/api/organizations/join-requests/${notification.metadata.requestId}/approve`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        }
-      )
-
-      const data = await response.json()
-      if (data.success) {
-        toast({
-          title: "已同意",
-          description: "已同意加入申请",
-          duration: 3000,
-        })
-        // 标记消息为已读
-        onMarkAsRead(notification.id)
-        // 标记为已处理
-        setIsHandled(true)
-        // 刷新列表
-        onActionComplete()
-      } else {
-        toast({
-          title: "操作失败",
-          description: data.error || "无法处理申请",
-          variant: "destructive",
-          duration: 3000,
-        })
-      }
+      toast({
+        title: "已同意",
+        description: "已同意加入申请",
+        duration: 3000,
+      })
+      // 标记消息为已读
+      onMarkAsRead(notification.id)
+      // 标记为已处理
+      setIsHandled(true)
+      // 刷新列表
+      onActionComplete()
     } catch (error) {
       console.error("处理申请失败:", error)
       toast({
         title: "操作失败",
-        description: "网络错误，请稍后重试",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
         variant: "destructive",
         duration: 3000,
       })
@@ -122,49 +102,28 @@ export function NotificationItem({
 
     setIsProcessing(true)
     try {
-      const token = getToken()
-      if (!token) throw new Error("未登录")
-
-      const response = await fetch(
-        `/api/organizations/join-requests/${notification.metadata.requestId}/reject`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            reason: "管理员拒绝了您的申请",
-          }),
-        }
+      const { organizationAPI } = await import("@/lib/api/organization")
+      await organizationAPI.rejectJoinRequest(
+        notification.metadata.requestId,
+        "管理员拒绝了您的申请"
       )
 
-      const data = await response.json()
-      if (data.success) {
-        toast({
-          title: "已拒绝",
-          description: "已拒绝加入申请",
-          duration: 3000,
-        })
-        // 标记消息为已读
-        onMarkAsRead(notification.id)
-        // 标记为已处理
-        setIsHandled(true)
-        // 刷新列表
-        onActionComplete()
-      } else {
-        toast({
-          title: "操作失败",
-          description: data.error || "无法处理申请",
-          variant: "destructive",
-          duration: 3000,
-        })
-      }
+      toast({
+        title: "已拒绝",
+        description: "已拒绝加入申请",
+        duration: 3000,
+      })
+      // 标记消息为已读
+      onMarkAsRead(notification.id)
+      // 标记为已处理
+      setIsHandled(true)
+      // 刷新列表
+      onActionComplete()
     } catch (error) {
       console.error("处理申请失败:", error)
       toast({
         title: "操作失败",
-        description: "网络错误，请稍后重试",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
         variant: "destructive",
         duration: 3000,
       })

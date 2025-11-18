@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban, Plus, LogOut, Eye } from "lucide-react"
-import { getToken } from "@/lib/api-client"
+import { organizationAPI } from "@/lib/api/organization"
 import { OrganizationDetailDialog } from "@/components/organization-detail-dialog"
 import {
   AlertDialog,
@@ -90,22 +90,8 @@ export function OrganizationManagementDialog({
 
   const fetchOrganizations = async () => {
     try {
-      const token = getToken()
-      if (!token) {
-        console.error("No token found")
-        return
-      }
-
-      const response = await fetch("/api/organizations", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      })
-      const data = await response.json()
-      
-      if (data.success) {
-        setOrganizations(data.data)
-      }
+      const data = await organizationAPI.getAll()
+      setOrganizations(data)
     } catch (error) {
       console.error("获取组织列表失败:", error)
       toast({
@@ -135,16 +121,12 @@ export function OrganizationManagementDialog({
 
     setIsSearching(true)
     try {
-      const response = await fetch(`/api/organizations?search=${encodeURIComponent(query)}`)
-      const data = await response.json()
+      const data = await organizationAPI.getAll(query)
+      setSearchResults(data)
       
-      if (data.success) {
-        setSearchResults(data.data)
-        
-        // 检查是否有完全匹配的结果
-        const exactMatch = data.data.find((org: any) => org.name === query)
-        setSelectedExistingOrg(exactMatch ? exactMatch.id : null)
-      }
+      // 检查是否有完全匹配的结果
+      const exactMatch = data.find((org: any) => org.name === query)
+      setSelectedExistingOrg(exactMatch ? exactMatch.id : null)
     } catch (error) {
       console.error("搜索组织失败:", error)
     } finally {
@@ -191,48 +173,25 @@ export function OrganizationManagementDialog({
     if (selectedExistingOrg) {
       setIsLoading(true)
       try {
-        const token = getToken()
-        if (!token) {
-          throw new Error("未登录")
-        }
-
-        const response = await fetch(`/api/organizations/join-requests`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            organizationId: selectedExistingOrg,
-            message: formData.description || "",
-          }),
+        await organizationAPI.createJoinRequest({
+          organizationId: selectedExistingOrg,
+          message: formData.description || "",
         })
-
-        const data = await response.json()
         
-        if (data.success) {
-          toast({
-            title: "申请已提交",
-            description: `已向 ${formData.name} 提交加入申请，请等待审核`,
-            duration: 3000,
-          })
-          setIsCreating(false)
-          setFormData({ name: "", description: "" })
-          setSearchResults([])
-          setSelectedExistingOrg(null)
-        } else {
-          toast({
-            title: "申请失败",
-            description: data.error || "无法提交申请",
-            variant: "destructive",
-            duration: 3000,
-          })
-        }
+        toast({
+          title: "申请已提交",
+          description: `已向 ${formData.name} 提交加入申请，请等待审核`,
+          duration: 3000,
+        })
+        setIsCreating(false)
+        setFormData({ name: "", description: "" })
+        setSearchResults([])
+        setSelectedExistingOrg(null)
       } catch (error) {
         console.error("提交申请失败:", error)
         toast({
           title: "申请失败",
-          description: "网络错误，请稍后重试",
+          description: error instanceof Error ? error.message : "网络错误，请稍后重试",
           variant: "destructive",
         })
       } finally {
@@ -244,44 +203,22 @@ export function OrganizationManagementDialog({
     // 创建新空间
     setIsLoading(true)
     try {
-      const token = getToken()
-      if (!token) {
-        throw new Error("未登录")
-      }
-
-      const response = await fetch("/api/organizations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      })
-
-      const data = await response.json()
+      await organizationAPI.create(formData)
       
-      if (data.success) {
-        toast({
-          title: "创建成功",
-          description: "空间已创建",
-        })
-        setIsCreating(false)
-        setFormData({ name: "", description: "" })
-        setSearchResults([])
-        setSelectedExistingOrg(null)
-        fetchOrganizations()
-      } else {
-        toast({
-          title: "创建失败",
-          description: data.error || "无法创建空间",
-          variant: "destructive",
-        })
-      }
+      toast({
+        title: "创建成功",
+        description: "空间已创建",
+      })
+      setIsCreating(false)
+      setFormData({ name: "", description: "" })
+      setSearchResults([])
+      setSelectedExistingOrg(null)
+      fetchOrganizations()
     } catch (error) {
       console.error("创建空间失败:", error)
       toast({
         title: "创建失败",
-        description: "网络错误，请稍后重试",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
         variant: "destructive",
       })
     } finally {
@@ -302,28 +239,13 @@ export function OrganizationManagementDialog({
 
     setIsLoading(true)
     try {
-      const token = getToken()
-      if (!token) {
-        throw new Error("未登录")
-      }
-
-      const response = await fetch(`/api/organizations/${editingOrg.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      })
-
-      const data = await response.json()
+      await organizationAPI.update(editingOrg.id, formData)
       
-      if (data.success) {
-        toast({
-          title: "更新成功",
-          description: "组织信息已更新",
-        })
-        setEditingOrg(null)
+      toast({
+        title: "更新成功",
+        description: "组织信息已更新",
+      })
+      setEditingOrg(null)
         
         // 刷新页面以更新所有组件中的组织信息
         toast({
@@ -333,18 +255,11 @@ export function OrganizationManagementDialog({
         setTimeout(() => {
           window.location.reload()
         }, 1000)
-      } else {
-        toast({
-          title: "更新失败",
-          description: data.error || "无法更新组织信息",
-          variant: "destructive",
-        })
-      }
     } catch (error) {
       console.error("更新组织失败:", error)
       toast({
         title: "更新失败",
-        description: "网络错误，请稍后重试",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
         variant: "destructive",
       })
     } finally {
@@ -370,40 +285,20 @@ export function OrganizationManagementDialog({
 
     setIsLoading(true)
     try {
-      const token = getToken()
-      if (!token) {
-        throw new Error("未登录")
-      }
-
-      const response = await fetch(`/api/organizations/${deleteOrgId}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      })
-
-      const data = await response.json()
+      await organizationAPI.delete(deleteOrgId)
       
-      if (data.success) {
-        toast({
-          title: "删除成功",
-          description: "空间已删除",
-        })
-        setDeleteOrgId(null)
-        setDeleteConfirmText("")
-        fetchOrganizations()
-      } else {
-        toast({
-          title: "删除失败",
-          description: data.error || "无法删除空间",
-          variant: "destructive",
-        })
-      }
+      toast({
+        title: "删除成功",
+        description: "空间已删除",
+      })
+      setDeleteOrgId(null)
+      setDeleteConfirmText("")
+      fetchOrganizations()
     } catch (error) {
       console.error("删除空间失败:", error)
       toast({
         title: "删除失败",
-        description: "网络错误，请稍后重试",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
         variant: "destructive",
       })
     } finally {
@@ -416,32 +311,19 @@ export function OrganizationManagementDialog({
 
     setIsLoading(true)
     try {
-      const token = getToken()
-      if (!token) {
-        throw new Error("未登录")
-      }
-
       const userStr = localStorage.getItem("currentUser")
       if (!userStr) {
         throw new Error("用户信息不存在")
       }
       const user = JSON.parse(userStr)
 
-      const response = await fetch(`/api/organizations/${leaveOrgId}/members?userId=${user.id}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      })
-
-      const data = await response.json()
+      await organizationAPI.removeMember(leaveOrgId, user.id)
       
-      if (data.success) {
-        toast({
-          title: "退出成功",
-          description: "已退出该空间",
-        })
-        setLeaveOrgId(null)
+      toast({
+        title: "退出成功",
+        description: "已退出该空间",
+      })
+      setLeaveOrgId(null)
         
         // 退出组织后，刷新页面以更新所有组件的组织列表
         toast({
@@ -451,18 +333,11 @@ export function OrganizationManagementDialog({
         setTimeout(() => {
           window.location.reload()
         }, 1000)
-      } else {
-        toast({
-          title: "退出失败",
-          description: data.error || "无法退出该空间",
-          variant: "destructive",
-        })
-      }
     } catch (error) {
       console.error("退出空间失败:", error)
       toast({
         title: "退出失败",
-        description: "网络错误，请稍后重试",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
         variant: "destructive",
       })
     } finally {

@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { NotificationList } from "./notification-list"
-import { getToken } from "@/lib/api-client"
+// Token 管理已由请求层统一处理
 import { cn } from "@/lib/utils"
 
 export function NotificationBell() {
@@ -19,19 +19,9 @@ export function NotificationBell() {
 
   const fetchUnreadCount = async () => {
     try {
-      const token = getToken()
-      if (!token) return
-
-      const response = await fetch("/api/notifications/unread-count", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        setUnreadCount(data.data.count)
-      }
+      const { notificationAPI } = await import("@/lib/api/notification")
+      const data = await notificationAPI.getUnreadCount()
+      setUnreadCount(data.count || data)
     } catch (error) {
       console.error("获取未读消息数量失败:", error)
     }

@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, Briefcase, FolderKanban } from "lucide-react"
-import { getToken } from "@/lib/api-client"
+import { organizationAPI } from "@/lib/api/organization"
 import { useToast } from "@/hooks/use-toast"
 
 interface OrganizationDetailDialogProps {
@@ -46,34 +46,17 @@ export function OrganizationDetailDialog({
   const fetchOrganizationDetails = async (orgId: string) => {
     setIsLoading(true)
     try {
-      const token = getToken()
-      if (!token) {
-        console.error("No token found")
-        return
-      }
-
-      const [membersRes, teamsRes, projectsRes] = await Promise.all([
-        fetch(`/api/organizations/${orgId}/members`, {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
-        fetch(`/api/organizations/${orgId}/teams`, {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
-        fetch(`/api/organizations/${orgId}/projects`, {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
-      ])
-
-      const [membersData, teamsData, projectsData] = await Promise.all([
-        membersRes.json(),
-        teamsRes.json(),
-        projectsRes.json(),
+      // 使用新的 API 封装，自动处理 token 和错误
+      const [members, teams, projects] = await Promise.all([
+        organizationAPI.getMembers(orgId),
+        organizationAPI.getTeams(orgId),
+        organizationAPI.getProjects(orgId),
       ])
 
       setOrgDetails({
-        members: membersData.success ? membersData.data : [],
-        teams: teamsData.success ? teamsData.data : [],
-        projects: projectsData.success ? projectsData.data : [],
+        members,
+        teams,
+        projects,
       })
     } catch (error) {
       console.error("获取组织详情失败:", error)

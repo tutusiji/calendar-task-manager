@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { getToken } from "@/lib/api-client"
+// Token 管理已由请求层统一处理
 import { useToast } from "@/hooks/use-toast"
 import { NotificationItem } from "./notification-item"
 import { Loader2 } from "lucide-react"
@@ -30,23 +30,13 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
 
   const fetchNotifications = async () => {
     try {
-      const token = getToken()
-      if (!token) return
-
-      const response = await fetch("/api/notifications", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        setNotifications(data.data)
-        
-        // 更新未读数量
-        const unreadCount = data.data.filter((n: Notification) => !n.isRead).length
-        onCountChange?.(unreadCount)
-      }
+      const { notificationAPI } = await import("@/lib/api/notification")
+      const data = await notificationAPI.getAll()
+      setNotifications(data)
+      
+      // 更新未读数量
+      const unreadCount = data.filter((n: Notification) => !n.isRead).length
+      onCountChange?.(unreadCount)
     } catch (error) {
       console.error("获取消息列表失败:", error)
     } finally {
@@ -60,29 +50,19 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
 
   const handleMarkAsRead = async (id: string) => {
     try {
-      const token = getToken()
-      if (!token) return
+      const { notificationAPI } = await import("@/lib/api/notification")
+      await notificationAPI.markAsRead(id)
 
-      const response = await fetch(`/api/notifications/${id}/read`, {
-        method: "PATCH",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        // 更新本地状态
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === id ? { ...n, isRead: true } : n
-          )
+      // 更新本地状态
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, isRead: true } : n
         )
+      )
 
-        // 更新未读数量
-        const unreadCount = notifications.filter((n) => !n.isRead && n.id !== id).length
-        onCountChange?.(unreadCount)
-      }
+      // 更新未读数量
+      const unreadCount = notifications.filter((n) => !n.isRead && n.id !== id).length
+      onCountChange?.(unreadCount)
     } catch (error) {
       console.error("标记已读失败:", error)
       toast({
