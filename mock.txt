@@ -40,3 +40,29 @@
 创建项目来管理任务
 团队和项目可以有不同的成员组合
 任务可以分配给项目或团队的成员
+
+
+本地执行:
+
+# 1. 构建镜像
+docker build -t calendar-task-manager:latest .
+
+# 2. 导出镜像
+docker save -o calendar-app.tar calendar-task-manager:latest
+
+# 3. 上传到服务器 (使用 FileZilla 或 SCP)
+scp calendar-app.tar root@你的服务器IP:/tmp/
+
+服务器执行:
+
+# 1. 停止旧容器
+docker-compose down
+
+# 2. 加载新镜像
+docker load -i /tmp/calendar-app.tar
+
+# 3. 启动新容器
+docker-compose up -d
+
+# 4. 运行迁移
+docker exec calendar-app npx prisma migrate deploy

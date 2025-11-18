@@ -47,6 +47,10 @@ COPY --from=builder /app/prisma ./prisma
 # 复制整个 node_modules（包含 Prisma）
 COPY --from=builder /app/node_modules ./node_modules
 
+# 复制 package.json 和 pnpm-lock.yaml (prisma 命令需要)
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+
 # 修改文件权限
 RUN chown -R nextjs:nodejs /app
 
