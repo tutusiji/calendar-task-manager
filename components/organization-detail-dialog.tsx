@@ -56,10 +56,10 @@ export function OrganizationDetailDialog({
         fetch(`/api/organizations/${orgId}/members`, {
           headers: { "Authorization": `Bearer ${token}` },
         }),
-        fetch("/api/teams", {
+        fetch(`/api/organizations/${orgId}/teams`, {
           headers: { "Authorization": `Bearer ${token}` },
         }),
-        fetch("/api/projects", {
+        fetch(`/api/organizations/${orgId}/projects`, {
           headers: { "Authorization": `Bearer ${token}` },
         }),
       ])
@@ -173,10 +173,11 @@ export function OrganizationDetailDialog({
             <div className="space-y-3">
               <h3 className="font-semibold text-base flex items-center gap-2">
                 <FolderKanban className="h-5 w-5" />
-                项目 ({orgDetails.projects.length})
+                项目 ({orgDetails.projects.filter(p => !p.name.includes('的个人事务')).length})
               </h3>
               <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                {orgDetails.projects.map((project) => (
+                {/* 正常项目 */}
+                {orgDetails.projects.filter(p => !p.name.includes('的个人事务')).map((project) => (
                   <div
                     key={project.id}
                     className="text-sm p-3 rounded-lg border hover:bg-accent/50 transition-colors"
@@ -193,8 +194,34 @@ export function OrganizationDetailDialog({
                     </div>
                   </div>
                 ))}
-                {orgDetails.projects.length === 0 && (
+                {orgDetails.projects.filter(p => !p.name.includes('的个人事务')).length === 0 && (
                   <div className="text-sm text-muted-foreground py-8 text-center">暂无项目</div>
+                )}
+                
+                {/* 个人事务项目 - 灰色显示 */}
+                {orgDetails.projects.filter(p => p.name.includes('的个人事务')).length > 0 && (
+                  <>
+                    <div className="text-xs text-muted-foreground pt-2 pb-1 border-t">
+                      个人事务项目:
+                    </div>
+                    {orgDetails.projects.filter(p => p.name.includes('的个人事务')).map((project) => (
+                      <div
+                        key={project.id}
+                        className="text-sm p-3 rounded-lg border border-dashed bg-muted/20 opacity-60"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded-full shrink-0 opacity-50"
+                            style={{ backgroundColor: project.color }}
+                          />
+                          <span className="font-medium truncate text-base text-muted-foreground">{project.name}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-2">
+                          {project.memberCount} 成员
+                        </div>
+                      </div>
+                    ))}
+                  </>
                 )}
               </div>
             </div>

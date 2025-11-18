@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         description: description?.trim(),
         creatorId: auth.userId,
-        isVerified: false, // 新创建的组织默认未认证
+        isVerified: true, // 新创建的组织默认已认证
         members: {
           create: {
             userId: auth.userId,
