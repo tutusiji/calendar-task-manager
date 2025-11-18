@@ -153,7 +153,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
+      <div className="relative w-full max-w-4xl rounded-xl border border-border bg-card shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-semibold text-foreground">编辑事项</h2>
@@ -174,182 +174,191 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-sm font-medium">
-              事项名称 <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="输入事项名称"
-              autoFocus
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Column - Required Fields */}
+            <div className="space-y-4">
+              {/* Title */}
+              <div className="space-y-2">
+                <Label htmlFor="title" className="text-sm font-medium">
+                  事项名称 <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="输入事项名称"
+                  autoFocus
+                  required
+                />
+              </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-medium">
-              详情
-            </Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="添加详细描述（可选）"
-              rows={3}
-            />
-          </div>
+              {/* Assignee */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  负责人 <span className="text-red-500">*</span>
+                </Label>
+                <UserSelector 
+                  selectedUserId={assigneeId} 
+                  onUserChange={setAssigneeId}
+                />
+              </div>
 
-          {/* Date Range */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">时间范围</Label>
-            <DateRangePicker
-              value={dateRange}
-              onChange={(range) => range && setDateRange(range)}
-              className="w-full"
-            />
-          </div>
+              {/* Project */}
+              <div className="space-y-2">
+                <Label htmlFor="project" className="text-sm font-medium">
+                  归属项目 <span className="text-red-500">*</span>
+                </Label>
+                <Select value={projectId} onValueChange={(value) => {
+                  setProjectId(value)
+                  setProjectError(false)
+                }}>
+                  <SelectTrigger className={cn(projectError && "border-red-500 ring-1 ring-red-500")}>
+                    <SelectValue placeholder="请选择项目" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects
+                      .filter(p => currentUser && p.memberIds.includes(currentUser.id))
+                      .sort((a, b) => {
+                        // 个人事务项目置顶
+                        const aIsPersonal = a.name.includes('个人事务')
+                        const bIsPersonal = b.name.includes('个人事务')
+                        if (aIsPersonal && !bIsPersonal) return -1
+                        if (!aIsPersonal && bIsPersonal) return 1
+                        return a.name.localeCompare(b.name)
+                      })
+                      .map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />
+                          {project.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {projectError && (
+                  <p className="text-sm text-red-500">请选择一个项目</p>
+                )}
+              </div>
 
-          {/* Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startTime" className="text-sm font-medium">
-                开始时间
-              </Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                placeholder="选择时间（可选）"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endTime" className="text-sm font-medium">
-                结束时间
-              </Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                placeholder="选择时间（可选）"
-              />
-            </div>
-          </div>
-
-          {/* Task Type */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">事项类型</Label>
-            <div className="flex gap-2">
-              {(["daily", "meeting", "vacation"] as TaskType[]).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setTaskType(type)}
-                  className={cn(
-                    "flex-1 rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all",
-                    taskType === type
-                      ? "border-current shadow-sm"
-                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted",
-                    taskType === type && type === "daily" && "text-blue-600 bg-blue-50",
-                    taskType === type && type === "meeting" && "text-yellow-600 bg-yellow-50",
-                    taskType === type && type === "vacation" && "text-red-600 bg-red-50",
-                  )}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <div className={cn("h-3 w-3 rounded-full", getTaskTypeColor(type))} />
-                    {type === "daily" && "日常"}
-                    {type === "meeting" && "会议"}
-                    {type === "vacation" && "休假"}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Assignee */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">负责人</Label>
-            <UserSelector 
-              selectedUserId={assigneeId} 
-              onUserChange={setAssigneeId}
-            />
-          </div>
-
-          {/* Team and Project */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Team */}
-            <div className="space-y-2">
-              <Label htmlFor="team" className="text-sm font-medium">
-                所属团队
-              </Label>
-              <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="选择团队（可选）" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">无团队</SelectItem>
-                  {teams
-                    .filter(t => currentUser && t.memberIds.includes(currentUser.id))
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
-                        {team.name}
+              {/* Task Type */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  事项类型 <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex gap-2">
+                  {(["daily", "meeting", "vacation"] as TaskType[]).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setTaskType(type)}
+                      className={cn(
+                        "flex-1 rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all",
+                        taskType === type
+                          ? "border-current shadow-sm"
+                          : "border-border bg-muted/30 text-muted-foreground hover:bg-muted",
+                        taskType === type && type === "daily" && "text-blue-600 bg-blue-50",
+                        taskType === type && type === "meeting" && "text-yellow-600 bg-yellow-50",
+                        taskType === type && type === "vacation" && "text-red-600 bg-red-50",
+                      )}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <div className={cn("h-3 w-3 rounded-full", getTaskTypeColor(type))} />
+                        {type === "daily" && "日常"}
+                        {type === "meeting" && "会议"}
+                        {type === "vacation" && "休假"}
                       </div>
-                    </SelectItem>
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
             </div>
 
-            {/* Project */}
-            <div className="space-y-2">
-              <Label htmlFor="project" className="text-sm font-medium">
-                归属项目 <span className="text-red-500">*</span>
-              </Label>
-              <Select value={projectId} onValueChange={(value) => {
-                setProjectId(value)
-                setProjectError(false)
-              }}>
-                <SelectTrigger className={cn(projectError && "border-red-500 ring-1 ring-red-500")}>
-                  <SelectValue placeholder="请选择项目" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects
-                    .filter(p => currentUser && p.memberIds.includes(currentUser.id))
-                    .sort((a, b) => {
-                      // 个人事务项目置顶
-                      const aIsPersonal = a.name.includes('个人事务')
-                      const bIsPersonal = b.name.includes('个人事务')
-                      if (aIsPersonal && !bIsPersonal) return -1
-                      if (!aIsPersonal && bIsPersonal) return 1
-                      return a.name.localeCompare(b.name)
-                    })
-                    .map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />
-                        {project.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {projectError && (
-                <p className="text-sm text-red-500">请选择一个项目</p>
-              )}
+            {/* Right Column - Details and Optional Fields */}
+            <div className="space-y-4">
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description" className="text-sm font-medium">
+                  详情
+                </Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="添加详细描述（可选）"
+                  rows={3}
+                />
+              </div>
+
+              {/* Date Range */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">时间范围</Label>
+                <DateRangePicker
+                  value={dateRange}
+                  onChange={(range) => range && setDateRange(range)}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startTime" className="text-sm font-medium">
+                    开始时间
+                  </Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    placeholder="选择时间（可选）"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endTime" className="text-sm font-medium">
+                    结束时间
+                  </Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    placeholder="选择时间（可选）"
+                  />
+                </div>
+              </div>
+
+              {/* Team */}
+              <div className="space-y-2">
+                <Label htmlFor="team" className="text-sm font-medium">
+                  所属团队
+                </Label>
+                <Select value={teamId} onValueChange={setTeamId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择团队（可选）" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">无团队</SelectItem>
+                    {teams
+                      .filter(t => currentUser && t.memberIds.includes(currentUser.id))
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
+                          {team.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-6 mt-6 border-t border-border">
             <Button 
               type="button" 
               variant="outline" 
