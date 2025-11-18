@@ -26,6 +26,7 @@ import { LoadingLogo } from "@/components/loading-logo"
 export default function Home() {
   const router = useRouter()
   const [showLoading, setShowLoading] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   
   const { 
     viewMode, 
@@ -54,7 +55,8 @@ export default function Home() {
       return
     }
 
-    // 加载所有数据
+    // 认证通过，开始加载数据
+    setIsCheckingAuth(false)
     fetchAllData()
   }, [router, fetchAllData])
 
@@ -89,6 +91,15 @@ export default function Home() {
       }
     }
   }, [error, router])
+
+  // 如果正在检查认证状态，显示加载画面
+  if (isCheckingAuth) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <LoadingLogo />
+      </div>
+    )
+  }
 
   // 根据 navigationMode 决定渲染哪个视图
   const renderCalendarView = () => {
