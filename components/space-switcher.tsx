@@ -219,6 +219,12 @@ export function SpaceSwitcher() {
         )}
         disabled={isLoading}
       >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="8" height="8" rx="2" fill="#10B981" />
+          <rect x="13" y="3" width="8" height="8" rx="2" fill="#34D399" />
+          <rect x="3" y="13" width="8" height="8" rx="2" fill="#34D399" />
+          <rect x="13" y="13" width="8" height="8" rx="2" fill="#6EE7B7" />
+        </svg>
         <span className="text-foreground">My Space</span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
         <span className="text-foreground font-semibold">

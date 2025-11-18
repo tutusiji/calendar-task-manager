@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, Users, FolderKanban, Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut, Pin } from "lucide-react"
+import { Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut, Pin } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { Button } from "@/components/ui/button"
@@ -193,11 +193,20 @@ export function NavigationMenu() {
         <button
           onClick={() => setNavigationMode("my-days")}
           className={cn(
-            "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50 rounded-md mx-2",
+            "flex items-center gap-2 py-2 text-sm font-medium transition-colors hover:bg-muted/50 rounded-md mx-2 pl-4",
             navigationMode === "my-days" && !selectedTeamId && !selectedProjectId && "bg-muted"
           )}
+          style={{ marginLeft: '36px' }}
         >
-          <Calendar className="h-4 w-4" />
+          <svg 
+            className="h-5 w-5" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="12" r="5" fill="#FDB813" />
+            <path d="M12 1v3M12 20v3M23 12h-3M4 12H1M20.485 20.485l-2.121-2.121M5.636 5.636L3.515 3.515M20.485 3.515l-2.121 2.121M5.636 18.364l-2.121 2.121" stroke="#FDB813" strokeWidth="2" strokeLinecap="round" />
+          </svg>
           <span>My Days</span>
         </button>
 
@@ -213,7 +222,12 @@ export function NavigationMenu() {
               ) : (
                 <ChevronRight className="h-4 w-4" />
               )}
-              <Users className="h-4 w-4" />
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="7" r="4" fill="#3B82F6" />
+                <path d="M5 20c0-4 3-7 7-7s7 3 7 7" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="18" cy="6" r="3" fill="#60A5FA" />
+                <circle cx="6" cy="6" r="3" fill="#60A5FA" />
+              </svg>
               <span>My Teams</span>
             </button>
             <Button
@@ -247,7 +261,7 @@ export function NavigationMenu() {
                       className="h-2 w-2 rounded-full shrink-0"
                       style={{ backgroundColor: team.color }}
                     />
-                    <span className="truncate">{team.name}</span>
+                    <span className="truncate max-w-[150px]" title={team.name}>{team.name}</span>
                     {/* 创建者标识 */}
                     {currentUser && team.creatorId === currentUser.id && (
                       <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
@@ -315,7 +329,12 @@ export function NavigationMenu() {
               ) : (
                 <ChevronRight className="h-4 w-4" />
               )}
-              <FolderKanban className="h-4 w-4" />
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 7c0-1.1.9-2 2-2h5l2 2h7c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V7z" fill="#A855F7" />
+                <path d="M3 7h18" stroke="#7C3AED" strokeWidth="1.5" />
+                <rect x="7" y="11" width="3" height="5" rx="1" fill="#E9D5FF" />
+                <rect x="12" y="11" width="3" height="5" rx="1" fill="#E9D5FF" />
+              </svg>
               <span>My Projects</span>
             </button>
             <Button
@@ -349,7 +368,7 @@ export function NavigationMenu() {
                       className="h-2 w-2 rounded-full shrink-0"
                       style={{ backgroundColor: project.color }}
                     />
-                    <span className="truncate">{project.name}</span>
+                    <span className="truncate max-w-[150px]" title={project.name}>{project.name}</span>
                     {/* 第一个项目(个人事务)显示图钉图标 */}
                     {index === 0 && (
                       <Pin className="h-3 w-3 text-muted-foreground shrink-0 ml-auto translate-x-[-6px] rotate-45" />
