@@ -120,12 +120,34 @@ export async function POST(
         return errorResponse("您已经是该组织的成员")
       }
 
+      // 生成邀请码
+      const generateInviteCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        let code = ''
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length))
+        }
+        return code
+      }
+
+      let memberInviteCode = generateInviteCode()
+      let codeExists = await prisma.organizationMember.findFirst({
+        where: { inviteCode: memberInviteCode },
+      })
+      while (codeExists) {
+        memberInviteCode = generateInviteCode()
+        codeExists = await prisma.organizationMember.findFirst({
+          where: { inviteCode: memberInviteCode },
+        })
+      }
+
       // 添加当前用户为组织成员（自助加入，默认为 MEMBER 角色）
       const member = await prisma.organizationMember.create({
         data: {
           userId: auth.userId,
           organizationId,
           role: "MEMBER",
+          inviteCode: memberInviteCode,
         },
         include: {
           user: {
@@ -194,12 +216,35 @@ export async function POST(
       return errorResponse("用户已经是组织成员")
     }
 
+    // 生成邀请码
+    const generateInviteCode = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+      let code = ''
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      return code
+    }
+
+    let memberInviteCode = generateInviteCode()
+    let codeExists = await prisma.organizationMember.findFirst({
+      where: { inviteCode: memberInviteCode },
+    })
+    while (codeExists) {
+      memberInviteCode = generateInviteCode()
+      codeExists = await prisma.organizationMember.findFirst({
+        where: { inviteCode: memberInviteCode },
+      })
+    }
+
     // 添加成员
     const member = await prisma.organizationMember.create({
       data: {
         userId,
         organizationId,
         role,
+        inviteCode: memberInviteCode,
+        inviterId: auth.userId,
       },
       include: {
         user: {

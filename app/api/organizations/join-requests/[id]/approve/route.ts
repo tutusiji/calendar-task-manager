@@ -63,12 +63,35 @@ export async function POST(
         },
       })
 
-      // 2. 添加用户为组织成员
+      // 2. 生成邀请码
+      const generateInviteCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        let code = ''
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length))
+        }
+        return code
+      }
+
+      let memberInviteCode = generateInviteCode()
+      let exists = await tx.organizationMember.findFirst({
+        where: { inviteCode: memberInviteCode },
+      })
+      while (exists) {
+        memberInviteCode = generateInviteCode()
+        exists = await tx.organizationMember.findFirst({
+          where: { inviteCode: memberInviteCode },
+        })
+      }
+
+      // 3. 添加用户为组织成员
       await tx.organizationMember.create({
         data: {
           userId: request.applicantId,
           organizationId: request.organizationId,
           role: "MEMBER",
+          inviterId: request.inviterId,
+          inviteCode: memberInviteCode,
         },
       })
 
