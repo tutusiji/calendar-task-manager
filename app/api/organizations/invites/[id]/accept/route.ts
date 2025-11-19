@@ -8,6 +8,7 @@ import {
   validationErrorResponse,
   serverErrorResponse
 } from '@/lib/api-response'
+import { addPointsForUserInvitation } from '@/lib/utils/points'
 
 // POST /api/organizations/invites/[id]/accept - 接受组织邀请
 export async function POST(
@@ -123,6 +124,19 @@ export async function POST(
         },
       })
     })
+
+    // 获取被邀请用户的名字用于积分记录
+    const invitedUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { name: true },
+    })
+
+    // 邀请用户成功获得积分（异步执行，不影响响应）
+    if (invitedUser) {
+      addPointsForUserInvitation(invite.inviterId, invitedUser.name).catch(error => {
+        console.error('邀请用户增加积分失败:', error)
+      })
+    }
 
     return successResponse(null, '已加入组织')
   } catch (error) {

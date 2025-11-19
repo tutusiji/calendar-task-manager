@@ -263,13 +263,20 @@ export const useCalendarStore = create<CalendarStore>()(
       set({ isLoadingTasks: false })
     } catch (error) {
       const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
+      console.error('Fetch tasks error:', errorMsg, error)
       
       // 确保 loading 至少显示指定时间
       await loadingDelay.waitForMinDuration()
       
       set({ isLoadingTasks: false })
+      
+      // 显示错误提示但不设置全局 error 状态，避免阻塞界面
       showToast.error('获取任务失败', errorMsg)
+      
+      // 如果是认证错误，才设置全局 error
+      if (errorMsg.includes('认证') || errorMsg.includes('Token') || errorMsg.includes('登录')) {
+        set({ error: errorMsg })
+      }
     }
   },
 
@@ -818,29 +825,53 @@ export const useCalendarStore = create<CalendarStore>()(
     }
   },
   setSelectedTeamId: async (id) => {
+    // 防止重复设置相同的 ID
+    const currentId = get().selectedTeamId
+    if (currentId === id) return
+    
     set({ selectedTeamId: id })
     // 切换团队时，先刷新团队数据(可能有新成员),再获取任务
     if (id) {
-      // 刷新团队列表以获取最新成员信息
-      await get().fetchTeams()
-      // 获取团队的任务（会获取团队成员的所有任务）
-      await get().fetchTasks({ teamId: id })
+      try {
+        // 刷新团队列表以获取最新成员信息
+        await get().fetchTeams()
+        // 获取团队的任务（会获取团队成员的所有任务）
+        await get().fetchTasks({ teamId: id })
+      } catch (error) {
+        console.error('Failed to load team data:', error)
+      }
     } else {
       // 如果清空选择，获取所有任务
-      await get().fetchTasks()
+      try {
+        await get().fetchTasks()
+      } catch (error) {
+        console.error('Failed to load tasks:', error)
+      }
     }
   },
   setSelectedProjectId: async (id) => {
+    // 防止重复设置相同的 ID
+    const currentId = get().selectedProjectId
+    if (currentId === id) return
+    
     set({ selectedProjectId: id })
     // 切换项目时，先刷新项目数据(可能有新成员),再获取任务
     if (id) {
-      // 刷新项目列表以获取最新成员信息
-      await get().fetchProjects()
-      // 获取项目的任务
-      await get().fetchTasks({ projectId: id })
+      try {
+        // 刷新项目列表以获取最新成员信息
+        await get().fetchProjects()
+        // 获取项目的任务
+        await get().fetchTasks({ projectId: id })
+      } catch (error) {
+        console.error('Failed to load project data:', error)
+      }
     } else {
       // 如果清空选择，获取所有任务
-      await get().fetchTasks()
+      try {
+        await get().fetchTasks()
+      } catch (error) {
+        console.error('Failed to load tasks:', error)
+      }
     }
   },
   setCurrentDate: (date) => set({ currentDate: date }),

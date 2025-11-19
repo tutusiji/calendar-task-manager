@@ -59,9 +59,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证职业
-    const validRoles = ['设计师', '前端开发', '后端开发', '产品经理', '项目管理', '交互设计师']
-    if (!validRoles.includes(role)) {
-      return validationErrorResponse('请选择有效的职业')
+    const predefinedRoles = [
+      '设计师', '交互设计师', '前端开发', '后端开发',
+      '算法工程师', '硬件工程师', '程序员', '测试工程师',
+      '产品经理', '项目管理'
+    ]
+    // 允许预定义职业和自定义职业（长度限制）
+    if (!predefinedRoles.includes(role) && role.length > 20) {
+      return validationErrorResponse('职业名称不能超过20个字符')
+    }
+    if (!role || role.trim().length === 0) {
+      return validationErrorResponse('请输入有效的职业')
     }
 
     // 检查用户名是否已存在

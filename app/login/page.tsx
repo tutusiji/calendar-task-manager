@@ -37,6 +37,7 @@ export default function AuthPage() {
     name: "",
     email: "",
     role: "",
+    customRole: "", // 自定义职业
     organization: "",
     organizationId: null as string | null,
     inviteCode: "",
@@ -79,22 +80,9 @@ export default function AuthPage() {
       // 保存用户信息到 localStorage
       localStorage.setItem("currentUser", JSON.stringify(user))
       
-      // 重置导航状态到 My Days (每次登录都重置)
+      // 清空整个 Zustand store，确保登录后数据干净
       const storeKey = "calendar-storage-v2"
-      const storeStr = localStorage.getItem(storeKey)
-      if (storeStr) {
-        try {
-          const store = JSON.parse(storeStr)
-          if (store.state) {
-            store.state.navigationMode = "my-days"
-            store.state.selectedTeamId = null
-            store.state.selectedProjectId = null
-            localStorage.setItem(storeKey, JSON.stringify(store))
-          }
-        } catch (e) {
-          console.error("Failed to reset navigation state:", e)
-        }
-      }
+      localStorage.removeItem(storeKey)
       
       // 跳转到主页
       router.push("/")
@@ -115,6 +103,13 @@ export default function AuthPage() {
     // 验证职业
     if (!registerData.role) {
       setError("请选择职业")
+      setIsLoading(false)
+      return
+    }
+
+    // 验证自定义职业
+    if (registerData.role === '自定义' && !registerData.customRole.trim()) {
+      setError("请输入自定义职业")
       setIsLoading(false)
       return
     }
@@ -140,11 +135,14 @@ export default function AuthPage() {
     }
 
     try {
+      // 如果选择了自定义，使用 customRole 的值
+      const finalRole = registerData.role === '自定义' ? registerData.customRole.trim() : registerData.role
+      
       const user = await authAPI.register({
         username: registerData.username,
         name: registerData.name,
         email: registerData.email,
-        role: registerData.role,
+        role: finalRole,
         password: registerData.password,
         organization: registerData.organization,
         organizationId: registerData.organizationId,
@@ -347,13 +345,28 @@ export default function AuthPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="设计师">设计师</SelectItem>
+                          <SelectItem value="交互设计师">交互设计师</SelectItem>
                           <SelectItem value="前端开发">前端开发</SelectItem>
                           <SelectItem value="后端开发">后端开发</SelectItem>
+                          <SelectItem value="算法工程师">算法工程师</SelectItem>
+                          <SelectItem value="硬件工程师">硬件工程师</SelectItem>
+                          <SelectItem value="程序员">程序员</SelectItem>
+                          <SelectItem value="测试工程师">测试工程师</SelectItem>
                           <SelectItem value="产品经理">产品经理</SelectItem>
                           <SelectItem value="项目管理">项目管理</SelectItem>
-                          <SelectItem value="交互设计师">交互设计师</SelectItem>
+                          <SelectItem value="自定义">自定义</SelectItem>
                         </SelectContent>
                       </Select>
+                      {registerData.role === '自定义' && (
+                        <Input
+                          id="register-role-custom"
+                          placeholder="请输入您的职业"
+                          value={registerData.customRole || ''}
+                          onChange={(e) => setRegisterData({ ...registerData, customRole: e.target.value })}
+                          disabled={isLoading}
+                          required
+                        />
+                      )}
                     </div>
                   </div>
 

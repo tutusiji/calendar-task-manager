@@ -439,8 +439,11 @@ export interface RegisterData {
   username: string // 改用 username
   name: string
   email: string
+  role: string // 职业
   password: string
-  confirmPassword: string
+  organization: string // 空间/组织
+  organizationId?: string | null // 组织ID（选择已认证组织时）
+  inviteCode?: string // 邀请码（选填）
 }
 
 export interface AuthResponse {

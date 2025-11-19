@@ -13,6 +13,7 @@ import {
   isValidTime,
   sanitizeString
 } from '@/lib/validation'
+import { addPointsForTaskCreation } from '@/lib/utils/points'
 
 // GET /api/tasks - 获取任务列表
 export async function GET(request: NextRequest) {
@@ -351,6 +352,11 @@ export async function POST(request: NextRequest) {
           }
         }
       }
+    })
+
+    // 创建任务获得积分（异步执行，不影响响应）
+    addPointsForTaskCreation(auth.userId).catch(error => {
+      console.error('创建任务增加积分失败:', error)
     })
 
     // 为所有非创建人的负责人发送通知

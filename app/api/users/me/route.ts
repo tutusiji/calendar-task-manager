@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         gender: true,
         role: true,
         isAdmin: true,
+        points: true,
         createdAt: true,
         updatedAt: true
       }
@@ -95,6 +96,7 @@ export async function PUT(request: NextRequest) {
         gender: true,
         role: true,
         isAdmin: true,
+        points: true,
         createdAt: true,
         updatedAt: true
       }

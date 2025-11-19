@@ -1,13 +1,15 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
 import { TaskBar } from "./task-bar"
+import { cn } from "@/lib/utils"
 
 export function PersonalWeekView() {
-  const { currentDate, currentUser, tasks, selectedProjectIds, hideWeekends, dragState, dragMoveState, cancelDragCreate, endDragMove, taskBarSize } = useCalendarStore()
+  const { currentDate, currentUser, tasks, selectedProjectIds, hideWeekends, dragState, dragMoveState, cancelDragCreate, endDragMove, taskBarSize, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, updateDragMove, startDragMove } = useCalendarStore()
+  const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
 
@@ -94,6 +96,53 @@ export function PersonalWeekView() {
   const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30 // 紧凑型24px, 宽松型30px
   const TASK_GAP = 4
 
+  // 判断日期是否在拖拽范围内
+  const isInDragRange = (date: Date) => {
+    if (!dragState.isCreating || !dragState.startDate || !dragState.endDate) return false
+    
+    const checkDate = new Date(date)
+    checkDate.setHours(0, 0, 0, 0)
+    const start = new Date(dragState.startDate)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(dragState.endDate)
+    end.setHours(0, 0, 0, 0)
+
+    return checkDate >= start && checkDate <= end
+  }
+
+  // 处理鼠标按下（开始拖拽创建）
+  const handleMouseDown = (e: React.MouseEvent, date: Date) => {
+    // 阻止在任务条上拖拽
+    if ((e.target as HTMLElement).closest(".task-bar")) return
+    
+    e.preventDefault()
+    startDragCreate(date, { x: e.clientX, y: e.clientY }, currentUser?.id)
+  }
+
+  // 处理鼠标进入（更新拖拽范围）
+  const handleMouseEnter = (date: Date, dayIndex: number) => {
+    setHoveredDayIndex(dayIndex)
+    if (dragState.isCreating) {
+      updateDragCreate(date)
+    }
+    // 处理拖拽移动任务时的鼠标移动
+    if (dragMoveState.isMoving) {
+      updateDragMove(date)
+    }
+  }
+
+  // 处理鼠标释放（结束拖拽，打开创建面板）
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (dragState.isCreating) {
+      e.stopPropagation() // 阻止事件冒泡到全局处理器
+      const result = endDragCreate()
+      if (result && currentUser) {
+        // 打开任务创建面板，传入当前用户的ID
+        openTaskCreation(result.startDate, result.endDate, currentUser.id)
+      }
+    }
+  }
+
   return (
     <div className="flex h-full flex-col" key={`personal-week-${hideWeekends ? 'workdays' : 'fullweek'}`}>
       {/* Week day headers */}
@@ -110,11 +159,20 @@ export function PersonalWeekView() {
       <div className="flex flex-1 border-b border-border hover:bg-muted/30 transition-colors">
         {weekDays.map((day, index) => {
           const dayTasks = getTasksToRenderForDay(day, index)
+          const isDragTarget = isInDragRange(day)
 
           return (
             <div 
               key={`task-day-${index}-${hideWeekends ? '5' : '7'}`}
-              className="flex-1 border-r border-border p-2 last:border-r-0 relative select-none"
+              className={cn(
+                "flex-1 border-r border-border p-2 last:border-r-0 relative select-none transition-colors",
+                isDragTarget && "bg-blue-100/50 ring-2 ring-blue-500 ring-inset",
+                hoveredDayIndex === index && !isDragTarget && "bg-muted/50"
+              )}
+              onMouseDown={(e) => handleMouseDown(e, day)}
+              onMouseEnter={() => handleMouseEnter(day, index)}
+              onMouseLeave={() => setHoveredDayIndex(null)}
+              onMouseUp={handleMouseUp}
             >
               {dayTasks.map((task) => (
                 <TaskBar key={task.id} task={task} date={day} track={task.track} isPersonalWeekView={true} />

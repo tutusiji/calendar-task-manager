@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticate } from '@/lib/middleware'
+import { addPointsForTeamCreation } from '@/lib/utils/points'
 
 // GET /api/teams - 获取当前用户可访问的团队列表
 export async function GET(request: NextRequest) {
@@ -175,6 +176,11 @@ export async function POST(request: NextRequest) {
           }
         }
       }
+    })
+
+    // 创建团队获得积分（异步执行，不影响响应）
+    addPointsForTeamCreation(creatorId).catch(error => {
+      console.error('创建团队增加积分失败:', error)
     })
 
     return NextResponse.json(

@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
         gender: true,
         role: true,
         isAdmin: true,
-        currentOrganizationId: true
+        currentOrganizationId: true,
+        points: true
       }
     })
 

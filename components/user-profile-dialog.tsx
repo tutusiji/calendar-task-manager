@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import {
   Dialog,
@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator"
 import { AvatarUpload } from "@/components/avatar-upload"
 import { EditProfileDialog } from "@/components/edit-profile-dialog"
 import { ChangePasswordDialog } from "@/components/change-password-dialog"
+import { RankBadge } from "@/components/rank-badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Tooltip,
@@ -48,7 +49,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { showToast } from "@/lib/toast"
 import { userAPI, teamAPI, projectAPI } from "@/lib/api-client"
-import { useEffect } from "react"
 import { TeamDialog } from "@/components/sidebar/team-dialog"
 import { ProjectDialog } from "@/components/sidebar/project-dialog"
 
@@ -73,11 +73,21 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
   // 存储所有团队和项目（包括未加入的）
   const [allTeams, setAllTeams] = useState<any[]>([])
   const [allProjects, setAllProjects] = useState<any[]>([])
+  
+  // 使用 ref 跟踪是否已经加载过数据，避免重复加载
+  const hasLoadedRef = useRef(false)
 
   // 加载所有团队和项目
   useEffect(() => {
-    if (open && currentUser) {
+    if (open && currentUser && !hasLoadedRef.current) {
+      hasLoadedRef.current = true
       loadAllTeamsAndProjects()
+      refreshCurrentUser() // 刷新用户信息以获取最新积分
+    }
+    
+    // 对话框关闭时重置标记
+    if (!open) {
+      hasLoadedRef.current = false
     }
   }, [open, currentUser])
 
@@ -94,6 +104,17 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
       setAllProjects(nonPersonalProjects)
     } catch (error) {
       console.error('Load teams and projects failed:', error)
+    }
+  }
+
+  // 刷新当前用户信息（包括积分）
+  const refreshCurrentUser = async () => {
+    try {
+      const updatedUser = await userAPI.getMe()
+      setCurrentUser(updatedUser)
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser))
+    } catch (error) {
+      console.error('Refresh user info failed:', error)
     }
   }
 
@@ -293,10 +314,14 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
               <div className="flex-1 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-2xl font-semibold">
-                      {currentUser.name}
-                      <span className="text-lg text-muted-foreground ml-2">({currentUser.username})</span>
-                    </h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-2xl font-semibold">
+                        {currentUser.name}
+                        <span className="text-lg text-muted-foreground ml-2">({currentUser.username})</span>
+                      </h3>
+                      {/* 积分徽章系统 - 可点击展开详情 */}
+                      <RankBadge points={currentUser.points || 0} variant="minimal" clickable={true} />
+                    </div>
                     {currentUser.role && currentUser.role !== '未设置' && (
                       <Badge variant="secondary" className="mt-2">
                         <Briefcase className="mr-1 h-3 w-3" />
@@ -339,10 +364,10 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
               </div>
             </div>
 
-            <Separator />
+            {/* <Separator /> */}
 
             {/* 团队和项目信息 - 并列显示 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-[50px]">
               {/* 团队信息 */}
               <Card className="flex flex-col">
                 <CardHeader>
