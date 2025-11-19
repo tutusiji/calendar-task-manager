@@ -28,4 +28,10 @@ yarn-error.log*
 next-env.d.ts
 /lib/generated/prisma
 
+# Docker 镜像文件（太大，不提交到 Git）
 calendar-app.tar
+*.tar
+
+# 离线部署包（太大，不提交到 Git）
+/offline-deploy/
+calendar-offline-deploy.zip
