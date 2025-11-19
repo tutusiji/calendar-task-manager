@@ -1,5 +1,6 @@
 🔄 重新部署步骤:
 1️⃣ 本地重新构建镜像
+ git reset --hard origin/master
 
 # 进入项目目录
 cd D:\CodeLab\calendar-task-manager
@@ -41,7 +42,7 @@ docker rmi calendar-task-manager:latest
 docker load -i calendar-app.tar
 
 # 5. 启动新容器
-docker-compose up -d app
+
 
 # 6. 查看日志
 docker logs -f calendar-app
