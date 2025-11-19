@@ -18,6 +18,22 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Micro';
+  src: url('/micro.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SFProRounded';
+  src: url('/sf-pro-rounded-heavy.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

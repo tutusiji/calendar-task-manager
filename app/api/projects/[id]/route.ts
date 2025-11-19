@@ -205,6 +205,17 @@ export async function DELETE(
           select: {
             tasks: true
           }
+        },
+        organization: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
         }
       }
     })
@@ -216,12 +227,16 @@ export async function DELETE(
     // 获取当前用户信息（检查是否是超级管理员）
     const currentUser = await prisma.user.findUnique({
       where: { id: auth.userId },
-      select: { isAdmin: true }
+      select: { isAdmin: true, name: true }
     })
 
-    // 权限验证：只有创建者或超级管理员可以删除项目
-    if (existingProject.creatorId !== auth.userId && !currentUser?.isAdmin) {
-      return forbiddenResponse('只有项目创建者或超级管理员可以删除项目')
+    // 权限验证：项目创建者、组织创建者或超级管理员可以删除项目
+    const isProjectCreator = existingProject.creatorId === auth.userId
+    const isOrgCreator = existingProject.organization.creatorId === auth.userId
+    const isAdmin = currentUser?.isAdmin
+
+    if (!isProjectCreator && !isOrgCreator && !isAdmin) {
+      return forbiddenResponse('只有项目创建者、组织创建者或超级管理员可以删除项目')
     }
 
     // 检查是否有任务
@@ -229,9 +244,34 @@ export async function DELETE(
       return validationErrorResponse('该项目下还有任务，无法删除')
     }
 
-    // 删除项目（会级联删除成员关系）
-    await prisma.project.delete({
-      where: { id }
+    // 使用事务处理删除和通知
+    await prisma.$transaction(async (tx) => {
+      // 删除项目（会级联删除成员关系）
+      await tx.project.delete({
+        where: { id }
+      })
+
+      // 给所有项目成员发送通知
+      const notifications = existingProject.members.map(member => ({
+        userId: member.userId,
+        type: 'PROJECT_DELETED' as const,
+        title: '项目已被删除',
+        content: `${currentUser?.name || '管理员'} 删除了项目【${existingProject.name}】`,
+        metadata: {
+          projectId: id,
+          projectName: existingProject.name,
+          organizationId: existingProject.organizationId,
+          organizationName: existingProject.organization.name,
+          deletedBy: auth.userId,
+          deleterName: currentUser?.name,
+        },
+      }))
+
+      if (notifications.length > 0) {
+        await tx.notification.createMany({
+          data: notifications,
+        })
+      }
     })
 
     return successResponse(null, '项目删除成功')

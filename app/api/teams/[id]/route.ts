@@ -147,7 +147,20 @@ export async function DELETE(
 
     // 检查团队是否存在
     const existingTeam = await prisma.team.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        organization: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
+        }
+      }
     })
 
     if (!existingTeam) {
@@ -157,17 +170,46 @@ export async function DELETE(
     // 获取当前用户信息（检查是否是超级管理员）
     const currentUser = await prisma.user.findUnique({
       where: { id: auth.userId },
-      select: { isAdmin: true }
+      select: { isAdmin: true, name: true }
     })
 
-    // 权限验证：只有创建者或超级管理员可以删除团队
-    if (existingTeam.creatorId !== auth.userId && !currentUser?.isAdmin) {
-      return forbiddenResponse('只有团队创建者或超级管理员可以删除团队')
+    // 权限验证：团队创建者、组织创建者或超级管理员可以删除团队
+    const isTeamCreator = existingTeam.creatorId === auth.userId
+    const isOrgCreator = existingTeam.organization.creatorId === auth.userId
+    const isAdmin = currentUser?.isAdmin
+
+    if (!isTeamCreator && !isOrgCreator && !isAdmin) {
+      return forbiddenResponse('只有团队创建者、组织创建者或超级管理员可以删除团队')
     }
 
-    // 删除团队（会级联删除成员关系）
-    await prisma.team.delete({
-      where: { id }
+    // 使用事务处理删除和通知
+    await prisma.$transaction(async (tx) => {
+      // 删除团队（会级联删除成员关系）
+      await tx.team.delete({
+        where: { id }
+      })
+
+      // 给所有团队成员发送通知
+      const notifications = existingTeam.members.map(member => ({
+        userId: member.userId,
+        type: 'TEAM_DELETED' as const,
+        title: '团队已被删除',
+        content: `${currentUser?.name || '管理员'} 删除了团队【${existingTeam.name}】`,
+        metadata: {
+          teamId: id,
+          teamName: existingTeam.name,
+          organizationId: existingTeam.organizationId,
+          organizationName: existingTeam.organization.name,
+          deletedBy: auth.userId,
+          deleterName: currentUser?.name,
+        },
+      }))
+
+      if (notifications.length > 0) {
+        await tx.notification.createMany({
+          data: notifications,
+        })
+      }
     })
 
     return successResponse(null, '团队删除成功')

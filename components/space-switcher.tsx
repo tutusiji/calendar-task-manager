@@ -176,7 +176,7 @@ export function SpaceSwitcher() {
           <rect x="3" y="13" width="8" height="8" rx="2" fill="#34D399" />
           <rect x="13" y="13" width="8" height="8" rx="2" fill="#6EE7B7" />
         </svg>
-        <span className="text-foreground">My Space</span>
+        <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Space</span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
         <span className="text-foreground font-semibold">
           {currentOrg?.name || "选择空间"}

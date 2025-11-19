@@ -18,6 +18,21 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   icons: {
     icon: '/logo.ico',
+    link: [
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap',
+      },
+    ],
   },
 }
 

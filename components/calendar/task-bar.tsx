@@ -237,7 +237,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
               // 单个负责人：显示头像和姓名
               assigneeUsers[0] && (
                 <>
-                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white ml-1")}>
+                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white")}>
                     <AvatarImage src={assigneeUsers[0].avatar} alt={assigneeUsers[0].name} />
                     <AvatarFallback className={cn("bg-white/20 text-white", avatarFallbackTextSize)}>
                       {getUserInitial(assigneeUsers[0].name)}
@@ -251,7 +251,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
               // 没有负责人：显示创建者
               fallbackUser && (
                 <>
-                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white ml-1")}>
+                  <Avatar className={cn(avatarSizeClass, "shrink-0 border border-white/30 bg-white")}>
                     <AvatarImage src={fallbackUser.avatar} alt={fallbackUser.name} />
                     <AvatarFallback className={cn("bg-white/20 text-white", avatarFallbackTextSize)}>
                       {getUserInitial(fallbackUser.name)}

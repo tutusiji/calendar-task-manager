@@ -207,7 +207,7 @@ export function NavigationMenu() {
             <circle cx="12" cy="12" r="5" fill="#FDB813" />
             <path d="M12 1v3M12 20v3M23 12h-3M4 12H1M20.485 20.485l-2.121-2.121M5.636 5.636L3.515 3.515M20.485 3.515l-2.121 2.121M5.636 18.364l-2.121 2.121" stroke="#FDB813" strokeWidth="2" strokeLinecap="round" />
           </svg>
-          <span className="font-bold" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>My Days</span>
+          <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Days</span>
         </button>
 
         {/* My Teams */}
@@ -228,7 +228,7 @@ export function NavigationMenu() {
                 <circle cx="18" cy="6" r="3" fill="#60A5FA" />
                 <circle cx="6" cy="6" r="3" fill="#60A5FA" />
               </svg>
-              <span className="font-bold" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>My Teams</span>
+              <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Teams</span>
             </button>
             <Button
               variant="ghost"
@@ -335,7 +335,7 @@ export function NavigationMenu() {
                 <rect x="7" y="11" width="3" height="5" rx="1" fill="#E9D5FF" />
                 <rect x="12" y="11" width="3" height="5" rx="1" fill="#E9D5FF" />
               </svg>
-              <span className="font-bold" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>My Projects</span>
+              <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Projects</span>
             </button>
             <Button
               variant="ghost"

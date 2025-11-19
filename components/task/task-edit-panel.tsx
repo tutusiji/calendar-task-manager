@@ -103,16 +103,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
     }
     setProjectError(false)
 
-    // 验证团队是否选择
-    if (!teamId || teamId === 'none') {
-      setTeamError(true)
-      toast({
-        title: "请选择团队",
-        description: "任务必须归属于一个团队",
-        variant: "destructive",
-      })
-      return
-    }
+    // 团队是可选的,不需要验证
     setTeamError(false)
 
     // 验证是否至少有一个负责人
@@ -323,7 +314,7 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
                 {/* Team */}
                 <div className="space-y-2">
                   <Label htmlFor="team" className="text-sm font-medium">
-                    所属团队 <span className="text-red-500">*</span>
+                    所属团队 <span className="text-xs text-muted-foreground">(可选)</span>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>

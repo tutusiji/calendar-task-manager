@@ -54,6 +54,12 @@ export function NotificationItem({
         return <CheckCircle2 className="h-5 w-5 text-green-500" />
       case "ORG_JOIN_REJECTED":
         return <XCircle className="h-5 w-5 text-red-500" />
+      case "ORG_INVITE_RECEIVED":
+        return <UserPlus className="h-5 w-5 text-purple-500" />
+      case "ORG_INVITE_ACCEPTED":
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />
+      case "ORG_INVITE_REJECTED":
+        return <XCircle className="h-5 w-5 text-red-500" />
       case "TASK_CREATED":
         return <Plus className="h-5 w-5 text-blue-500" />
       case "TASK_UPDATED":
@@ -132,6 +138,72 @@ export function NotificationItem({
     }
   }
 
+  // 接受组织邀请
+  const handleAcceptInvite = async () => {
+    if (!notification.metadata?.inviteId) return
+
+    setIsProcessing(true)
+    try {
+      const { post } = await import("@/lib/request")
+      await post(`/organizations/invites/${notification.metadata.inviteId}/accept`, {})
+
+      toast({
+        title: "已加入组织",
+        description: `已加入组织【${notification.metadata.organizationName}】`,
+        duration: 3000,
+      })
+      // 标记消息为已读
+      onMarkAsRead(notification.id)
+      // 标记为已处理
+      setIsHandled(true)
+      // 刷新列表
+      onActionComplete()
+    } catch (error) {
+      console.error("接受邀请失败:", error)
+      toast({
+        title: "操作失败",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
+        variant: "destructive",
+        duration: 3000,
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // 拒绝组织邀请
+  const handleRejectInvite = async () => {
+    if (!notification.metadata?.inviteId) return
+
+    setIsProcessing(true)
+    try {
+      const { post } = await import("@/lib/request")
+      await post(`/organizations/invites/${notification.metadata.inviteId}/reject`, {})
+
+      toast({
+        title: "已拒绝邀请",
+        description: "已拒绝加入组织",
+        duration: 3000,
+      })
+      // 标记消息为已读
+      onMarkAsRead(notification.id)
+      // 标记为已处理
+      setIsHandled(true)
+      // 刷新列表
+      onActionComplete()
+    } catch (error) {
+      console.error("拒绝邀请失败:", error)
+      toast({
+        title: "操作失败",
+        description: error instanceof Error ? error.message : "网络错误，请稍后重试",
+        variant: "destructive",
+        duration: 3000,
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const renderActions = () => {
     if (notification.type === "ORG_JOIN_REQUEST") {
       return (
@@ -148,6 +220,30 @@ export function NotificationItem({
             size="sm"
             variant="outline"
             onClick={handleReject}
+            disabled={isProcessing || isHandled}
+            className="h-7 px-3 text-xs"
+          >
+            {isHandled ? "已拒绝" : "拒绝"}
+          </Button>
+        </div>
+      )
+    }
+
+    if (notification.type === "ORG_INVITE_RECEIVED") {
+      return (
+        <div className="flex gap-2 mt-2">
+          <Button
+            size="sm"
+            onClick={handleAcceptInvite}
+            disabled={isProcessing || isHandled}
+            className="h-7 px-3 text-xs"
+          >
+            {isHandled ? "已接受" : "接受邀请"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRejectInvite}
             disabled={isProcessing || isHandled}
             className="h-7 px-3 text-xs"
           >
@@ -199,9 +295,12 @@ export function NotificationItem({
           <p className="text-xs text-muted-foreground mt-2">{timeAgo}</p>
 
           {notification.type === "ORG_JOIN_REQUEST" && renderActions()}
+          {notification.type === "ORG_INVITE_RECEIVED" && renderActions()}
           
           {/* 标记已读按钮放在时间下方 */}
-          {notification.type !== "ORG_JOIN_REQUEST" && !notification.isRead && (
+          {notification.type !== "ORG_JOIN_REQUEST" && 
+           notification.type !== "ORG_INVITE_RECEIVED" && 
+           !notification.isRead && (
             <Button
               size="sm"
               variant="outline"

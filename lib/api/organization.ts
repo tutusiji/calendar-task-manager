@@ -146,7 +146,7 @@ export const organizationAPI = {
     return del<void>(`/organizations/${orgId}/members?userId=${userId}`)
   },
 
-  // ==================== 团队管理 ====================
+  // ====================  ====================
 
   /**
    * 获取组织团队列表
@@ -155,7 +155,14 @@ export const organizationAPI = {
     return get<OrganizationTeam[]>(`/organizations/${orgId}/teams`)
   },
 
-  // ==================== 项目管理 ====================
+  /**
+   * 删除团队
+   */
+  async deleteTeam(teamId: string): Promise<void> {
+    return del<void>(`/teams/${teamId}`)
+  },
+
+  // ====================  ====================
 
   /**
    * 获取组织项目列表
@@ -164,7 +171,14 @@ export const organizationAPI = {
     return get<OrganizationProject[]>(`/organizations/${orgId}/projects`)
   },
 
-  // ==================== 加入请求 ====================
+  /**
+   * 删除项目
+   */
+  async deleteProject(projectId: string): Promise<void> {
+    return del<void>(`/projects/${projectId}`)
+  },
+
+  // ====================  ====================
 
   /**
    * 创建加入请求

@@ -15,18 +15,19 @@ datasource db {
 
 // 组织/空间模型
 model Organization {
-  id                    String               @id @default(cuid())
-  name                  String               @unique // 组织名称，全局唯一
-  description           String?
-  isVerified            Boolean              @default(false) // 是否已认证
-  creatorId             String
-  creator               User                 @relation("OrganizationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  members               OrganizationMember[]
-  teams                 Team[]
-  projects              Project[]
-  joinRequests          OrganizationJoinRequest[]
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
+  id           String                    @id @default(cuid())
+  name         String                    @unique // 组织名称，全局唯一
+  description  String?
+  isVerified   Boolean                   @default(false) // 是否已认证
+  creatorId    String
+  creator      User                      @relation("OrganizationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members      OrganizationMember[]
+  teams        Team[]
+  projects     Project[]
+  joinRequests OrganizationJoinRequest[]
+  invites      OrganizationInvite[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
 
   @@index([creatorId])
   @@index([name])
@@ -34,16 +35,16 @@ model Organization {
 
 // 组织成员关系
 model OrganizationMember {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   userId         String
   organizationId String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role           OrgMemberRole @default(MEMBER) // 成员角色
-  inviteCode     String?      @unique // 该用户在该组织的唯一邀请码
-  inviterId      String?      // 邀请人ID
-  inviter        User?        @relation("MemberInviter", fields: [inviterId], references: [id], onDelete: SetNull)
-  createdAt      DateTime     @default(now())
+  inviteCode     String?       @unique // 该用户在该组织的唯一邀请码
+  inviterId      String? // 邀请人ID
+  inviter        User?         @relation("MemberInviter", fields: [inviterId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
 
   @@unique([userId, organizationId])
   @@index([userId])
@@ -54,39 +55,41 @@ model OrganizationMember {
 
 // 组织成员角色枚举
 enum OrgMemberRole {
-  OWNER   // 所有者
-  ADMIN   // 管理员
-  MEMBER  // 普通成员
+  OWNER // 所有者
+  ADMIN // 管理员
+  MEMBER // 普通成员
 }
 
 // 用户模型
 model User {
-  id                     String               @id @default(cuid())
-  username               String               @unique @default("") // 用户名，用于登录
-  password               String               @default("") // 密码（加密存储）
-  name                   String               // 真实姓名/显示名称
-  email                  String               // 邮箱，仅作为个人资料
-  avatar                 String?
-  gender                 String?              @default("未设置") // 性别
-  role                   String?              @default("未设置") // 职业
-  isAdmin                Boolean              @default(false) // 是否为超级管理员
-  inviteCode             String?              @unique // 用户唯一邀请码（可选，注册时生成）
-  currentOrganizationId  String?              // 当前选择的组织ID
-  createdTasks           Task[]               @relation("TaskCreator") // 创建的任务
-  assignedTasks          TaskAssignee[]       @relation("TaskAssignee") // 被分配的任务
-  teamMembers            TeamMember[]
-  projectMembers         ProjectMember[]
-  createdTeams           Team[]               @relation("TeamCreator")
-  createdProjects        Project[]            @relation("ProjectCreator")
-  createdOrganizations   Organization[]       @relation("OrganizationCreator")
-  organizationMembers    OrganizationMember[]
-  invitedMembers         OrganizationMember[] @relation("MemberInviter") // 邀请的成员
-  notifications          Notification[]
+  id                      String                    @id @default(cuid())
+  username                String                    @unique @default("") // 用户名，用于登录
+  password                String                    @default("") // 密码（加密存储）
+  name                    String // 真实姓名/显示名称
+  email                   String // 邮箱，仅作为个人资料
+  avatar                  String?
+  gender                  String?                   @default("未设置") // 性别
+  role                    String?                   @default("未设置") // 职业
+  isAdmin                 Boolean                   @default(false) // 是否为超级管理员
+  inviteCode              String?                   @unique // 用户唯一邀请码（可选，注册时生成）
+  currentOrganizationId   String? // 当前选择的组织ID
+  createdTasks            Task[]                    @relation("TaskCreator") // 创建的任务
+  assignedTasks           TaskAssignee[]            @relation("TaskAssignee") // 被分配的任务
+  teamMembers             TeamMember[]
+  projectMembers          ProjectMember[]
+  createdTeams            Team[]                    @relation("TeamCreator")
+  createdProjects         Project[]                 @relation("ProjectCreator")
+  createdOrganizations    Organization[]            @relation("OrganizationCreator")
+  organizationMembers     OrganizationMember[]
+  invitedMembers          OrganizationMember[]      @relation("MemberInviter") // 邀请的成员
+  sentInvites             OrganizationInvite[]      @relation("OrganizationInviter") // 发出的组织邀请
+  receivedInvites         OrganizationInvite[]      @relation("OrganizationInvitedUser") // 收到的组织邀请
+  notifications           Notification[]
   joinRequestsAsApplicant OrganizationJoinRequest[] @relation("JoinRequestApplicant")
   joinRequestsAsHandler   OrganizationJoinRequest[] @relation("JoinRequestHandler")
   joinRequestsAsInviter   OrganizationJoinRequest[] @relation("JoinRequestInviter") // 作为邀请人的加入请求
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
 }
 
 // 团队模型
@@ -100,7 +103,7 @@ model Team {
   creatorId      String
   creator        User           @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members        TeamMember[]
-  tasks          Task[]         // 团队可以有多个任务
+  tasks          Task[] // 团队可以有多个任务
   taskPermission TaskPermission @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -131,7 +134,7 @@ model Project {
 
 // 任务模型
 model Task {
-  id          String   @id @default(cuid())
+  id          String         @id @default(cuid())
   title       String
   description String?
   startDate   DateTime
@@ -139,15 +142,15 @@ model Task {
   startTime   String?
   endTime     String?
   type        TaskType
-  creatorId   String   // 创建人ID
-  creator     User     @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId   String // 创建人ID
+  creator     User           @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   assignees   TaskAssignee[] // 负责人列表（多对多关系）
   projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  teamId      String?  // 任务可以选择性地关联到团队
-  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  teamId      String? // 任务可以选择性地关联到团队
+  team        Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@index([startDate, endDate])
   @@index([creatorId])
@@ -178,8 +181,8 @@ enum TaskType {
 
 // 任务权限枚举
 enum TaskPermission {
-  ALL_MEMBERS   // 所有成员都可以创建/编辑/删除任务
-  CREATOR_ONLY  // 仅创建者可以创建/编辑/删除任务
+  ALL_MEMBERS // 所有成员都可以创建/编辑/删除任务
+  CREATOR_ONLY // 仅创建者可以创建/编辑/删除任务
 }
 
 // 团队成员关系
@@ -212,16 +215,16 @@ model ProjectMember {
 
 // 站内消息通知模型
 model Notification {
-  id             String           @id @default(cuid())
-  userId         String           // 接收消息的用户
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type           NotificationType // 消息类型
-  title          String           // 消息标题
-  content        String           // 消息内容
-  metadata       Json?            // 消息元数据（存储额外信息，如申请ID、任务ID等）
-  isRead         Boolean          @default(false) // 是否已读
-  createdAt      DateTime         @default(now())
-  readAt         DateTime?        // 读取时间
+  id        String           @id @default(cuid())
+  userId    String // 接收消息的用户
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType // 消息类型
+  title     String // 消息标题
+  content   String // 消息内容
+  metadata  Json? // 消息元数据（存储额外信息，如申请ID、任务ID等）
+  isRead    Boolean          @default(false) // 是否已读
+  createdAt DateTime         @default(now())
+  readAt    DateTime? // 读取时间
 
   @@index([userId, isRead])
   @@index([createdAt])
@@ -232,6 +235,12 @@ enum NotificationType {
   ORG_JOIN_REQUEST       // 收到组织加入申请
   ORG_JOIN_APPROVED      // 组织加入申请通过
   ORG_JOIN_REJECTED      // 组织加入申请被拒绝
+  ORG_INVITE_RECEIVED    // 收到组织邀请
+  ORG_INVITE_ACCEPTED    // 组织邀请被接受
+  ORG_INVITE_REJECTED    // 组织邀请被拒绝
+  ORG_MEMBER_REMOVED     // 被从组织中移除
+  TEAM_DELETED           // 团队被删除
+  PROJECT_DELETED        // 项目被删除
   USER_INVITED_JOINED    // 你邀请的用户已加入组织
   TASK_CREATED           // 任务被创建
   TASK_UPDATED           // 任务被修改
@@ -241,21 +250,21 @@ enum NotificationType {
 
 // 组织加入申请模型
 model OrganizationJoinRequest {
-  id             String                    @id @default(cuid())
+  id             String            @id @default(cuid())
   organizationId String
-  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  applicantId    String                    // 申请人ID
-  applicant      User                      @relation("JoinRequestApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
-  status         JoinRequestStatus         @default(PENDING) // 申请状态
-  message        String?                   // 申请留言
-  inviterId      String?                   // 邀请人ID（如果通过邀请码加入则记录）
-  inviter        User?                     @relation("JoinRequestInviter", fields: [inviterId], references: [id], onDelete: SetNull)
-  handledBy      String?                   // 处理人ID
-  handler        User?                     @relation("JoinRequestHandler", fields: [handledBy], references: [id], onDelete: SetNull)
-  handledAt      DateTime?                 // 处理时间
-  rejectReason   String?                   // 拒绝原因
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  applicantId    String // 申请人ID
+  applicant      User              @relation("JoinRequestApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  status         JoinRequestStatus @default(PENDING) // 申请状态
+  message        String? // 申请留言
+  inviterId      String? // 邀请人ID（如果通过邀请码加入则记录）
+  inviter        User?             @relation("JoinRequestInviter", fields: [inviterId], references: [id], onDelete: SetNull)
+  handledBy      String? // 处理人ID
+  handler        User?             @relation("JoinRequestHandler", fields: [handledBy], references: [id], onDelete: SetNull)
+  handledAt      DateTime? // 处理时间
+  rejectReason   String? // 拒绝原因
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([organizationId, status])
   @@index([applicantId, status])
@@ -265,7 +274,35 @@ model OrganizationJoinRequest {
 
 // 加入申请状态枚举
 enum JoinRequestStatus {
-  PENDING   // 待处理
-  APPROVED  // 已同意
-  REJECTED  // 已拒绝
+  PENDING // 待处理
+  APPROVED // 已同意
+  REJECTED // 已拒绝
+}
+
+// 组织邀请模型
+model OrganizationInvite {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviterId      String // 邀请人ID
+  inviter        User         @relation("OrganizationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitedUserId  String // 被邀请人ID
+  invitedUser    User         @relation("OrganizationInvitedUser", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  status         InviteStatus @default(PENDING) // 邀请状态
+  respondedAt    DateTime? // 响应时间
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, status])
+  @@index([invitedUserId, status])
+  @@index([inviterId])
+  @@index([createdAt])
+}
+
+// 邀请状态枚举
+enum InviteStatus {
+  PENDING // 待处理
+  ACCEPTED // 已接受
+  REJECTED // 已拒绝
+  EXPIRED // 已过期
 }

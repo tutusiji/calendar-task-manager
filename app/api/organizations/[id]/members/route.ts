@@ -417,6 +417,34 @@ export async function DELETE(
           },
         },
       })
+
+      // 3. 发送通知给被移除的成员
+      const organization = await tx.organization.findUnique({
+        where: { id: organizationId },
+        select: { name: true },
+      })
+
+      const remover = await tx.user.findUnique({
+        where: { id: auth.userId },
+        select: { name: true },
+      })
+
+      if (organization && remover) {
+        await tx.notification.create({
+          data: {
+            userId,
+            type: 'ORG_MEMBER_REMOVED',
+            title: '已被移出组织',
+            content: `${remover.name} 将你从组织【${organization.name}】中移除`,
+            metadata: {
+              organizationId,
+              organizationName: organization.name,
+              removedBy: auth.userId,
+              removerName: remover.name,
+            },
+          },
+        })
+      }
     })
 
     return successResponse({ message: "成员已移除" })

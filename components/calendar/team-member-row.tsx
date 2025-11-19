@@ -27,9 +27,10 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
     return tasks.filter(task => selectedProjectIds.includes(task.projectId))
   }, [tasks, selectedProjectIds])
 
+  // 只显示该用户作为负责人的任务(不包括仅作为创建人的任务)
   const userTasks = useMemo(() => 
     filteredTasks.filter((task) => 
-      task.assignees?.some(a => a.userId === user.id) || task.creatorId === user.id
+      task.assignees?.some(a => a.userId === user.id)
     ), 
     [filteredTasks, user.id]
   )
