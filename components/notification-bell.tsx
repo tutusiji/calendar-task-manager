@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Bell } from "lucide-react"
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils"
 export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
+  const hasFetched = useRef(false)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchUnreadCount = async () => {
     try {
@@ -28,12 +30,19 @@ export function NotificationBell() {
   }
 
   useEffect(() => {
-    fetchUnreadCount()
+    if (!hasFetched.current) {
+      hasFetched.current = true
+      fetchUnreadCount()
 
-    // 每30秒轮询一次
-    const interval = setInterval(fetchUnreadCount, 30000)
+      // 每30秒轮询一次
+      intervalRef.current = setInterval(fetchUnreadCount, 30000)
+    }
 
-    return () => clearInterval(interval)
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
   }, [])
 
   const handleOpenChange = (open: boolean) => {
