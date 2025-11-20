@@ -15,6 +15,7 @@ import {
   sanitizeString
 } from '@/lib/validation'
 import { randomBytes } from 'crypto'
+import { config } from '@/lib/config'
 
 // 生成短邀请码（8位）
 function generateInviteCode(): string {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
           name: cleanName,
           email: cleanEmail,
           role: role, // 职业
-          avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
+          avatar: avatar || config.getAvatarUrl(username)
         },
         select: {
           id: true,

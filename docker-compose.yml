@@ -36,6 +36,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/calendar_tasks?schema=public
       NODE_ENV: production
+      AVATAR_API_URL: ${AVATAR_API_URL:-https://api.dicebear.com}
     depends_on:
       postgres:
         condition: service_healthy
