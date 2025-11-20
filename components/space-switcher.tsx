@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronRight, Check } from "lucide-react"
 import {
@@ -25,6 +25,7 @@ export function SpaceSwitcher() {
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const hasFetched = useRef(false)
 
   // 获取用户的组织列表
   const fetchOrganizations = async () => {
@@ -76,7 +77,10 @@ export function SpaceSwitcher() {
   }
 
   useEffect(() => {
-    fetchOrganizations()
+    if (!hasFetched.current) {
+      hasFetched.current = true
+      fetchOrganizations()
+    }
   }, [])
 
   // 额外的保险检查: 监控 currentOrgId 和 organizations,确保始终有选中的组织
