@@ -25,6 +25,8 @@ export function MonthView() {
   } = useCalendarStore()
   const [expandedDate, setExpandedDate] = useState<Date | null>(null)
   const expandedRef = useRef<HTMLDivElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const hasScrolledRef = useRef(false)
 
   const monthDays = getMonthDays(currentDate.getFullYear(), currentDate.getMonth(), hideWeekends)
   const today = new Date()
@@ -202,10 +204,59 @@ export function MonthView() {
   // 判断是否需要显示用户信息（团队或项目模式下显示）
   const shouldShowUserInfo = navigationMode === "team" || navigationMode === "project"
 
+  // 自动滚动到当前周（只在首次加载或月份改变时执行）
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    // 找到包含今天的周的索引
+    const todayWeekIndex = weeks.findIndex(week => 
+      week.some(day => isSameDay(day, today))
+    )
+
+    if (todayWeekIndex === -1) {
+      hasScrolledRef.current = false
+      return
+    }
+
+    // 只在未滚动过或月份改变时滚动
+    if (!hasScrolledRef.current) {
+      // 使用 setTimeout 确保 DOM 已渲染
+      setTimeout(() => {
+        if (!containerRef.current) return
+
+        // 计算当前周之前所有周的总高度
+        const scrollToPosition = weekHeights
+          .slice(0, todayWeekIndex)
+          .reduce((sum, height) => sum + height, 0)
+
+        // 获取容器高度
+        const containerHeight = containerRef.current.clientHeight
+
+        // 计算当前周的高度
+        const currentWeekHeight = weekHeights[todayWeekIndex] || 0
+
+        // 将当前周滚动到容器中间位置
+        const targetScroll = scrollToPosition - (containerHeight / 2) + (currentWeekHeight / 2)
+
+        containerRef.current.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: 'smooth'
+        })
+
+        hasScrolledRef.current = true
+      }, 100)
+    }
+  }, [weeks, weekHeights, today, currentDate.getMonth()])
+
+  // 当月份改变时重置滚动标记
+  useEffect(() => {
+    hasScrolledRef.current = false
+  }, [currentDate.getMonth(), currentDate.getFullYear()])
+
   return (
     <div className="flex h-full flex-col relative">
       {/* Week day headers */}
-      <div className={`grid ${hideWeekends ? 'grid-cols-5' : 'grid-cols-7'} border-b border-border bg-muted/30 pr-[8px]`}>
+      <div className={`grid ${hideWeekends ? 'grid-cols-5' : 'grid-cols-7'} border-b border-border bg-muted/30 pr-2`}>
         {weekDays.map((day) => (
           <div
             key={day}
@@ -217,7 +268,7 @@ export function MonthView() {
       </div>
 
       {/* Calendar grid - 按周分行 */}
-      <div className="flex-1 overflow-auto relative">
+      <div ref={containerRef} className="flex-1 overflow-auto relative">
         {weeksWithTracks.map((week, weekIndex) => (
           <div 
             key={weekIndex} 
