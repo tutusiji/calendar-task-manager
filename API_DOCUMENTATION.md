@@ -5,10 +5,12 @@
 - **Base URL**: `http://localhost:3000/api`
 - **响应格式**: JSON
 - **时间格式**: ISO 8601 (例如: `2024-01-15T09:00:00.000Z`)
+- **OpenAPI 规范**: 详见根目录下的 `openapi.yaml` 文件，可导入 [Swagger Editor](https://editor.swagger.io/) 查看交互式文档。
 
 ## 响应结构
 
 ### 成功响应
+
 ```json
 {
   "success": true,
@@ -17,6 +19,7 @@
 ```
 
 ### 错误响应
+
 ```json
 {
   "success": false,
@@ -29,6 +32,7 @@
 ### 任务 (Tasks)
 
 #### 获取任务列表
+
 - **GET** `/api/tasks`
 - **查询参数**:
   - `userId` (可选): 按用户 ID 筛选
@@ -39,12 +43,15 @@
 - **示例**: `/api/tasks?userId=user123&startDate=2024-01-01&endDate=2024-01-31`
 
 #### 获取单个任务
+
 - **GET** `/api/tasks/:id`
 - **示例**: `/api/tasks/clxxx123`
 
 #### 创建任务
+
 - **POST** `/api/tasks`
 - **请求体**:
+
 ```json
 {
   "title": "开发登录功能",
@@ -58,11 +65,14 @@
   "projectId": "project123"
 }
 ```
+
 - **type 可选值**: `daily`, `meeting`, `vacation`
 
 #### 更新任务
+
 - **PUT** `/api/tasks/:id`
 - **请求体**: (所有字段可选)
+
 ```json
 {
   "title": "新标题",
@@ -74,6 +84,7 @@
 ```
 
 #### 删除任务
+
 - **DELETE** `/api/tasks/:id`
 
 ---
@@ -81,11 +92,14 @@
 ### 用户 (Users)
 
 #### 获取用户列表
+
 - **GET** `/api/users`
 
 #### 创建用户
+
 - **POST** `/api/users`
 - **请求体**:
+
 ```json
 {
   "name": "张三",
@@ -99,14 +113,17 @@
 ### 项目 (Projects)
 
 #### 获取项目列表
+
 - **GET** `/api/projects`
 - **查询参数**:
   - `teamId` (可选): 按团队 ID 筛选
 - **示例**: `/api/projects?teamId=team123`
 
 #### 创建项目
+
 - **POST** `/api/projects`
 - **请求体**:
+
 ```json
 {
   "name": "Web 应用开发",
@@ -122,11 +139,14 @@
 ### 团队 (Teams)
 
 #### 获取团队列表
+
 - **GET** `/api/teams`
 
 #### 创建团队
+
 - **POST** `/api/teams`
 - **请求体**:
+
 ```json
 {
   "name": "工程团队",
@@ -173,6 +193,7 @@ curl -X POST http://localhost:3000/api/tasks \
 ## 数据库结构
 
 ### User (用户)
+
 - `id`: String (主键)
 - `name`: String
 - `email`: String (唯一)
@@ -181,6 +202,7 @@ curl -X POST http://localhost:3000/api/tasks \
 - `updatedAt`: DateTime
 
 ### Team (团队)
+
 - `id`: String (主键)
 - `name`: String
 - `color`: String
@@ -189,6 +211,7 @@ curl -X POST http://localhost:3000/api/tasks \
 - `updatedAt`: DateTime
 
 ### Project (项目)
+
 - `id`: String (主键)
 - `name`: String
 - `color`: String
@@ -198,6 +221,7 @@ curl -X POST http://localhost:3000/api/tasks \
 - `updatedAt`: DateTime
 
 ### Task (任务)
+
 - `id`: String (主键)
 - `title`: String
 - `description`: String?

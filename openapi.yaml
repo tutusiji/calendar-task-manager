@@ -1,0 +1,1671 @@
+openapi: 3.0.3
+info:
+  title: 日历任务管理器 API
+  version: 1.1.0
+  description: |-
+    覆盖 web 端所有 App Router API 的 Swagger 文档。
+    - 所有接口默认需要 Bearer JWT，除非特别说明
+    - data 节点中的字段与实际响应保持一致，必要时可参考代码中的 successResponse/errorResponse
+servers:
+  - url: http://localhost:3000
+    description: 本地开发服务器
+tags:
+  - name: 认证
+    description: 登录、注册等无需认证的接口
+  - name: 用户
+    description: 用户资料、搜索、积分与个人设置
+  - name: 组织
+    description: 组织、成员、邀请、加入申请
+  - name: 项目
+    description: 项目协作接口
+  - name: 团队
+    description: 团队协作接口
+  - name: 任务
+    description: 任务 CRUD 与负责人协作
+  - name: 通知
+    description: 站内信与未读数
+  - name: 上传
+    description: 静态资源上传
+  - name: 管理后台
+    description: Panorama 管理可视化接口
+security:
+  - BearerAuth: []
+paths:
+  /api/auth/login:
+    post:
+      tags: [认证]
+      summary: 用户登录
+      operationId: 用户登录
+      description: 使用用户名与密码换取 JWT。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  description: 大小写不敏感
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthPayload'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/auth/register:
+    post:
+      tags: [认证]
+      summary: 用户注册
+      operationId: 用户注册
+      description: 创建用户，支持输入组织或填写邀请码加入。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, name, email, role, organization]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+                name: { type: string }
+                email: { type: string, format: email }
+                role: { type: string, description: 预设或自定义职业 }
+                organization: { type: string, description: 新组织名称 }
+                organizationId: { type: string, description: 选择已有组织时填写 }
+                inviteCode: { type: string }
+                avatar: { type: string }
+      responses:
+        '201':
+          description: 注册完成
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthPayload'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/users:
+    get:
+      tags: [用户]
+      summary: 获取同组织成员
+      operationId: 查询组织用户
+      responses:
+        '200':
+          description: 当前组织内的用户信息
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [用户]
+      summary: 创建用户（测试用）
+      operationId: 创建用户
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name: { type: string }
+                email: { type: string }
+                avatar: { type: string }
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
+
+  /api/users/me:
+    get:
+      tags: [用户]
+      summary: 获取个人信息
+      operationId: 查询当前用户
+      responses:
+        '200':
+          description: 当前用户详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    put:
+      tags: [用户]
+      summary: 更新个人信息
+      operationId: 更新当前用户
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                avatar: { type: string }
+                gender:
+                  type: string
+                  enum: ['未设置', '男', '女', '其他']
+                role: { type: string }
+      responses:
+        '200':
+          description: 更新后的用户资料
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
+
+  /api/users/change-password:
+    put:
+      tags: [用户]
+      summary: 修改密码
+      operationId: 修改密码
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword: { type: string, format: password }
+                newPassword: { type: string, format: password, minLength: 6 }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/users/search:
+    get:
+      tags: [用户]
+      summary: 搜索用户
+      operationId: 搜索用户
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          required: true
+          description: 至少 2 个字符
+        - in: query
+          name: organizationId
+          schema: { type: string }
+          description: 过滤已有成员
+      responses:
+        '200':
+          description: 搜索结果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/UserSummary' }
+
+  /api/users/points:
+    get:
+      tags: [用户]
+      summary: 获取积分
+      operationId: 查询积分
+      responses:
+        '200':
+          description: 当前积分
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          userId: { type: string }
+                          name: { type: string }
+                          points: { type: integer }
+    post:
+      tags: [用户]
+      summary: 增加积分
+      operationId: 增加积分
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points: { type: integer, minimum: 1 }
+                reason: { type: string }
+      responses:
+        '200':
+          description: 新积分信息
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/PointResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/organizations:
+    get:
+      tags: [组织]
+      summary: 获取组织列表或搜索组织
+      operationId: 查询组织列表
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+          description: 注册页搜索时使用，无需认证
+      responses:
+        '200':
+          description: 组织列表或搜索结果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/OrganizationSummary' }
+    post:
+      tags: [组织]
+      summary: 创建组织
+      operationId: 创建组织
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '201':
+          description: 新组织
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Organization' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+
+  /api/organizations/switch:
+    post:
+      tags: [组织]
+      summary: 切换当前组织
+      operationId: 切换组织
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationId]
+              properties:
+                organizationId: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/organizations/join-requests:
+    get:
+      tags: [组织]
+      summary: 获取加入申请
+      operationId: 查询加入申请
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+        - in: query
+          name: asApplicant
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: 加入申请列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/JoinRequest' }
+    post:
+      tags: [组织]
+      summary: 提交加入申请
+      operationId: 提交加入申请
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationId]
+              properties:
+                organizationId: { type: string }
+                message: { type: string }
+      responses:
+        '201':
+          description: 已创建申请
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/JoinRequest' }
+
+  /api/organizations/join-requests/{id}/approve:
+    post:
+      tags: [组织]
+      summary: 审批通过加入申请
+      operationId: 同意加入申请
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/organizations/join-requests/{id}/reject:
+    post:
+      tags: [组织]
+      summary: 拒绝加入申请
+      operationId: 拒绝加入申请
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+
+  /api/organizations/invites/{id}/accept:
+    post:
+      tags: [组织]
+      summary: 接受组织邀请
+      operationId: 接受组织邀请
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/organizations/invites/{id}/reject:
+    post:
+      tags: [组织]
+      summary: 拒绝组织邀请
+      operationId: 拒绝组织邀请
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+
+  /api/organizations/{id}:
+    get:
+      tags: [组织]
+      summary: 获取组织详情
+      operationId: 查询组织详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 组织详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/OrganizationDetail' }
+    put:
+      tags: [组织]
+      summary: 更新组织
+      operationId: 更新组织
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    delete:
+      tags: [组织]
+      summary: 删除组织
+      operationId: 删除组织
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/organizations/{id}/members:
+    get:
+      tags: [组织]
+      summary: 查看组织成员
+      operationId: 查询组织成员
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成员列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/OrganizationMember' }
+    post:
+      tags: [组织]
+      summary: 添加或自助加入成员
+      operationId: 添加组织成员
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string, description: 留空表示当前用户自助加入 }
+                role:
+                  type: string
+                  enum: [OWNER, ADMIN, MEMBER]
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+    delete:
+      tags: [组织]
+      summary: 移除或退出组织
+      operationId: 移除组织成员
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: userId
+          schema: { type: string }
+          required: true
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+
+  /api/organizations/{id}/projects:
+    get:
+      tags: [组织]
+      summary: 查看组织项目
+      operationId: 查询组织项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 项目集合
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Project' }
+
+  /api/organizations/{id}/teams:
+    get:
+      tags: [组织]
+      summary: 查看组织团队
+      operationId: 查询组织团队
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 团队集合
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Team' }
+
+  /api/organizations/{id}/invite:
+    post:
+      tags: [组织]
+      summary: 邀请用户加入组织
+      operationId: 邀请用户
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/organizations/{id}/invite-code:
+    get:
+      tags: [组织]
+      summary: 获取个人邀请码
+      operationId: 获取邀请码
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 邀请码返回
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          inviteCode: { type: string }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/organizations/{id}/invite-code/validate:
+    post:
+      tags: [组织]
+      summary: 验证邀请码
+      operationId: 验证邀请码
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inviteCode]
+              properties:
+                inviteCode: { type: string }
+      responses:
+        '200':
+          description: 校验结果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          valid: { type: boolean }
+                          inviterName: { type: string }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/projects:
+    get:
+      tags: [项目]
+      summary: 获取组织项目
+      operationId: 查询项目列表
+      responses:
+        '200':
+          description: 项目列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Project' }
+    post:
+      tags: [项目]
+      summary: 创建项目
+      operationId: 创建项目
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, color, creatorId]
+              properties:
+                name: { type: string }
+                color: { type: string }
+                description: { type: string }
+                creatorId: { type: string }
+                memberIds:
+                  type: array
+                  items: { type: string }
+                taskPermission:
+                  type: string
+                  enum: [ALL_MEMBERS, CREATOR_ONLY]
+      responses:
+        '201':
+          description: 新建项目
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Project' }
+
+  /api/projects/{id}:
+    get:
+      tags: [项目]
+      summary: 获取项目详情
+      operationId: 查询项目详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 项目信息
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ProjectDetail' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    put:
+      tags: [项目]
+      summary: 更新项目
+      operationId: 更新项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdateInput'
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+    delete:
+      tags: [项目]
+      summary: 删除项目
+      operationId: 删除项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+
+  /api/projects/{id}/join:
+    post:
+      tags: [项目]
+      summary: 加入项目
+      operationId: 加入项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+
+  /api/projects/{id}/leave:
+    post:
+      tags: [项目]
+      summary: 退出项目
+      operationId: 退出项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/teams:
+    get:
+      tags: [团队]
+      summary: 获取组织团队
+      operationId: 查询团队列表
+      responses:
+        '200':
+          description: 团队列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Team' }
+    post:
+      tags: [团队]
+      summary: 创建团队
+      operationId: 创建团队
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, color, creatorId]
+              properties:
+                name: { type: string }
+                color: { type: string }
+                description: { type: string }
+                creatorId: { type: string }
+                memberIds:
+                  type: array
+                  items: { type: string }
+                taskPermission:
+                  type: string
+                  enum: [ALL_MEMBERS, CREATOR_ONLY]
+      responses:
+        '201':
+          description: 新建团队
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Team' }
+
+  /api/teams/{id}:
+    put:
+      tags: [团队]
+      summary: 更新团队
+      operationId: 更新团队
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpdateInput'
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+    delete:
+      tags: [团队]
+      summary: 删除团队
+      operationId: 删除团队
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/teams/{id}/join:
+    post:
+      tags: [团队]
+      summary: 加入团队
+      operationId: 加入团队
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+
+  /api/teams/{id}/leave:
+    post:
+      tags: [团队]
+      summary: 退出团队
+      operationId: 退出团队
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/tasks:
+    get:
+      tags: [任务]
+      summary: 查询任务列表
+      operationId: 查询任务
+      parameters:
+        - in: query
+          name: userId
+          schema: { type: string }
+        - in: query
+          name: projectId
+          schema: { type: string }
+        - in: query
+          name: teamId
+          schema: { type: string }
+        - in: query
+          name: startDate
+          schema: { type: string, format: date }
+        - in: query
+          name: endDate
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: 任务集合
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PagedTasks'
+    post:
+      tags: [任务]
+      summary: 创建任务
+      operationId: 创建任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '201':
+          description: 新任务
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Task' }
+
+  /api/tasks/{id}:
+    get:
+      tags: [任务]
+      summary: 获取任务详情
+      operationId: 查询任务详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 任务信息
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Task' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    put:
+      tags: [任务]
+      summary: 更新任务
+      operationId: 更新任务
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdateInput'
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+    delete:
+      tags: [任务]
+      summary: 删除任务
+      operationId: 删除任务
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/notifications:
+    get:
+      tags: [通知]
+      summary: 获取通知列表
+      operationId: 查询通知
+      parameters:
+        - in: query
+          name: unreadOnly
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: 通知集合
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Notification' }
+
+  /api/notifications/unread-count:
+    get:
+      tags: [通知]
+      summary: 获取未读数量
+      operationId: 查询未读数量
+      responses:
+        '200':
+          description: 数量结果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          count: { type: integer }
+    head:
+      tags: [通知]
+      summary: HEAD 方式获取未读数
+      operationId: 查询未读数量HEAD
+      responses:
+        '200': { description: 返回 JSON 与 GET 相同结构 }
+
+  /api/notifications/{id}/read:
+    patch:
+      tags: [通知]
+      summary: 标记为已读
+      operationId: 标记消息已读
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/upload/avatar:
+    post:
+      tags: [上传]
+      summary: 上传头像
+      operationId: 上传头像
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: 仅支持 jpg/png/gif/webp 且不超过 5MB
+      responses:
+        '201':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UploadResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/admin/panorama/organizations:
+    get:
+      tags: [管理后台]
+      summary: 获取组织全景
+      operationId: Panorama组织列表
+      responses:
+        '200':
+          description: 组织数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/OrganizationPanorama' }
+
+  /api/admin/panorama/organizations/{id}/members:
+    get:
+      tags: [管理后台]
+      summary: 查看组织成员全景
+      operationId: Panorama组织成员
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成员详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/OrganizationMemberPanorama' }
+
+  /api/admin/panorama/organizations/{id}/projects:
+    get:
+      tags: [管理后台]
+      summary: 查看组织项目全景
+      operationId: Panorama组织项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 项目详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ProjectPanorama' }
+
+  /api/admin/panorama/organizations/{id}/teams:
+    get:
+      tags: [管理后台]
+      summary: 查看组织团队全景
+      operationId: Panorama组织团队
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 团队详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/TeamPanorama' }
+
+  /api/admin/panorama/tasks:
+    get:
+      tags: [管理后台]
+      summary: 全景任务检索
+      operationId: Panorama任务列表
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [org, team, project, member]
+        - in: query
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: orgId
+          schema: { type: string }
+          description: type 为 member 时可选
+      responses:
+        '200':
+          description: 任务数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMessage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Task' }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    SuccessMessage:
+      description: 操作成功
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiMessage'
+    ValidationError:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    UnauthorizedError:
+      description: 登录态无效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ForbiddenError:
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFoundError:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ConflictError:
+      description: 资源冲突
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ServerError:
+      description: 服务内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  schemas:
+    ApiMessage:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: true
+        message:
+          type: string
+          nullable: true
+        data:
+          nullable: true
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: false
+        message:
+          type: string
+        error:
+          type: string
+          nullable: true
+    AuthPayload:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        token: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        email: { type: string }
+        avatar: { type: string }
+        gender: { type: string }
+        role: { type: string }
+        isAdmin: { type: boolean }
+        points: { type: integer }
+        currentOrganizationId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    UserSummary:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        email: { type: string }
+        avatar: { type: string }
+    Organization:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        isVerified: { type: boolean }
+        creatorId: { type: string }
+        memberCount: { type: integer }
+        teamCount: { type: integer }
+        projectCount: { type: integer }
+        role: { type: string }
+        createdAt: { type: string, format: date-time }
+    OrganizationSummary:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        isVerified: { type: boolean }
+    OrganizationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Organization'
+        - type: object
+          properties:
+            members:
+              type: array
+              items: { $ref: '#/components/schemas/OrganizationMember' }
+            teams:
+              type: array
+              items: { $ref: '#/components/schemas/Team' }
+            projects:
+              type: array
+              items: { $ref: '#/components/schemas/Project' }
+    OrganizationMember:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        avatar: { type: string }
+        role:
+          type: string
+          enum: [OWNER, ADMIN, MEMBER]
+        joinedAt: { type: string, format: date-time }
+        inviter:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string }
+            name: { type: string }
+    Project:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color: { type: string }
+        description: { type: string, nullable: true }
+        organizationId: { type: string }
+        creatorId: { type: string }
+        memberIds:
+          type: array
+          items: { type: string }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        memberCount: { type: integer }
+        taskPermission:
+          type: string
+          enum: [ALL_MEMBERS, CREATOR_ONLY]
+        createdAt: { type: string, format: date-time }
+    ProjectDetail:
+      allOf:
+        - $ref: '#/components/schemas/Project'
+        - type: object
+          properties:
+            _count:
+              type: object
+              properties:
+                tasks: { type: integer }
+    ProjectUpdateInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        color: { type: string }
+        memberIds:
+          type: array
+          items: { type: string }
+        creatorId: { type: string }
+        taskPermission:
+          type: string
+          enum: [ALL_MEMBERS, CREATOR_ONLY]
+    Team:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color: { type: string }
+        description: { type: string, nullable: true }
+        organizationId: { type: string }
+        creatorId: { type: string }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        memberIds:
+          type: array
+          items: { type: string }
+        memberCount: { type: integer }
+        taskPermission:
+          type: string
+          enum: [ALL_MEMBERS, CREATOR_ONLY]
+        createdAt: { type: string, format: date-time }
+    TeamUpdateInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        color: { type: string }
+        memberIds:
+          type: array
+          items: { type: string }
+        creatorId: { type: string }
+        taskPermission:
+          type: string
+          enum: [ALL_MEMBERS, CREATOR_ONLY]
+    TaskAssignee:
+      type: object
+      properties:
+        userId: { type: string }
+        user: { $ref: '#/components/schemas/UserSummary' }
+    Task:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        startDate: { type: string, format: date-time }
+        endDate: { type: string, format: date-time }
+        startTime: { type: string, nullable: true }
+        endTime: { type: string, nullable: true }
+        type:
+          type: string
+          enum: [daily, meeting, vacation]
+        projectId: { type: string }
+        teamId: { type: string, nullable: true }
+        creatorId: { type: string }
+        creator: { $ref: '#/components/schemas/UserSummary' }
+        assignees:
+          type: array
+          items: { $ref: '#/components/schemas/TaskAssignee' }
+        project: { $ref: '#/components/schemas/Project' }
+        team: { $ref: '#/components/schemas/Team' }
+    TaskInput:
+      type: object
+      required: [title, startDate, endDate, type, projectId]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        startDate: { type: string, format: date-time }
+        endDate: { type: string, format: date-time }
+        startTime: { type: string }
+        endTime: { type: string }
+        type:
+          type: string
+          enum: [daily, meeting, vacation]
+        projectId: { type: string }
+        teamId: { type: string }
+        userId:
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+    TaskUpdateInput:
+      allOf:
+        - $ref: '#/components/schemas/TaskInput'
+        - type: object
+          properties:
+            startDate: { type: string }
+            endDate: { type: string }
+    PagedTasks:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/Task' }
+        count: { type: integer }
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string }
+        title: { type: string }
+        content: { type: string }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        metadata: { type: object }
+    UploadResult:
+      type: object
+      properties:
+        url: { type: string }
+        filename: { type: string }
+        size: { type: integer }
+        type: { type: string }
+    JoinRequest:
+      type: object
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        applicantId: { type: string }
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+    PointResult:
+      type: object
+      properties:
+        points: { type: integer }
+        addedPoints: { type: integer }
+        reason: { type: string }
+        rankUp:
+          type: object
+          nullable: true
+          properties:
+            oldRank: { type: string }
+            newRank: { type: string }
+    OrganizationPanorama:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        isVerified: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        _count:
+          type: object
+          properties:
+            members: { type: integer }
+            teams: { type: integer }
+            projects: { type: integer }
+            tasks: { type: integer }
+    OrganizationMemberPanorama:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        email: { type: string }
+        avatar: { type: string }
+        role: { type: string }
+        orgRole: { type: string }
+        taskCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    ProjectPanorama:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color: { type: string }
+        creator: { $ref: '#/components/schemas/UserSummary' }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        _count:
+          type: object
+          properties:
+            tasks: { type: integer }
+    TeamPanorama:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color: { type: string }
+        creator: { $ref: '#/components/schemas/UserSummary' }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        _count:
+          type: object
+          properties:
+            tasks: { type: integer }
