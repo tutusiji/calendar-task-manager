@@ -38,7 +38,9 @@ services:
       NODE_ENV: production
       AVATAR_API_URL: ${AVATAR_API_URL:-https://api.dicebear.com}
     volumes:
-      - uploads_data:/app/public/uploads
+      # 使用绑定挂载，将容器内的 uploads 目录映射到宿主机
+      # 这样 Nginx 就可以直接访问这个目录
+      - ./public/uploads:/app/public/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,8 +67,10 @@ services:
 volumes:
   postgres_data:
     driver: local
-  uploads_data:
-    driver: local
+  # 将 uploads_data 改为绑定挂载，让 Nginx 可以直接访问
+  # 注意：这样修改后，需要先创建目录并迁移已有数据
+  # uploads_data:
+  #   driver: local
 
 networks:
   calendar-network:
