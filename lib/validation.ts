@@ -11,7 +11,7 @@ export function isValidEmail(email: string): boolean {
 /**
  * 验证用户名格式
  * - 长度：3-20 个字符
- * - 只能包含字母、数字、下划线、连字符
+ * - 只能包含字母、数字、下划线、连字符、点号
  * - 必须以字母或数字开头
  * @param username 用户名
  * @returns 是否有效
@@ -20,7 +20,7 @@ export function isValidUsername(username: string): boolean {
   if (!username || username.length < 3 || username.length > 20) {
     return false
   }
-  const usernameRegex = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/
+  const usernameRegex = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/
   return usernameRegex.test(username)
 }
 

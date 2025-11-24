@@ -197,9 +197,36 @@ export function ListView() {
       content += `\n\n`
     })
 
-    navigator.clipboard.writeText(content)
-    setCopiedId(group.id)
-    setTimeout(() => setCopiedId(null), 2000)
+    try {
+      // 检查是否支持 Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content)
+      } else {
+        // 降级方案：使用传统的 document.execCommand
+        const textArea = document.createElement("textarea")
+        textArea.value = content
+        textArea.style.position = "fixed"
+        textArea.style.left = "-999999px"
+        textArea.style.top = "-999999px"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        
+        try {
+          document.execCommand('copy')
+          textArea.remove()
+        } catch (err) {
+          textArea.remove()
+          throw new Error("复制失败")
+        }
+      }
+      
+      setCopiedId(group.id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (error) {
+      console.error("复制失败:", error)
+      // 静默失败，不影响用户体验
+    }
   }
 
   const getTaskTypeLabel = (type: string) => {

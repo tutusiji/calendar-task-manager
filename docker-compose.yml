@@ -24,7 +24,7 @@ services:
 
   # Next.js 应用
   app:
-    image: calendar-task-manager:latest  # 改成这样
+    image: calendar-task-manager:latest # 改成这样
     # 注释掉或删除 build 部分rrrrr
     # build:
     #   context: .
@@ -32,21 +32,23 @@ services:
     container_name: calendar-app
     restart: unless-stopped
     ports:
-      - "8100:3000"
+      - "7049:3000"
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/calendar_tasks?schema=public
       NODE_ENV: production
       AVATAR_API_URL: ${AVATAR_API_URL:-https://api.dicebear.com}
+    volumes:
+      - uploads_data:/app/public/uploads
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - calendar-network
     command: sh -c "npx prisma migrate deploy && node server.js"
-  
+
   # Prisma Studio - 数据库管理界面
   prisma-studio:
-    image: ${DOCKER_IMAGE:-tutusiji/calendar-task-manager:latest}
+    image: calendar-task-manager:latest
     container_name: calendar-prisma-studio
     restart: unless-stopped
     ports:
@@ -62,6 +64,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  uploads_data:
     driver: local
 
 networks:

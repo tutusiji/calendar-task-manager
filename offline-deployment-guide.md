@@ -3,6 +3,7 @@
 ## 📦 部署包内容
 
 本部署包包含以下文件：
+
 ```
 calendar-offline-deploy/
 ├── images/
@@ -22,10 +23,11 @@ calendar-offline-deploy/
 ## 🔧 前置要求
 
 内网服务器需要已安装：
+
 - ✅ Docker Engine (20.10+)
 - ✅ Docker Compose (2.0+)
 - ✅ 至少 10GB 可用磁盘空间
-- ✅ 端口 8100、5432、5555 未被占用
+- ✅ 端口 7049、5432、5555 未被占用
 
 ## 📥 第一步：准备部署包（在外网环境执行）
 
@@ -103,6 +105,7 @@ docker images
 ```
 
 预期输出：
+
 ```
 REPOSITORY               TAG       IMAGE ID       CREATED        SIZE
 calendar-task-manager    latest    xxxxx          X hours ago    2.42GB
@@ -139,6 +142,7 @@ docker-compose logs -f
 ```
 
 预期看到 3 个容器运行：
+
 - calendar-postgres (健康)
 - calendar-app (运行中)
 - calendar-prisma-studio (运行中)
@@ -164,10 +168,10 @@ docker exec -it calendar-postgres psql -U postgres -d calendar_tasks -c "\d \"Us
 docker ps
 
 # 测试应用访问（替换为实际内网 IP）
-curl http://localhost:8100
+curl http://localhost:7049
 
 # 访问 Web 界面
-# 浏览器打开: http://内网IP:8100
+# 浏览器打开: http://内网IP:7049
 
 # 访问 Prisma Studio（数据库管理）
 # 浏览器打开: http://内网IP:5555
@@ -183,7 +187,7 @@ docker-compose logs app
 docker-compose logs postgres
 
 # 检查端口占用
-netstat -tlnp | grep -E '8100|5432|5555'
+netstat -tlnp | grep -E '7049|5432|5555'
 ```
 
 ### 问题 2: 数据库连接失败
@@ -255,12 +259,14 @@ docker exec -i calendar-postgres psql -U postgres -d calendar_tasks < new-migrat
 ## 🛡️ 安全建议
 
 1. **修改默认密码**
+
    ```bash
    # 在 .env 文件中设置强密码
    POSTGRES_PASSWORD=使用复杂密码
    ```
 
 2. **限制访问端口**
+
    ```bash
    # 如果不需要外部访问 Prisma Studio，可以注释掉 docker-compose.yml 中的端口映射
    # ports:
@@ -277,6 +283,7 @@ docker exec -i calendar-postgres psql -U postgres -d calendar_tasks < new-migrat
 ## 📞 技术支持
 
 如遇到问题，请检查：
+
 1. Docker 和 Docker Compose 版本是否满足要求
 2. 所有镜像是否正确加载
 3. 端口是否被其他服务占用
@@ -287,4 +294,4 @@ docker exec -i calendar-postgres psql -U postgres -d calendar_tasks < new-migrat
 
 **部署包版本**: 2025.11.20  
 **应用版本**: calendar-task-manager:latest  
-**数据库版本**: PostgreSQL 16 Alpine  
+**数据库版本**: PostgreSQL 16 Alpine

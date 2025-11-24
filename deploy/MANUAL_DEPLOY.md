@@ -27,7 +27,7 @@ docker save calendar-task-manager:latest -o calendar-app.tar
 ```
 
 > 📦 生成文件：`calendar-app.tar`（约 500MB-1GB）
-> 
+>
 > 💡 文件位置：当前项目根目录 `D:\CodeLab\calendar-task-manager\calendar-app.tar`
 
 ### 步骤 3: 上传到服务器
@@ -35,6 +35,7 @@ docker save calendar-task-manager:latest -o calendar-app.tar
 使用 FTP 工具（如 FileZilla、WinSCP）上传 `calendar-app.tar` 到服务器：
 
 **推荐上传路径：**
+
 ```
 /opt/calendar-task-manager/calendar-app.tar
 ```
@@ -84,6 +85,7 @@ docker images | grep calendar
 ```
 
 应该看到类似输出：
+
 ```
 calendar-task-manager    latest    xxxxxxxxx    刚刚    xxxMB
 ```
@@ -116,13 +118,14 @@ docker-compose logs -f app
 
 ```bash
 # 测试应用是否响应
-curl http://localhost:8100
+curl http://localhost:7049
 
 # 查看所有服务状态
 docker-compose ps
 ```
 
 应该看到：
+
 - `calendar-app` - Up
 - `calendar-postgres` - Up
 - `calendar-prisma-studio` - Up
@@ -139,6 +142,7 @@ rm calendar-app.tar
 ## 🌐 访问应用
 
 部署成功后访问：
+
 - **主应用**: https://souxy.com 或 https://joox.cc
 - **Prisma Studio**: http://your-server-ip:5555
 
@@ -149,6 +153,7 @@ rm calendar-app.tar
 ### 更新代码后重新部署
 
 **本地操作：**
+
 ```powershell
 # 1. 提交代码（可选）
 git add .
@@ -165,6 +170,7 @@ docker save calendar-task-manager:latest -o calendar-app.tar
 ```
 
 **服务器操作：**
+
 ```bash
 # 1. 连接服务器
 ssh root@your-server-ip
@@ -247,11 +253,13 @@ docker image prune -f
 ### 问题 1: 构建失败
 
 **检查 Docker 是否运行：**
+
 ```powershell
 docker ps
 ```
 
 **清理缓存重新构建：**
+
 ```powershell
 docker build --no-cache -t calendar-task-manager:latest .
 ```
@@ -268,6 +276,7 @@ docker build --no-cache -t calendar-task-manager:latest .
 ### 问题 3: 加载镜像失败
 
 **检查文件完整性：**
+
 ```bash
 # 查看文件大小
 ls -lh calendar-app.tar
@@ -276,6 +285,7 @@ ls -lh calendar-app.tar
 ```
 
 **查看错误信息：**
+
 ```bash
 docker load -i calendar-app.tar
 ```
@@ -283,16 +293,19 @@ docker load -i calendar-app.tar
 ### 问题 4: 容器启动失败
 
 **查看详细日志：**
+
 ```bash
 docker-compose logs app
 ```
 
 **检查数据库连接：**
+
 ```bash
 docker exec -it calendar-postgres psql -U postgres -c "\l"
 ```
 
 **重新运行迁移：**
+
 ```bash
 docker exec calendar-app npx prisma migrate deploy
 ```
@@ -300,8 +313,9 @@ docker exec calendar-app npx prisma migrate deploy
 ### 问题 5: 端口冲突
 
 **检查端口占用：**
+
 ```bash
-netstat -tulpn | grep 8100
+netstat -tulpn | grep 7049
 netstat -tulpn | grep 5432
 netstat -tulpn | grep 5555
 ```
@@ -315,11 +329,13 @@ netstat -tulpn | grep 5555
 ### 1. 使用 rsync 上传（更快更可靠）
 
 **本地安装 rsync（Windows 需要 WSL 或 Git Bash）：**
+
 ```bash
 rsync -avz --progress calendar-app.tar root@your-server-ip:/opt/calendar-task-manager/
 ```
 
 优势：
+
 - ✅ 断点续传
 - ✅ 压缩传输
 - ✅ 显示进度
@@ -346,6 +362,7 @@ docker image prune -a -f
 ### 4. 自动化脚本
 
 创建本地脚本 `build.ps1`：
+
 ```powershell
 docker build -t calendar-task-manager:latest .
 docker save calendar-task-manager:latest -o calendar-app.tar
@@ -354,6 +371,7 @@ Write-Host "📤 请使用 FTP 工具上传到服务器" -ForegroundColor Yellow
 ```
 
 创建服务器脚本 `deploy.sh`：
+
 ```bash
 #!/bin/bash
 cd /opt/calendar-task-manager
@@ -377,14 +395,14 @@ docker-compose logs -f app
 
 ## 📊 部署时间估算
 
-| 步骤 | 耗时 |
-|------|------|
-| 本地构建镜像 | 5-10 分钟 |
-| 保存为 tar | 1-2 分钟 |
-| 上传到服务器 | 10-30 分钟（取决于网速） |
-| 服务器加载镜像 | 1-2 分钟 |
-| 重启服务 | 30 秒 |
-| **总计** | **约 20-45 分钟** |
+| 步骤           | 耗时                     |
+| -------------- | ------------------------ |
+| 本地构建镜像   | 5-10 分钟                |
+| 保存为 tar     | 1-2 分钟                 |
+| 上传到服务器   | 10-30 分钟（取决于网速） |
+| 服务器加载镜像 | 1-2 分钟                 |
+| 重启服务       | 30 秒                    |
+| **总计**       | **约 20-45 分钟**        |
 
 ---
 
@@ -402,6 +420,7 @@ docker-compose logs -f app
 ## ✅ 完成清单
 
 部署前检查：
+
 - [ ] 本地 Docker 运行正常
 - [ ] 代码已提交（可选）
 - [ ] 磁盘空间足够（至少 2GB）
@@ -409,6 +428,7 @@ docker-compose logs -f app
 - [ ] 服务器可以访问
 
 部署后验证：
+
 - [ ] 容器全部运行：`docker-compose ps`
 - [ ] 应用可以访问：https://souxy.com
 - [ ] Prisma Studio 可以访问：http://server-ip:5555

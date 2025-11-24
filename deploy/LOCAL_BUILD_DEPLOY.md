@@ -7,11 +7,13 @@
 ## 📋 前置准备
 
 ### 本地环境
+
 - ✅ Docker Desktop 已安装并运行
 - ✅ Docker Hub 账号（tutusiji）
 - ✅ Git
 
 ### 服务器环境
+
 - ✅ Docker 和 Docker Compose 已安装
 - ✅ 项目代码已克隆到 `/opt/calendar-task-manager`
 - ✅ Nginx 已配置
@@ -26,6 +28,7 @@
 在本地项目目录执行：
 
 **Windows (PowerShell):**
+
 ```powershell
 # 构建并推送最新版本
 .\build-and-push.ps1
@@ -35,6 +38,7 @@
 ```
 
 **Linux/Mac (Bash):**
+
 ```bash
 # 添加执行权限
 chmod +x build-and-push.sh
@@ -47,6 +51,7 @@ chmod +x build-and-push.sh
 ```
 
 脚本会自动：
+
 1. 构建 Docker 镜像
 2. 打上版本标签和 latest 标签
 3. 登录 Docker Hub（首次需要输入用户名和密码）
@@ -76,6 +81,7 @@ chmod +x deploy/pull-and-deploy.sh
 ```
 
 脚本会自动：
+
 1. 备份当前数据库
 2. 拉取最新镜像
 3. 停止旧容器
@@ -87,23 +93,27 @@ chmod +x deploy/pull-and-deploy.sh
 ## 🔍 服务说明
 
 ### 应用服务（app）
+
 - **容器名**: calendar-app
-- **端口**: 8100:3000
+- **端口**: 7049:3000
 - **功能**: Next.js 主应用
 - **访问**: https://souxy.com 或 https://joox.cc
 
 ### Prisma Studio（数据库管理）
+
 - **容器名**: calendar-prisma-studio
 - **端口**: 5555:5555
 - **功能**: 可视化数据库管理界面
 - **访问**: http://your-server-ip:5555
 
 > ⚠️ **安全提示**: Prisma Studio 暴露了数据库管理界面，建议：
+>
 > 1. 只在需要时启动
 > 2. 配置防火墙限制访问
 > 3. 或使用 SSH 隧道访问
 
 ### PostgreSQL（数据库）
+
 - **容器名**: calendar-postgres
 - **端口**: 5432:5432
 - **数据卷**: postgres_data
@@ -113,11 +123,13 @@ chmod +x deploy/pull-and-deploy.sh
 ## 📝 常用命令
 
 ### 查看服务状态
+
 ```bash
 docker-compose ps
 ```
 
 ### 查看日志
+
 ```bash
 # 查看所有日志
 docker-compose logs -f
@@ -133,6 +145,7 @@ docker-compose logs -f postgres
 ```
 
 ### 重启服务
+
 ```bash
 # 重启应用
 docker-compose restart app
@@ -145,6 +158,7 @@ docker-compose restart
 ```
 
 ### 停止/启动 Prisma Studio
+
 ```bash
 # 停止 Prisma Studio（节省资源）
 docker-compose stop prisma-studio
@@ -154,6 +168,7 @@ docker-compose start prisma-studio
 ```
 
 ### 进入容器
+
 ```bash
 # 进入应用容器
 docker exec -it calendar-app sh
@@ -163,6 +178,7 @@ docker exec -it calendar-postgres psql -U postgres calendar_tasks
 ```
 
 ### 手动运行数据库迁移
+
 ```bash
 docker exec calendar-app npx prisma migrate deploy
 ```
@@ -186,6 +202,7 @@ http://localhost:5555
 ## 🔄 更新流程
 
 ### 快速更新（代码无变化，只更新配置）
+
 ```bash
 cd /opt/calendar-task-manager
 docker-compose restart
@@ -194,12 +211,14 @@ docker-compose restart
 ### 完整更新（有代码变更）
 
 1. **本地构建新镜像**
+
 ```powershell
 # Windows
 .\build-and-push.ps1 v1.0.1
 ```
 
 2. **服务器部署新版本**
+
 ```bash
 ssh root@your-server-ip
 cd /opt/calendar-task-manager
@@ -213,11 +232,13 @@ cd /opt/calendar-task-manager
 ### 问题 1: 本地构建失败
 
 **检查 Docker Desktop 是否运行:**
+
 ```powershell
 docker ps
 ```
 
 **清理缓存重新构建:**
+
 ```powershell
 docker build --no-cache -t tutusiji/calendar-task-manager:latest .
 ```
@@ -225,6 +246,7 @@ docker build --no-cache -t tutusiji/calendar-task-manager:latest .
 ### 问题 2: 推送失败
 
 **重新登录 Docker Hub:**
+
 ```bash
 docker logout
 docker login
@@ -233,11 +255,13 @@ docker login
 ### 问题 3: 服务器拉取镜像失败
 
 **检查网络连接:**
+
 ```bash
 docker pull tutusiji/calendar-task-manager:latest
 ```
 
 **使用代理:**
+
 ```bash
 # 编辑 /etc/docker/daemon.json
 {
@@ -250,16 +274,19 @@ sudo systemctl restart docker
 ### 问题 4: Prisma Studio 无法访问
 
 **检查容器状态:**
+
 ```bash
 docker-compose ps prisma-studio
 ```
 
 **查看日志:**
+
 ```bash
 docker-compose logs prisma-studio
 ```
 
 **检查防火墙:**
+
 ```bash
 sudo ufw status
 sudo ufw allow 5555/tcp
@@ -268,11 +295,13 @@ sudo ufw allow 5555/tcp
 ### 问题 5: 数据库连接失败
 
 **检查数据库容器:**
+
 ```bash
 docker exec -it calendar-postgres psql -U postgres -c "\l"
 ```
 
 **重启数据库:**
+
 ```bash
 docker-compose restart postgres
 ```
@@ -282,11 +311,13 @@ docker-compose restart postgres
 ## 📊 镜像版本管理
 
 ### 查看本地镜像
+
 ```bash
 docker images | grep calendar-task-manager
 ```
 
 ### 删除旧版本镜像
+
 ```bash
 # 删除特定版本
 docker rmi tutusiji/calendar-task-manager:v1.0.0
@@ -296,6 +327,7 @@ docker image prune -f
 ```
 
 ### 在服务器上切换版本
+
 ```bash
 # 回滚到特定版本
 ./deploy/pull-and-deploy.sh v1.0.0
@@ -309,21 +341,24 @@ docker image prune -f
 ## 🔐 安全建议
 
 1. **限制 Prisma Studio 访问**
+
    ```bash
    # 只在需要时启动
    docker-compose up -d postgres app
-   
+
    # 需要时才启动 Prisma Studio
    docker-compose up -d prisma-studio
    ```
 
 2. **使用防火墙**
+
    ```bash
    # 只允许特定 IP 访问 5555 端口
    sudo ufw allow from your-ip-address to any port 5555
    ```
 
 3. **定期备份数据库**
+
    ```bash
    # 创建自动备份脚本
    crontab -e
@@ -352,11 +387,13 @@ docker image prune -f
 ## 🎉 完成
 
 现在你可以：
+
 - ✅ 访问应用：https://souxy.com 或 https://joox.cc
 - ✅ 管理数据库：http://your-server-ip:5555
 - ✅ 在本地构建镜像，无需在服务器上编译
 
 每次代码更新：
+
 1. 本地运行 `.\build-and-push.ps1`
 2. 服务器运行 `./deploy/pull-and-deploy.sh`
 3. 完成！

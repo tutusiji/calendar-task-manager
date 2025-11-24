@@ -370,7 +370,29 @@ export function OrganizationManagementDialog({
     }
 
     try {
-      await navigator.clipboard.writeText(code)
+      // 检查是否支持 Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code)
+      } else {
+        // 降级方案：使用传统的 document.execCommand
+        const textArea = document.createElement("textarea")
+        textArea.value = code
+        textArea.style.position = "fixed"
+        textArea.style.left = "-999999px"
+        textArea.style.top = "-999999px"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        
+        try {
+          document.execCommand('copy')
+          textArea.remove()
+        } catch (err) {
+          textArea.remove()
+          throw new Error("复制失败")
+        }
+      }
+      
       setCopiedCode(orgId)
       toast({
         title: "已复制",
@@ -385,7 +407,7 @@ export function OrganizationManagementDialog({
       console.error("复制失败:", error)
       toast({
         title: "复制失败",
-        description: "无法复制邀请码",
+        description: "无法复制邀请码，请手动复制",
         variant: "destructive",
       })
     }

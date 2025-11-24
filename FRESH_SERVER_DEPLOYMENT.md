@@ -130,7 +130,7 @@ scp .env.example root@你的服务器IP:/opt/calendar-task-manager/
 1. **打开 FileZilla**
 2. **连接设置:**
    - 协议: SFTP
-   - 主机: 你的服务器IP
+   - 主机: 你的服务器 IP
    - 端口: 22
    - 用户名: root
    - 密码: 你的密码
@@ -155,6 +155,7 @@ ls -lh
 ```
 
 **应该看到:**
+
 ```
 -rw-r--r-- 1 root root 480M Nov 19 10:00 calendar-app.tar
 -rw-r--r-- 1 root root 2.1K Nov 19 10:00 docker-compose.yml
@@ -172,6 +173,7 @@ docker images | grep calendar-task-manager
 ```
 
 **预期输出:**
+
 ```
 calendar-task-manager   latest   abc123def456   10 minutes ago   500MB
 ```
@@ -187,6 +189,7 @@ docker images | grep postgres
 ```
 
 **预期输出:**
+
 ```
 postgres   16-alpine   xyz789abc123   2 weeks ago   238MB
 ```
@@ -252,11 +255,11 @@ cat docker-compose.yml
 ```yaml
 services:
   app:
-    image: calendar-task-manager:latest  # ✅ 确保镜像名正确
+    image: calendar-task-manager:latest # ✅ 确保镜像名正确
     ports:
-      - "3000:3000"  # ✅ 或改为 8100:3000
+      - "3000:3000" # ✅ 或改为 7049:3000
     environment:
-      DATABASE_URL: ${DATABASE_URL}  # ✅ 使用 .env 变量
+      DATABASE_URL: ${DATABASE_URL} # ✅ 使用 .env 变量
 ```
 
 如果需要修改端口:
@@ -264,7 +267,7 @@ services:
 ```bash
 nano docker-compose.yml
 # 找到 app 服务的 ports:
-# 改为: "8100:3000"  (外部访问 8100,容器内部 3000)
+# 改为: "7049:3000"  (外部访问 7049,容器内部 3000)
 ```
 
 ### 6️⃣ 启动所有服务
@@ -278,6 +281,7 @@ docker-compose logs -f
 ```
 
 **正常输出应该包含:**
+
 ```
 ✔ Network calendar-task-manager_calendar-network  Created
 ✔ Container calendar-postgres  Started
@@ -293,6 +297,7 @@ docker ps
 ```
 
 **应该看到 2 个容器运行:**
+
 ```
 CONTAINER ID   IMAGE                          STATUS          PORTS
 6f2f1c83b016   calendar-task-manager:latest   Up 30 seconds   0.0.0.0:3000->3000/tcp
@@ -310,6 +315,7 @@ docker logs calendar-postgres | tail -10
 ```
 
 **应该看到:**
+
 ```
 database system is ready to accept connections
 ```
@@ -326,6 +332,7 @@ docker exec calendar-app npx prisma db push --accept-data-loss
 ```
 
 **成功输出:**
+
 ```
 🚀 Your database is now in sync with your Prisma schema.
 ✔ Generated Prisma Client
@@ -339,6 +346,7 @@ docker exec -it calendar-postgres psql -U postgres -d calendar_tasks -c "\dt"
 ```
 
 **应该看到以下表:**
+
 ```
  Schema |        Name         | Type  |  Owner
 --------+---------------------+-------+----------
@@ -417,6 +425,7 @@ http://你的服务器IP:3000
 ### 3️⃣ 测试登录
 
 使用刚创建的管理员账号登录:
+
 - 用户名: `admin`
 - 密码: `你设置的密码`
 
@@ -439,6 +448,7 @@ docker logs -f calendar-app
 ```
 
 **正常日志应该包含:**
+
 ```
 ✓ Ready in 2.5s
 ○ Compiling / ...
@@ -532,6 +542,7 @@ sudo certbot renew --dry-run
 ```
 
 配置完成后,可以通过 HTTPS 访问:
+
 ```
 https://souxy.com
 ```
@@ -702,34 +713,40 @@ chmod +x monitor.sh
 完成以下所有项目,确保部署成功:
 
 ### 服务器环境
+
 - [ ] Docker 已安装并运行
 - [ ] Docker Compose 已安装
 - [ ] 项目目录已创建 (`/opt/calendar-task-manager`)
 
 ### 镜像和容器
+
 - [ ] 应用镜像已加载 (`calendar-task-manager:latest`)
 - [ ] PostgreSQL 镜像已拉取 (`postgres:16-alpine`)
 - [ ] 两个容器都在运行 (`docker ps` 显示 2 个)
 
 ### 配置文件
+
 - [ ] `.env` 文件已配置
 - [ ] 数据库密码已设置(强密码)
 - [ ] JWT 密钥已生成
 - [ ] `docker-compose.yml` 端口配置正确
 
 ### 数据库
+
 - [ ] 数据库迁移已执行
-- [ ] 所有表已创建(9个表)
+- [ ] 所有表已创建(9 个表)
 - [ ] 管理员账号已创建
 - [ ] 邀请码已生成(如果有组织成员)
 
 ### 网络访问
+
 - [ ] 可以通过浏览器访问应用
 - [ ] 可以正常登录
 - [ ] 可以创建任务
 - [ ] 防火墙规则已配置
 
 ### 可选配置
+
 - [ ] Nginx 反向代理已配置
 - [ ] SSL 证书已安装
 - [ ] 自动备份已设置
@@ -773,8 +790,8 @@ docker exec calendar-app npx prisma db push --accept-data-loss
 
 # 如果有 NULL 值
 docker exec -i calendar-postgres psql -U postgres -d calendar_tasks << 'EOF'
-UPDATE "Task" 
-SET "creatorId" = (SELECT id FROM "User" LIMIT 1) 
+UPDATE "Task"
+SET "creatorId" = (SELECT id FROM "User" LIMIT 1)
 WHERE "creatorId" IS NULL;
 EOF
 ```
@@ -812,18 +829,21 @@ services:
 如果遇到无法解决的问题:
 
 1. **查看日志:**
+
    ```bash
    docker logs -f calendar-app
    docker logs -f calendar-postgres
    ```
 
 2. **检查容器状态:**
+
    ```bash
    docker ps -a
    docker inspect calendar-app
    ```
 
 3. **重启服务:**
+
    ```bash
    docker-compose restart
    # 或完全重启
@@ -843,11 +863,13 @@ services:
 如果所有检查项都完成了,你的应用已经成功部署!
 
 **下一步:**
+
 1. 创建组织和项目
 2. 邀请团队成员
 3. 开始管理任务
 
 **后续更新:**
+
 1. 本地构建新镜像
 2. 导出 tar 文件
 3. 上传到服务器

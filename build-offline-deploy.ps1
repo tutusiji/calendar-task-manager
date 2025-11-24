@@ -162,7 +162,7 @@ echo ==================================
 echo 应用启动完成！
 echo ==================================
 echo.
-echo 访问地址: http://localhost:8100
+echo 访问地址: http://localhost:7049
 echo 数据库管理: http://localhost:5555
 echo.
 pause

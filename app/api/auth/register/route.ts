@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     // 验证用户名格式
     if (!isValidUsername(username)) {
       return validationErrorResponse(
-        '用户名格式无效：长度 3-20 个字符，只能包含字母、数字、下划线、连字符，且必须以字母或数字开头'
+        '用户名格式无效：长度 3-20 个字符，只能包含字母、数字、下划线、连字符、点号，且必须以字母或数字开头'
       )
     }
 

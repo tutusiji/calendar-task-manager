@@ -12,3 +12,5 @@
 - [/] Organizations <!-- id: 7 -->
 - [/] Generate OpenAPI/Swagger specification file (`openapi.yaml`) <!-- id: 8 -->
 - [/] Create a guide on how to use/view the documentation <!-- id: 9 -->
+- [x] Create Offline Deployment Guide (`OFFLINE_DEPLOYMENT.md`) <!-- id: 10 -->
+- [x] Create Docker Migration Guide (`DOCKER_MIGRATION_GUIDE.md`) <!-- id: 11 -->
