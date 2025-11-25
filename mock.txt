@@ -66,3 +66,26 @@ docker-compose up -d
 
 # 4. 运行迁移
 docker exec calendar-app npx prisma migrate deploy
+
+恢复及检查
+
+bash
+# 1. 在宿主机创建 avatars 目录
+mkdir -p /opt/calendar-task-manager/uploads_data/avatars
+
+# 2. 修改所有者为容器内的 nextjs 用户 (UID 1001)
+sudo chown -R 1001:1001 /opt/calendar-task-manager/uploads_data
+
+# 3. 设置权限
+sudo chmod -R 755 /opt/calendar-task-manager/uploads_data
+
+# 4. 验证
+ls -la /opt/calendar-task-manager/uploads_data/
+
+# 5. 重启容器让挂载生效
+cd /opt/calendar-task-manager
+docker-compose restart app
+
+# 6. 验证容器内的权限
+docker exec -it calendar-app ls -la /app/public/uploads/
+
