@@ -7,6 +7,7 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { User } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
+import { TaskBar } from "./task-bar"
 
 interface TeamMemberRowProps {
   user: User
@@ -86,46 +87,7 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
     return Math.max(...weekTasks.map(t => t.track)) + 1
   }, [userTasksWithTracks, weekDays])
 
-  // 计算任务跨越的天数
-  const calculateSpanDays = (task: typeof userTasksWithTracks[0], startDate: Date) => {
-    const taskStart = new Date(task.startDate)
-    taskStart.setHours(0, 0, 0, 0)
-    const taskEnd = new Date(task.endDate)
-    taskEnd.setHours(0, 0, 0, 0)
-    const currentDate = new Date(startDate)
-    currentDate.setHours(0, 0, 0, 0)
-    
-    // 找到当前日期在本周的位置
-    const dayIndex = weekDays.findIndex(d => {
-      const day = new Date(d)
-      day.setHours(0, 0, 0, 0)
-      return day.getTime() === currentDate.getTime()
-    })
-    
-    if (dayIndex === -1) return 1
-    
-    // 计算从当前日期到任务结束日期的天数
-    const diffTime = taskEnd.getTime() - currentDate.getTime()
-    const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-    
-    // 但不能超过本周剩余的天数
-    const remainingDaysInWeek = weekDays.length - dayIndex
-    
-    return Math.min(totalDays, remainingDaysInWeek)
-  }
 
-  const getTaskColor = (type: string) => {
-    switch (type) {
-      case "daily":
-        return "bg-blue-500"
-      case "meeting":
-        return "bg-yellow-500"
-      case "vacation":
-        return "bg-red-500"
-      default:
-        return "bg-blue-500"
-    }
-  }
 
   // 判断日期是否在拖拽范围内
   const isInDragRange = (date: Date) => {
@@ -178,11 +140,7 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
     }
   }
 
-  // 处理任务点击（打开编辑面板）
-  const handleTaskClick = (e: React.MouseEvent, task: typeof userTasksWithTracks[0]) => {
-    e.stopPropagation()
-    openTaskEdit(task)
-  }
+
 
   const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30 // 紧凑型24px, 宽松型30px
   const TASK_GAP = 4
@@ -233,79 +191,14 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
             >
               {/* 渲染该日期开始的任务 */}
               {dayTasks.map((task) => {
-                const isBeingDragged = dragMoveState.isMoving && dragMoveState.task?.id === task.id
-                
-                const spanDays = calculateSpanDays(task, day)
-                const isStart = true // 因为只在开始日期渲染
-                const taskStart = new Date(task.startDate)
-                taskStart.setHours(0, 0, 0, 0)
-                const taskEnd = new Date(task.endDate)
-                taskEnd.setHours(0, 0, 0, 0)
-                const currentDate = new Date(day)
-                currentDate.setHours(0, 0, 0, 0)
-                
-                // 计算是否是任务结束
-                const isEnd = taskEnd.getTime() === currentDate.getTime() || 
-                             (taskEnd.getTime() > currentDate.getTime() && spanDays < (taskEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24) + 1)
-                
-                // 圆角逻辑
-                let roundedClass = ""
-                if (spanDays === 1) {
-                  roundedClass = "rounded-full"
-                } else {
-                  // 检查是否在本周结束
-                  const dayIndex = weekDays.findIndex(d => {
-                    const day = new Date(d)
-                    day.setHours(0, 0, 0, 0)
-                    return day.getTime() === currentDate.getTime()
-                  })
-                  const endsInThisWeek = dayIndex + spanDays - 1 < weekDays.length && taskEnd.getTime() <= new Date(weekDays[dayIndex + spanDays - 1]).setHours(0, 0, 0, 0)
-                  
-                  if (endsInThisWeek) {
-                    roundedClass = "rounded-full"
-                  } else {
-                    roundedClass = "rounded-l-full"
-                  }
-                }
-
                 return (
-                  <div
-                    key={task.id}
-                    onMouseDown={(e) => {
-                      if (e.button !== 0) return
-                      e.stopPropagation()
-                      e.preventDefault()
-                      startDragMove(task, day)
-                    }}
-                    className={cn(
-                      "task-bar absolute px-2 py-1 font-medium text-white transition-all",
-                      taskBarSize === "compact" ? "text-xs" : "text-sm",
-                      getTaskColor(task.type),
-                      roundedClass,
-                      // 拖拽样式
-                      isBeingDragged ? "shadow-[0_8px_30px_rgb(0,0,0,0.4)] cursor-move" : "cursor-move hover:opacity-90 hover:shadow-md",
-                      // 其他任务在拖拽时禁用交互
-                      !isBeingDragged && dragMoveState.isMoving && "pointer-events-none",
-                    )}
-                    style={{
-                      width: spanDays > 1 ? `calc(100% * ${spanDays} - 6px * ${spanDays - 1})` : 'calc(100% - 15px)',
-                      top: `${task.track * (TASK_HEIGHT + TASK_GAP) + 4}px`,
-                      height: `${TASK_HEIGHT}px`,
-                      zIndex: isBeingDragged ? 50 : 10,
-                    }}
-                    title={task.title}
-                    onClick={(e) => {
-                      // 只有在没有拖拽操作时才打开详情
-                      if (!isBeingDragged && !dragMoveState.isMoving) {
-                        handleTaskClick(e, task)
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-1 truncate">
-                      {task.startTime && <span className="text-[10px] opacity-90">{task.startTime}</span>}
-                      <span className="truncate">{task.title}</span>
-                    </div>
-                  </div>
+                  <TaskBar 
+                    key={task.id} 
+                    task={task} 
+                    date={day} 
+                    track={task.track} 
+                    isPersonalWeekView={true} 
+                  />
                 )
               })}
             </div>

@@ -67,6 +67,8 @@ export interface Task {
   startTime?: string
   endTime?: string
   type: TaskType
+  color?: string // 可选颜色，仅用于 daily 类型
+  progress: number // 进度 0-100
   projectId: string
   teamId?: string // 任务可以选择性地关联到团队
   creatorId: string // 创建人ID
@@ -125,4 +127,13 @@ export type ViewMode = "month" | "week" | "personal"
 export type NavigationMode = "my-days" | "team" | "project"
 export type MainViewMode = "calendar" | "list" | "stats" // 主视图模式：日历 | 清单 | 统计
 export type ListGroupMode = "project" | "date" | "user" // 清单分组模式：按项目 | 按时间 | 按人头
+
+// 任务颜色选项
+export const TASK_COLORS = [
+  { value: 'blue', label: '蓝色', hex: '#3b82f6', lightBg: 'bg-blue-50', border: 'border-blue-500', text: 'text-blue-600' },
+  { value: 'green', label: '绿色', hex: '#10b981', lightBg: 'bg-green-50', border: 'border-green-500', text: 'text-green-600' },
+  { value: 'yellow', label: '黄色', hex: '#f59e0b', lightBg: 'bg-yellow-50', border: 'border-yellow-500', text: 'text-yellow-600' },
+  { value: 'red', label: '红色', hex: '#ef4444', lightBg: 'bg-red-50', border: 'border-red-500', text: 'text-red-600' },
+  { value: 'purple', label: '紫色', hex: '#a855f7', lightBg: 'bg-purple-50', border: 'border-purple-500', text: 'text-purple-600' },
+] as const
 export type ListLayoutColumns = 1 | 2 | 3 | 4 // 清单布局列数

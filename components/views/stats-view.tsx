@@ -177,7 +177,7 @@ export function StatsView() {
   return (
     <div className="flex h-full flex-col bg-muted/30">
       {/* Stats Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 pb-24">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* 总览卡片 */}
           <Card>

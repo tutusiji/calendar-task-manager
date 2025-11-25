@@ -189,7 +189,7 @@ export async function PUT(
       return forbiddenResponse('无权修改此任务。根据协同权限设置，只有任务创建者或拥有协同权限的成员可以修改任务')
     }
 
-    const { title, description, startDate, endDate, startTime, endTime, type, projectId, teamId, userId } = body
+    const { title, description, startDate, endDate, startTime, endTime, type, color, progress, projectId, teamId, userId } = body
 
     // 特别验证项目ID（如果提供）
     if (projectId !== undefined && (!projectId || projectId.trim() === '')) {
@@ -218,6 +218,15 @@ export async function PUT(
       const validTypes = ['daily', 'meeting', 'vacation']
       if (!validTypes.includes(type)) {
         return validationErrorResponse(`任务类型无效，必须是: ${validTypes.join(', ')}`)
+      }
+    }
+
+    // 验证颜色（仅 daily 类型）
+    if (color !== undefined) {
+      const validColors = ['blue', 'green', 'yellow', 'red', 'purple']
+      const taskType = type || existingTask.type
+      if (taskType === 'daily' && color && !validColors.includes(color)) {
+        return validationErrorResponse(`颜色无效，必须是: ${validColors.join(', ')}`)
       }
     }
 
@@ -316,6 +325,13 @@ export async function PUT(
     if (startTime !== undefined) updateData.startTime = startTime
     if (endTime !== undefined) updateData.endTime = endTime
     if (type !== undefined) updateData.type = type
+    if (color !== undefined) {
+      const taskType = type || existingTask.type
+      updateData.color = taskType === 'daily' ? (color || null) : null
+    }
+    if (progress !== undefined) {
+      updateData.progress = Math.max(0, Math.min(100, progress))
+    }
     if (projectId !== undefined) updateData.projectId = projectId
     if (teamId !== undefined) updateData.teamId = teamId || null // 支持更新teamId
 

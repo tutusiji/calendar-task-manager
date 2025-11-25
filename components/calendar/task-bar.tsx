@@ -1,11 +1,13 @@
 "use client"
 
-import type React from "react"
+import React, { useState } from "react"
 
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Task } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ProgressCircle } from "../task/progress-circle"
+import { TASK_COLORS } from "@/lib/types"
 
 interface TaskBarProps {
   task: Task
@@ -17,6 +19,7 @@ interface TaskBarProps {
 
 export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWeekView = false }: TaskBarProps) {
   const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState, getUserById, taskBarSize } = useCalendarStore()
+  const [isHovered, setIsHovered] = useState(false)
   const project = getProjectById(task.projectId)
   
   // 获取所有负责人
@@ -174,6 +177,15 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
   }
 
   const getTaskColor = () => {
+    // 如果是日常任务且有自定义颜色，使用镂空样式
+    if (task.type === 'daily' && task.color) {
+      const colorConfig = TASK_COLORS.find(c => c.value === task.color)
+      if (colorConfig) {
+        return `${colorConfig.border} ${colorConfig.lightBg} ${colorConfig.text} border`
+      }
+    }
+    
+    // 默认颜色
     switch (task.type) {
       case "daily":
         return "bg-blue-500"
@@ -183,6 +195,19 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
         return "bg-red-500"
       default:
         return "bg-blue-500"
+    }
+  }
+
+  const getTaskHexColor = () => {
+    if (task.type === 'daily' && task.color) {
+      const colorConfig = TASK_COLORS.find(c => c.value === task.color)
+      return colorConfig ? colorConfig.hex : '#3b82f6'
+    }
+    switch (task.type) {
+      case "daily": return '#3b82f6'
+      case "meeting": return '#eab308'
+      case "vacation": return '#ef4444'
+      default: return '#3b82f6'
     }
   }
 
@@ -211,8 +236,10 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
     <div
       onMouseDown={handleMouseDown}
       onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        "task-bar group absolute px-1 font-medium text-white transition-all",
+        "task-bar group absolute px-1 font-medium text-white transition-all overflow-hidden",
         textSizeClass,
         getTaskColor(),
         getRoundedClass(),
@@ -230,7 +257,16 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
         zIndex: isBeingDragged ? 50 : 10,
       }}
     >
-      <div className="taskbar flex items-center gap-1 truncate h-full">
+      {/* 进度背景填充 */}
+      <div 
+        className="absolute left-0 top-0 h-full transition-all duration-300 opacity-30"
+        style={{
+          width: `${task.progress || 0}%`,
+          backgroundColor: getTaskHexColor(),
+        }}
+      />
+
+      <div className="taskbar flex items-center gap-1 truncate h-full relative z-10">
         {showUserInfo && (
           <>
             {assigneeCount === 1 ? (
@@ -279,7 +315,7 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
             ) : (
               // 4个或更多负责人：显示前3个头像 + "等N人"
               <>
-                <div className="flex items-center gap-1 shrink-0 ml-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <div className="flex items-center -space-x-1">
                     {assigneeUsers.map((user, index) => (
                       <Avatar key={user.id} className={cn(avatarSizeClass, "border border-white/30 bg-white")} style={{ zIndex: 3 - index }}>
@@ -298,7 +334,19 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
           </>
         )}
         {task.startTime && <span className={cn("text-[10px] opacity-90", !showUserInfo && "ml-1")}>{task.startTime}</span>}
-        <span className={cn("truncate", !showUserInfo && !task.startTime && "ml-1")}>{task.title}</span>
+        <span className={cn("truncate flex-1", !showUserInfo && !task.startTime && "ml-1")}>{task.title}</span>
+        
+        {/* Progress Circle - Only for daily tasks */}
+        {task.type === 'daily' && (
+          <div className="shrink-0 ml-auto flex items-center">
+            <ProgressCircle 
+              progress={task.progress || 0} 
+              color={task.color}
+              size={taskBarSize === "compact" ? 20 : 24}
+              showNumber={isHovered}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

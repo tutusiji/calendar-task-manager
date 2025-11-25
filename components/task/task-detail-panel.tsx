@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils"
 import { UserSelector } from "./user-selector"
 import { UserMultiSelector } from "./user-multi-selector"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ColorPicker } from "./color-picker"
+import { ProgressSlider } from "./progress-slider"
 import {
   Tooltip,
   TooltipContent,
@@ -45,6 +47,8 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [taskType, setTaskType] = useState<TaskType>("daily")
+  const [color, setColor] = useState<string>('blue')
+  const [progress, setProgress] = useState<number>(0)
   const [teamId, setTeamId] = useState<string>(taskCreation.teamId || "none")
   const [projectId, setProjectId] = useState(taskCreation.projectId || settings.lastSelectedProjectId || "personal")
   const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
@@ -111,6 +115,8 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
         startTime: startTime || undefined,
         endTime: endTime || undefined,
         type: taskType,
+        color: taskType === 'daily' ? color : undefined,
+        progress,
         projectId,
         teamId: teamId === "none" ? undefined : teamId,
         creatorId: currentUser.id,
@@ -337,6 +343,21 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                   ))}
                 </div>
               </div>
+
+              {/* Color Picker & Progress Slider - Only for daily tasks */}
+              {taskType === 'daily' && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">事项颜色</Label>
+                    <ColorPicker value={color} onChange={setColor} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">进度</Label>
+                    <ProgressSlider value={progress} onChange={setProgress} color={color} />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* 右侧列 - 详情信息 */}

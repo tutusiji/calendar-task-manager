@@ -143,6 +143,8 @@ model Task {
   startTime   String?
   endTime     String?
   type        TaskType
+  color       String?        // 可选颜色，仅用于 daily 类型
+  progress    Int            @default(0) // 进度 0-100
   creatorId   String // 创建人ID
   creator     User           @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   assignees   TaskAssignee[] // 负责人列表（多对多关系）

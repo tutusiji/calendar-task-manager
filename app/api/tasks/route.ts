@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error
 
     const body = await request.json()
-    const { title, description, startDate, endDate, startTime, endTime, type, projectId, teamId, userId } = body
+    const { title, description, startDate, endDate, startTime, endTime, type, color, progress, projectId, teamId, userId } = body
 
     // 验证必填字段
     const requiredValidation = validateRequiredFields(body, [
@@ -230,6 +230,15 @@ export async function POST(request: NextRequest) {
     if (!validTypes.includes(type)) {
       return validationErrorResponse(`任务类型无效，必须是: ${validTypes.join(', ')}`)
     }
+
+    // 验证颜色（仅 daily 类型）
+    const validColors = ['blue', 'green', 'yellow', 'red', 'purple']
+    if (type === 'daily' && color && !validColors.includes(color)) {
+      return validationErrorResponse(`颜色无效，必须是: ${validColors.join(', ')}`)
+    }
+
+    // 验证进度
+    const taskProgress = Math.max(0, Math.min(100, progress || 0))
 
     // 验证项目访问权限
     const project = await prisma.project.findUnique({
@@ -305,6 +314,8 @@ export async function POST(request: NextRequest) {
         startTime,
         endTime,
         type,
+        color: type === 'daily' ? (color || null) : null,
+        progress: taskProgress,
         creatorId: auth.userId, // 创建人是当前用户
         projectId,
         teamId: teamId || null, // 保存团队ID

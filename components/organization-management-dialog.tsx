@@ -369,14 +369,17 @@ export function OrganizationManagementDialog({
       return
     }
 
+    // 构建完整的复制文本
+    const copyText = `注册时空间组织输入"${orgName}"，并在下拉列表中选择该选项，输入邀请码 ${code}`
+
     try {
       // 检查是否支持 Clipboard API
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(code)
+        await navigator.clipboard.writeText(copyText)
       } else {
         // 降级方案：使用传统的 document.execCommand
         const textArea = document.createElement("textarea")
-        textArea.value = code
+        textArea.value = copyText
         textArea.style.position = "fixed"
         textArea.style.left = "-999999px"
         textArea.style.top = "-999999px"
@@ -385,8 +388,11 @@ export function OrganizationManagementDialog({
         textArea.select()
         
         try {
-          document.execCommand('copy')
+          const successful = document.execCommand('copy')
           textArea.remove()
+          if (!successful) {
+            throw new Error("复制失败")
+          }
         } catch (err) {
           textArea.remove()
           throw new Error("复制失败")
@@ -396,18 +402,18 @@ export function OrganizationManagementDialog({
       setCopiedCode(orgId)
       toast({
         title: "已复制",
-        description: `${orgName} 的邀请码已复制到剪贴板`,
+        description: `${orgName} 的邀请信息已复制到剪贴板`,
       })
       
-      // 3秒后清除复制状态
+      // 2秒后清除复制状态
       setTimeout(() => {
         setCopiedCode(null)
-      }, 3000)
+      }, 2000)
     } catch (error) {
       console.error("复制失败:", error)
       toast({
         title: "复制失败",
-        description: "无法复制邀请码，请手动复制",
+        description: "请手动复制邀请码",
         variant: "destructive",
       })
     }

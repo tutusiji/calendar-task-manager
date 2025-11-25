@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 import { UserSelector } from "./user-selector"
 import { UserMultiSelector } from "./user-multi-selector"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ColorPicker } from "./color-picker"
+import { ProgressSlider } from "./progress-slider"
 import {
   Tooltip,
   TooltipContent,
@@ -53,6 +55,8 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
   const [startTime, setStartTime] = useState(task.startTime || "")
   const [endTime, setEndTime] = useState(task.endTime || "")
   const [taskType, setTaskType] = useState<TaskType>(task.type)
+  const [color, setColor] = useState<string>(task.color || 'blue')
+  const [progress, setProgress] = useState<number>(task.progress || 0)
   const [teamId, setTeamId] = useState<string>(task.teamId || "none")
   const [projectId, setProjectId] = useState(task.projectId)
   const [assigneeIds, setAssigneeIds] = useState<string[]>(
@@ -128,6 +132,8 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
         startTime: startTime || undefined,
         endTime: endTime || undefined,
         type: taskType,
+        color: taskType === 'daily' ? color : undefined,
+        progress,
         projectId,
         teamId: teamId === "none" ? undefined : teamId,
         userId: assigneeIds.length > 0 ? assigneeIds : undefined, // 发送负责人 ID 数组
@@ -381,6 +387,20 @@ export function TaskEditPanel({ task, onClose }: TaskEditPanelProps) {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Color Picker - Only for daily tasks */}
+              {taskType === 'daily' && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">事项颜色</Label>
+                  <ColorPicker value={color} onChange={setColor} />
+                </div>
+              )}
+
+              {/* Progress Slider */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">进度</Label>
+                <ProgressSlider value={progress} onChange={setProgress} color={taskType === 'daily' ? color : undefined} />
               </div>
             </div>
 
