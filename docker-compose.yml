@@ -44,7 +44,8 @@ services:
         condition: service_healthy
     networks:
       - calendar-network
-    command: sh -c "npx prisma migrate deploy && node server.js"
+    # command: sh -c "npx prisma migrate deploy && node server.js"
+    command: sh -c "node server.js"
 
   # Prisma Studio - 数据库管理界面
   prisma-studio:
