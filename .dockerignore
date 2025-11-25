@@ -15,7 +15,7 @@ build/
 .env.docker
 
 # Database
-prisma/migrations/*_*
+# prisma/migrations/*_*  # 注释掉，允许迁移文件被包含在镜像中
 *.db
 *.db-journal
 
