@@ -212,7 +212,7 @@ export function NavigationMenu() {
             "flex items-center gap-2 py-2 text-sm font-medium transition-colors hover:bg-muted/50 rounded-md mx-2 pl-4",
             navigationMode === "my-days" && !selectedTeamId && !selectedProjectId && "bg-muted"
           )}
-          style={{ marginLeft: '36px' }}
+          style={{ marginLeft: '20px' }}
         >
           <svg 
             className="h-5 w-5" 
@@ -228,7 +228,7 @@ export function NavigationMenu() {
 
         {/* My Teams */}
         <div>
-          <div className="flex items-center gap-2 px-4 py-2 mx-2">
+          <div className="flex items-center gap-2 py-2 px-1 mx-1">
             <button
               onClick={() => setTeamsExpanded(!teamsExpanded)}
               className="flex items-center gap-2 flex-1 text-sm font-medium hover:bg-muted/50 rounded-md p-1"
@@ -345,7 +345,7 @@ export function NavigationMenu() {
 
         {/* My Projects */}
         <div>
-          <div className="flex items-center gap-2 px-4 py-2 mx-2">
+          <div className="flex items-center gap-2 py-2 px-1 mx-1">
             <button
               onClick={() => setProjectsExpanded(!projectsExpanded)}
               className="flex items-center gap-2 flex-1 text-sm font-medium hover:bg-muted/50 rounded-md p-1"
