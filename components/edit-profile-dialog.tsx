@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -42,9 +42,24 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
   const [role, setRole] = useState(currentUser.role || '未设置')
   const [avatar, setAvatar] = useState(currentUser.avatar)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [magicSeed, setMagicSeed] = useState(1)
   const [isAvatarLoading, setIsAvatarLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 当对话框打开时，重新从 currentUser 读取最新信息
+  useEffect(() => {
+    if (open) {
+      setName(currentUser.name)
+      setEmail(currentUser.email)
+      setGender(currentUser.gender || '未设置')
+      setRole(currentUser.role || '未设置')
+      setAvatar(currentUser.avatar)
+      setIsAvatarLoading(false)
+    }
+  }, [open, currentUser])
+
+  const handleOpenChange = (newOpen: boolean) => {
+    onOpenChange(newOpen)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,16 +94,17 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
 
   const handleMagicGenerate = () => {
     setIsAvatarLoading(true)
-    const nextSeed = magicSeed + 1
-    setMagicSeed(nextSeed)
+    
+    // 生成 1-100 的随机数
+    const randomSeed = Math.floor(Math.random() * 100) + 1
     
     // 模拟魔法施展过程（模糊到清晰）
     setTimeout(() => {
-      const username = currentUser.username || currentUser.email.split('@')[0]
-      const newAvatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}.${nextSeed}`
+      const avatarApiUrl = process.env.NEXT_PUBLIC_AVATAR_API_URL || 'https://api.dicebear.com'
+      const newAvatarUrl = `${avatarApiUrl}/9.x/avataaars/svg?seed=${currentUser.username}${randomSeed}`
       setAvatar(newAvatarUrl)
       setIsAvatarLoading(false)
-    }, 500)
+    }, 400)
   }
 
   const getUserInitial = (name: string) => {
@@ -96,7 +112,7 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>编辑个人信息</DialogTitle>

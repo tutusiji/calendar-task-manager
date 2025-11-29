@@ -20,7 +20,7 @@
 
 在内网部署一个兼容 DiceBear API 的头像服务,例如:
 - 地址: `http://10.11.22.33:4567`
-- API 路径: `/7.x/avataaars/svg?seed={username}`
+- API 路径: `/9.x/avataaars/svg?seed={username}`
 
 ### 2. 配置环境变量
 
@@ -121,7 +121,7 @@ docker exec -it calendar-postgres psql -U postgres -d calendar_tasks -c \
 ```
 username  | avatar
 ----------+--------------------------------------------------
-testuser  | http://10.11.22.33:4567/7.x/avataaars/svg?seed=testuser
+testuser  | http://10.11.22.33:4567/9.x/avataaars/svg?seed=testuser
 ```
 
 ---
@@ -163,7 +163,7 @@ AVATAR_API_URL=http://10.11.22.33:4567
 ### Q1: 头像服务需要兼容什么 API?
 
 **A:** 需要兼容 DiceBear 的 API 格式:
-- 请求: `GET {baseUrl}/7.x/avataaars/svg?seed={username}`
+- 请求: `GET {baseUrl}/9.x/avataaars/svg?seed={username}`
 - 响应: SVG 图片
 
 ### Q2: 可以使用其他头像服务吗?
@@ -215,7 +215,7 @@ WHERE avatar LIKE 'https://api.dicebear.com%';
 ```typescript
 export const config = {
   avatarApiUrl: process.env.AVATAR_API_URL || 'https://api.dicebear.com',
-  avatarApiPath: '/7.x/avataaars/svg',
+  avatarApiPath: '/9.x/avataaars/svg',
   
   getAvatarUrl(username: string): string {
     return `${this.avatarApiUrl}${this.avatarApiPath}?seed=${username}`
@@ -230,8 +230,8 @@ import { config } from '@/lib/config'
 
 // 生成头像 URL
 const avatarUrl = config.getAvatarUrl('zhangsan')
-// 公网: https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan
-// 内网: http://10.11.22.33:4567/7.x/avataaars/svg?seed=zhangsan
+// 公网: https://api.dicebear.com/9.x/avataaars/svg?seed=zhangsan
+// 内网: http://10.11.22.33:4567/9.x/avataaars/svg?seed=zhangsan
 ```
 
 ---

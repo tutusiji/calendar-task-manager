@@ -14,9 +14,9 @@ export const config = {
   
   /**
    * 头像 API 路径模板
-   * 完整 URL 格式: {avatarApiUrl}/7.x/avataaars/svg?seed={username}
+   * 完整 URL 格式: {avatarApiUrl}/9.x/avataaars/svg?seed={username}
    */
-  avatarApiPath: '/7.x/avataaars/svg',
+  avatarApiPath: '/9.x/avataaars/svg',
   
   /**
    * 生成用户头像 URL

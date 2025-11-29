@@ -20,7 +20,7 @@ async function main() {
     data: {
       name: '张三',
       email: 'zhangsan@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan'
+      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=zhangsan'
     }
   })
 
@@ -28,7 +28,7 @@ async function main() {
     data: {
       name: '李四',
       email: 'lisi@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=lisi'
+      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=lisi'
     }
   })
 
@@ -36,7 +36,7 @@ async function main() {
     data: {
       name: '王五',
       email: 'wangwu@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wangwu'
+      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=wangwu'
     }
   })
 
@@ -44,7 +44,7 @@ async function main() {
     data: {
       name: '赵六',
       email: 'zhaoliu@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhaoliu'
+      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=zhaoliu'
     }
   })
 
@@ -52,7 +52,7 @@ async function main() {
     data: {
       name: '孙七',
       email: 'sunqi@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sunqi'
+      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=sunqi'
     }
   })
 
@@ -60,7 +60,7 @@ async function main() {
     data: {
       name: '周八',
       email: 'zhouba@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhouba'
+      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=zhouba'
     }
   })
 

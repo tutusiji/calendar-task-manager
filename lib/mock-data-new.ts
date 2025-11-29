@@ -5,37 +5,37 @@ export const mockUsers: User[] = [
   {
     id: "1",
     name: "张三",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Zhang",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Zhang",
     email: "zhangsan@example.com",
   },
   {
     id: "2",
     name: "李四",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Li",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Li",
     email: "lisi@example.com",
   },
   {
     id: "3",
     name: "王五",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Wang",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Wang",
     email: "wangwu@example.com",
   },
   {
     id: "4",
     name: "赵六",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Zhao",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Zhao",
     email: "zhaoliu@example.com",
   },
   {
     id: "5",
     name: "钱七",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Qian",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Qian",
     email: "qianqi@example.com",
   },
   {
     id: "6",
     name: "孙八",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sun",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Sun",
     email: "sunba@example.com",
   },
 ]
