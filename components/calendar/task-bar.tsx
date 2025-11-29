@@ -18,16 +18,28 @@ interface TaskBarProps {
 }
 
 export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWeekView = false }: TaskBarProps) {
-  const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState, getUserById, taskBarSize } = useCalendarStore()
+  const { getProjectById, openTaskEdit, hideWeekends, startDragMove, dragMoveState, getUserById, taskBarSize, updateTask } = useCalendarStore()
   const [isHovered, setIsHovered] = useState(false)
+  const [isProgressDragging, setIsProgressDragging] = useState(false)
+  const [dragProgress, setDragProgress] = useState(task.progress || 0)
+  const [optimisticProgress, setOptimisticProgress] = useState<number | null>(null)
+  const taskBarRef = React.useRef<HTMLDivElement>(null)
+  
   const project = getProjectById(task.projectId)
+
+  // 监听 task.progress 变化，如果与乐观状态一致，则清除乐观状态
+  React.useEffect(() => {
+    if (optimisticProgress !== null && task.progress === optimisticProgress) {
+      setOptimisticProgress(null)
+    }
+  }, [task.progress, optimisticProgress])
   
   // 获取所有负责人
   const assignees = task.assignees || []
   const assigneeCount = assignees.length
   
   // 获取前三个负责人的用户信息
-  const assigneeUsers = assignees.slice(0, 3).map(a => getUserById(a.userId)).filter(Boolean)
+  const assigneeUsers = assignees.slice(0, 3).map(a => getUserById(a.userId)).filter((u): u is import("@/lib/types").User => !!u)
   
   // 如果没有负责人，使用创建者
   const fallbackUser = assigneeCount === 0 ? getUserById(task.creatorId) : null
@@ -214,9 +226,86 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering calendar day's drag creation
     // 只有在不是拖拽状态时才打开编辑面板
-    if (!isBeingDragged && !dragMoveState.isMoving) {
+    if (!isBeingDragged && !dragMoveState.isMoving && !isProgressDragging) {
       openTaskEdit(task)
     }
+  }
+
+  // 处理进度条拖拽
+  const handleProgressMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    
+    setIsProgressDragging(true)
+    setDragProgress(task.progress || 0)
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (taskBarRef.current) {
+        const rect = taskBarRef.current.getBoundingClientRect()
+        const x = moveEvent.clientX - rect.left
+        let newProgress = Math.round((x / rect.width) * 100)
+        
+        // Clamp between 0 and 100
+        newProgress = Math.max(0, Math.min(100, newProgress))
+        setDragProgress(newProgress)
+      }
+    }
+    
+    const handleMouseUp = () => {
+      setIsProgressDragging(false)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      
+      // 提交更新
+      if (taskBarRef.current) {
+        // 使用最新的 dragProgress 值，这里需要通过 ref 或者重新计算，
+        // 但由于闭包问题，直接使用 setDragProgress 的回调或者 ref 更安全。
+        // 简单起见，我们在 mouseUp 时再计算一次或者利用 state 更新机制。
+        // 这里为了确保准确，我们重新计算一次最终值
+        // 实际上，由于闭包，这里的 dragProgress 可能不是最新的。
+        // 更好的方式是使用 ref 存储当前的 dragProgress
+      }
+    }
+    
+    // 重新定义 mouseUp 以获取正确的 progress
+    const handleMouseUpWithSave = async (upEvent: MouseEvent) => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUpWithSave)
+      
+      if (taskBarRef.current) {
+        const rect = taskBarRef.current.getBoundingClientRect()
+        const x = upEvent.clientX - rect.left
+        let finalProgress = Math.round((x / rect.width) * 100)
+        finalProgress = Math.max(0, Math.min(100, finalProgress))
+        
+        // 如果进度没有变化，直接退出
+        if (finalProgress === (task.progress || 0)) {
+          setIsProgressDragging(false)
+          return
+        }
+
+        // 先设置乐观状态，防止回弹
+        setOptimisticProgress(finalProgress)
+        // 然后再结束拖拽状态
+        setIsProgressDragging(false)
+        
+        try {
+          await updateTask(task.id, { progress: finalProgress })
+        } catch (error) {
+          console.error("Failed to update progress:", error)
+          // 如果失败，清除乐观状态，回滚到 store 中的值
+          setOptimisticProgress(null)
+        } 
+        // 注意：不要在 finally 中清除 optimisticProgress，
+        // 而是通过 useEffect 监听 task.progress 的变化来清除，
+        // 这样可以避免在 store 更新前出现回弹
+      } else {
+        setIsProgressDragging(false)
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUpWithSave)
   }
 
   const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30 // 任务条高度 (px): 紧凑型24px, 宽松型30px
@@ -232,8 +321,14 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
     return name.charAt(0).toUpperCase()
   }
 
+  // 计算显示的进度值
+  const displayProgress = isProgressDragging 
+    ? dragProgress 
+    : (optimisticProgress !== null ? optimisticProgress : (task.progress || 0))
+
   return (
     <div
+      ref={taskBarRef}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -257,14 +352,44 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
         zIndex: isBeingDragged ? 50 : 10,
       }}
     >
-      {/* 进度背景填充 */}
+      {/* 进度背景填充 - 拖拽时禁用过渡效果以提高响应速度 */}
       <div 
-        className="absolute left-0 top-0 h-full transition-all duration-300 opacity-30"
+        className={cn(
+          "absolute left-0 top-0 h-full opacity-30",
+          !isProgressDragging && "transition-all duration-300"
+        )}
         style={{
-          width: `${task.progress || 0}%`,
+          width: `${displayProgress}%`,
           backgroundColor: getTaskHexColor(),
         }}
       />
+
+      {/* 进度拖拽手柄 - 始终渲染，使用 CSS group-hover 控制显示，解决 React 状态丢失问题 */}
+      <div
+        className={cn(
+          "absolute top-0 bottom-0 z-30 w-4 -ml-2 cursor-ew-resize flex items-center justify-center group/handle transition-opacity duration-200",
+          // 默认隐藏且不响应事件
+          "opacity-0 pointer-events-none",
+          // Hover 或 拖拽时显示并响应事件
+          "group-hover:opacity-100 group-hover:pointer-events-auto",
+          isProgressDragging && "opacity-100 pointer-events-auto"
+        )}
+        style={{ left: `${displayProgress}%` }}
+        onMouseDown={handleProgressMouseDown}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 视觉标记：两条竖线 */}
+        <div className="flex gap-0.5 h-3/5 opacity-80 group-hover/handle:opacity-100">
+          <div className="w-px h-full bg-black shadow-sm animate-pulse" />
+          <div className="w-px h-full bg-black shadow-sm animate-pulse delay-75" />
+        </div>
+        {/* 显示当前进度百分比提示 */}
+        {isProgressDragging && (
+          <div className="absolute bottom-full mb-1 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
+            {dragProgress}%
+          </div>
+        )}
+      </div>
 
       <div className="taskbar flex items-center gap-1 truncate h-full relative z-10">
         {showUserInfo && (
@@ -340,10 +465,10 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
         {task.type === 'daily' && (
           <div className="shrink-0 ml-auto flex items-center">
             <ProgressCircle 
-              progress={task.progress || 0} 
+              progress={displayProgress} 
               color={task.color}
               size={taskBarSize === "compact" ? 20 : 24}
-              showNumber={isHovered}
+              showNumber={isHovered || isProgressDragging}
             />
           </div>
         )}
