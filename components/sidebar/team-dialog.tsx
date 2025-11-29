@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Team, TaskPermission } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
-import { UserSingleSelector } from "../task/user-single-selector"
+import { UserSelector } from "../task/user-selector"
 import {
   Dialog,
   DialogContent,
@@ -165,11 +165,10 @@ export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps)
               <Label htmlFor="creator" className="text-sm font-medium">
                 创建人
               </Label>
-              <UserSingleSelector
+              <UserSelector
                 selectedUserId={creatorId}
                 onUserChange={setCreatorId}
                 disabled={viewOnly || !canEditCreator}
-                placeholder="选择创建人"
               />
             </div>
           )}

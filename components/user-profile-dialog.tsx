@@ -22,7 +22,9 @@ import {
   Trash2, 
   Crown,
   User as UserIcon,
-  Key
+  Key,
+  Pin,
+  Building2
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { AvatarUpload } from "@/components/avatar-upload"
@@ -322,12 +324,6 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                       {/* 积分徽章系统 - 可点击展开详情 */}
                       <RankBadge points={currentUser.points || 0} variant="minimal" clickable={true} />
                     </div>
-                    {currentUser.role && currentUser.role !== '未设置' && (
-                      <Badge variant="secondary" className="mt-2">
-                        <Briefcase className="mr-1 h-3 w-3" />
-                        {currentUser.role}
-                      </Badge>
-                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -358,6 +354,29 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <UserIcon className="h-4 w-4" />
                       <span>{currentUser.gender}</span>
+                    </div>
+                  )}
+                  
+                  {/* Default Team Display - Moved here for consistent UI */}
+                  {currentUser.defaultTeamId && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Building2 className="h-4 w-4" />
+                      <span>
+                        {(() => {
+                          const defaultTeam = allTeams.find(t => t.id === currentUser.defaultTeamId)
+                          // @ts-ignore - organization is included in API response but not in type definition yet
+                          const orgName = defaultTeam?.organization?.name || '组织'
+                          return defaultTeam ? `${orgName} - ${defaultTeam.name}` : '未知团队'
+                        })()}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Profession - Moved here for consistent UI */}
+                  {currentUser.role && currentUser.role !== '未设置' && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Briefcase className="h-4 w-4" />
+                      <span>{currentUser.role}</span>
                     </div>
                   )}
                 </div>
@@ -406,6 +425,11 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                                       创建者
                                     </Badge>
                                   )}
+                                  {currentUser.defaultTeamId === team.id && (
+                                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                      默认
+                                    </Badge>
+                                  )}
                                 </div>
                                 {team.description && (
                                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -444,32 +468,55 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                                   </TooltipProvider>
                                 </div>
                               </div>
-                              {/* 操作按钮 - 非创建者显示在右侧 */}
-                              {!isCreator && (
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {isMember ? (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="text-orange-500 hover:text-orange-600"
-                                      onClick={() => setConfirmLeaveTeam(team.id)}
-                                      disabled={isLeaving === team.id}
-                                    >
-                                      <LogOut className="mr-1 h-3 w-3" />
-                                      {isLeaving === team.id ? '退出中...' : '退出'}
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => handleJoinTeam(team.id)}
-                                      disabled={isJoining === team.id}
-                                    >
-                                      {isJoining === team.id ? '加入中...' : '加入'}
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
+                              {/* 操作按钮 */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                {currentUser.defaultTeamId !== team.id && isMember && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                    title="设为默认团队"
+                                    onClick={async (e) => {
+                                      e.stopPropagation()
+                                      try {
+                                        const updatedUser = await userAPI.updateMe({ defaultTeamId: team.id })
+                                        setCurrentUser(updatedUser)
+                                        localStorage.setItem('currentUser', JSON.stringify(updatedUser))
+                                        showToast.success('设置成功', '已设为默认团队')
+                                      } catch (error) {
+                                        showToast.error('设置失败', '请稍后重试')
+                                      }
+                                    }}
+                                  >
+                                    <Pin className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {!isCreator && (
+                                  <>
+                                    {isMember ? (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-orange-500 hover:text-orange-600"
+                                        onClick={() => setConfirmLeaveTeam(team.id)}
+                                        disabled={isLeaving === team.id}
+                                      >
+                                        <LogOut className="mr-1 h-3 w-3" />
+                                        {isLeaving === team.id ? '退出中...' : '退出'}
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={() => handleJoinTeam(team.id)}
+                                        disabled={isJoining === team.id}
+                                      >
+                                        {isJoining === team.id ? '加入中...' : '加入'}
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
                             {/* 创建者的编辑和删除按钮显示在底部 */}
                             {isCreator && (

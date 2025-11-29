@@ -8,8 +8,7 @@ import { MonthView } from "@/components/calendar/month-view"
 import { WeekView } from "@/components/calendar/week-view"
 import { PersonalWeekView } from "@/components/calendar/personal-week-view"
 import { ViewToggle } from "@/components/calendar/view-toggle"
-import { TaskDetailPanel } from "@/components/task/task-detail-panel"
-import { TaskEditPanel } from "@/components/task/task-edit-panel"
+import { TaskFormPanel } from "@/components/task/task-form-panel"
 import { MiniCalendar } from "@/components/sidebar/mini-calendar"
 import { NavigationMenu } from "@/components/sidebar/navigation-menu"
 import { UserMenu } from "@/components/user-menu"
@@ -216,14 +215,19 @@ export default function Home() {
       </div>
 
       {taskCreation.isOpen && taskCreation.startDate && taskCreation.endDate && (
-        <TaskDetailPanel
+        <TaskFormPanel
           startDate={taskCreation.startDate}
           endDate={taskCreation.endDate}
           onClose={closeTaskCreation}
         />
       )}
 
-      {taskEdit.isOpen && taskEdit.task && <TaskEditPanel task={taskEdit.task} onClose={closeTaskEdit} />}
+      {taskEdit.isOpen && taskEdit.task && (
+        <TaskFormPanel
+          task={taskEdit.task}
+          onClose={closeTaskEdit}
+        />
+      )}
     </div>
   )
 }

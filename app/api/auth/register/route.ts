@@ -16,6 +16,7 @@ import {
 } from '@/lib/validation'
 import { randomBytes } from 'crypto'
 import { config } from '@/lib/config'
+import { addPointsForUserInvitation } from '@/lib/utils/points'
 
 // 生成短邀请码（8位）
 function generateInviteCode(): string {
@@ -286,6 +287,13 @@ export async function POST(request: NextRequest) {
         ...notificationData
       }
     })
+
+    // 如果有邀请人，给邀请人增加积分（异步执行，不阻塞响应）
+    if (result.inviterId) {
+      addPointsForUserInvitation(result.inviterId, result.name).catch(error => {
+        console.error('Failed to add points for inviter:', error)
+      })
+    }
 
     // 生成 JWT Token
     const token = generateToken({ userId: result.id })

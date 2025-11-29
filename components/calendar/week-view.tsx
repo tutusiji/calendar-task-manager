@@ -4,11 +4,14 @@ import { useEffect, useMemo } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { TeamMemberRow } from "./team-member-row"
+import { cn } from "@/lib/utils"
 
 export function WeekView() {
   const { 
     currentDate, 
     users, 
+    teams,
+    projects,
     dragState, 
     cancelDragCreate, 
     hideWeekends, 
@@ -22,11 +25,6 @@ export function WeekView() {
   } = useCalendarStore()
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
-  
-  // 调试: 打印周天数
-  useEffect(() => {
-    console.log('WeekView - hideWeekends:', hideWeekends, 'weekDays.length:', weekDays.length)
-  }, [hideWeekends, weekDays.length])
 
   // 根据当前导航模式过滤要显示的用户
   const displayUsers = useMemo(() => {
@@ -38,13 +36,19 @@ export function WeekView() {
     } else if (navigationMode === "project" && selectedProjectId) {
       const project = getProjectById(selectedProjectId)
       if (project) {
+        // 个人事务项目：只显示当前用户
+        if (project.name.includes('个人事务')) {
+          const currentUser = users.find(u => u.id === project.creatorId)
+          return currentUser ? [currentUser] : []
+        }
+        // 普通项目：显示所有项目成员
         return users.filter(user => project.memberIds.includes(user.id))
       }
     }
     
     // 默认显示所有用户
     return users
-  }, [navigationMode, selectedTeamId, selectedProjectId, users, getTeamById, getProjectById])
+  }, [navigationMode, selectedTeamId, selectedProjectId, users, teams, projects, getTeamById, getProjectById])
 
   // 全局 mouseup 事件处理，防止拖拽状态未清除
   useEffect(() => {
@@ -71,12 +75,25 @@ export function WeekView() {
           <span className="text-sm font-medium text-muted-foreground">团队成员</span>
         </div>
         <div key={`week-days-${hideWeekends ? '5' : '7'}`} className="flex flex-1">
-          {weekDays.map((day, index) => (
-            <div key={index} className="flex-1 border-r border-border px-4 py-3 text-center last:border-r-0">
-              <div className="text-xs text-muted-foreground">{getWeekDayName(day.getDay())}</div>
-              <div className="mt-1 text-sm font-medium text-foreground">{day.getDate()}</div>
-            </div>
-          ))}
+          {weekDays.map((day, index) => {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const dayDate = new Date(day)
+            dayDate.setHours(0, 0, 0, 0)
+            const isToday = dayDate.getTime() === today.getTime()
+            
+            return (
+              <div key={index} className="flex-1 border-r border-border px-4 py-3 text-center last:border-r-0">
+                <div className="text-xs text-muted-foreground">{getWeekDayName(day.getDay())}</div>
+                <div className={cn(
+                  "mt-1 text-sm font-medium inline-flex items-center justify-center h-7 w-7 rounded-full",
+                  isToday ? "bg-primary text-primary-foreground" : "text-foreground"
+                )}>
+                  {day.getDate()}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 

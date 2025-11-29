@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, Clock, Copy, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Task } from "@/lib/types"
+import { copyToClipboard } from "@/lib/utils/clipboard"
 
 interface GroupedTasks {
   id: string
@@ -179,12 +180,15 @@ export function ListView() {
   }, [filteredTasks, listGroupMode, getProjectById, getUserById])
 
   // 复制卡片内容
-  const handleCopy = (group: GroupedTasks) => {
+  const handleCopy = async (group: GroupedTasks) => {
     let content = `${group.title}\n\n`
     
     group.tasks.forEach((task) => {
-      const assigneeUserId = task.assignees?.[0]?.userId || task.creatorId
-      const user = getUserById(assigneeUserId)
+      // 获取所有负责人
+      const assignees = task.assignees && task.assignees.length > 0 
+        ? task.assignees.map(a => getUserById(a.userId)).filter(Boolean)
+        : [getUserById(task.creatorId)].filter(Boolean)
+      
       const project = getProjectById(task.projectId)
       const dateStr = format(new Date(task.startDate), "M月d日", { locale: zhCN })
       const timeStr = task.startTime ? ` ${task.startTime}` : ""
@@ -192,41 +196,18 @@ export function ListView() {
       content += `• ${task.title}\n`
       if (task.description) content += `  ${task.description}\n`
       content += `  时间: ${dateStr}${timeStr}`
-      if (user) content += ` | 负责人: ${user.name}`
+      if (assignees.length > 0) content += ` | 负责人: ${assignees.map(u => u?.name || "未知用户").join(", ")}`
       if (project) content += ` | 项目: ${project.name}`
       content += `\n\n`
     })
 
-    try {
-      // 检查是否支持 Clipboard API
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(content)
-      } else {
-        // 降级方案：使用传统的 document.execCommand
-        const textArea = document.createElement("textarea")
-        textArea.value = content
-        textArea.style.position = "fixed"
-        textArea.style.left = "-999999px"
-        textArea.style.top = "-999999px"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        
-        try {
-          document.execCommand('copy')
-          textArea.remove()
-        } catch (err) {
-          textArea.remove()
-          throw new Error("复制失败")
-        }
-      }
-      
+    const success = await copyToClipboard(content)
+    
+    if (success) {
       setCopiedId(group.id)
       setTimeout(() => setCopiedId(null), 2000)
-    } catch (error) {
-      console.error("复制失败:", error)
-      // 静默失败，不影响用户体验
     }
+    // 静默失败，不影响用户体验
   }
 
   const getTaskTypeLabel = (type: string) => {
@@ -298,8 +279,11 @@ export function ListView() {
                 </CardHeader>
                 <CardContent className="space-y-2 pt-2 px-4 pb-3">
                   {group.tasks.map((task) => {
-                    const assigneeUserId = task.assignees?.[0]?.userId || task.creatorId
-                    const user = getUserById(assigneeUserId)
+                    // 获取所有负责人
+                    const assignees = task.assignees && task.assignees.length > 0 
+                      ? task.assignees.map(a => getUserById(a.userId)).filter(Boolean)
+                      : [getUserById(task.creatorId)].filter(Boolean)
+                    
                     const project = getProjectById(task.projectId)
 
                     return (
@@ -334,15 +318,19 @@ export function ListView() {
                               </div>
                             )}
 
-                            {user && listGroupMode !== "user" && (
+                            {assignees.length > 0 && listGroupMode !== "user" && (
                               <div className="flex items-center gap-1">
-                                <Avatar className="h-3 w-3">
-                                  <AvatarImage src={user.avatar} alt={user.name} />
-                                  <AvatarFallback className="text-[8px]">
-                                    {user.name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="truncate">{user.name}</span>
+                                {assignees.map((user) => user && (
+                                  <div key={user.id} className="flex items-center gap-0.5">
+                                    <Avatar className="h-3 w-3">
+                                      <AvatarImage src={user.avatar} alt={user.name} />
+                                      <AvatarFallback className="text-[8px]">
+                                        {user.name.charAt(0).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="truncate">{user.name}</span>
+                                  </div>
+                                ))}
                               </div>
                             )}
 

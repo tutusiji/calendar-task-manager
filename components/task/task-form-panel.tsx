@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { X, Plus, HelpCircle } from "lucide-react"
+import { X, Trash2, HelpCircle, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { useToast } from "@/hooks/use-toast"
-import type { TaskType } from "@/lib/types"
+import type { Task, TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
 import { UserSelector } from "./user-selector"
@@ -27,59 +27,104 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
-interface TaskDetailPanelProps {
-  startDate: Date
-  endDate: Date
+interface TaskFormPanelProps {
+  task?: Task  // If provided = edit mode, else = create mode
+  startDate?: Date  // For create mode
+  endDate?: Date    // For create mode
   onClose: () => void
 }
 
-export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanelProps) {
-  const { addTask, projects, teams, currentUser, settings, updateSettings, taskCreation, fetchTasks } = useCalendarStore()
+export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPanelProps) {
+  const isEditMode = !!task
+  
+  const { 
+    addTask, 
+    updateTask, 
+    deleteTask, 
+    projects, 
+    teams, 
+    currentUser, 
+    settings, 
+    updateSettings, 
+    taskCreation, 
+    getUserById 
+  } = useCalendarStore()
   const { toast } = useToast()
 
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
+  const [title, setTitle] = useState(task?.title || "")
+  const [description, setDescription] = useState(task?.description || "")
   const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>({
-    from: startDate,
-    to: endDate,
+    from: task ? new Date(task.startDate) : (startDate || new Date()),
+    to: task ? new Date(task.endDate) : (endDate || new Date()),
   })
-  const [startTime, setStartTime] = useState("")
-  const [endTime, setEndTime] = useState("")
-  const [taskType, setTaskType] = useState<TaskType>("daily")
-  const [color, setColor] = useState<string>('blue')
-  const [progress, setProgress] = useState<number>(0)
-  const [teamId, setTeamId] = useState<string>(taskCreation.teamId || "none")
-  const [projectId, setProjectId] = useState(taskCreation.projectId || settings.lastSelectedProjectId || "personal")
-  const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
-  const [showNewProject, setShowNewProject] = useState(false)
+  const [startTime, setStartTime] = useState(task?.startTime || "")
+  const [endTime, setEndTime] = useState(task?.endTime || "")
+  const [taskType, setTaskType] = useState<TaskType>(task?.type || "daily")
+  const [color, setColor] = useState<string>(task?.color || 'blue')
+  const [progress, setProgress] = useState<number>(task?.progress || 0)
+  const [teamId, setTeamId] = useState<string>(
+    task?.teamId || 
+    taskCreation.teamId || 
+    (currentUser?.defaultTeamId ? currentUser.defaultTeamId : "none")
+  )
+  const [projectId, setProjectId] = useState(
+    task?.projectId || 
+    taskCreation.projectId || 
+    settings.lastSelectedProjectId || 
+    "personal"
+  )
   const [assigneeIds, setAssigneeIds] = useState<string[]>(
-    taskCreation.userId ? [taskCreation.userId] : (currentUser?.id ? [currentUser.id] : [])
-  ) // 负责人 ID 列表
+    task?.assignees?.map(a => a.userId) || 
+    (taskCreation.userId ? [taskCreation.userId] : (currentUser?.id ? [currentUser.id] : []))
+  )
+  const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [projectError, setProjectError] = useState(false)
   const [teamError, setTeamError] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // 获取当前选中的项目
+  // Get creator info (edit mode only)
+  const creator = task ? (task.creator || getUserById(task.creatorId)) : null
+  
+  // Get selected project
   const selectedProject = projects.find(p => p.id === projectId)
   
-  // 检查是否只有创建者可以管理任务（CREATOR_ONLY 模式）
-  const isCreatorOnlyMode = selectedProject?.taskPermission === "CREATOR_ONLY"
+  // Check if it's a personal project
+  const isPersonalProject = selectedProject?.name.includes('个人事务')
   
-  // 检查当前用户是否是项目创建者
+  // Check permissions
+  const isCreatorOnlyMode = selectedProject?.taskPermission === "CREATOR_ONLY"
+  const isTaskCreator = task ? currentUser?.id === task.creatorId : true
   const isProjectCreator = currentUser?.id === selectedProject?.creatorId
   
-  // 在 CREATOR_ONLY 模式下：
-  // - 如果是项目创建者，不受限制，可以随意指定负责人
-  // - 如果是普通成员，负责人只能是自己，且不可编辑
-  const canEditAssignees = !isCreatorOnlyMode || isProjectCreator
+  const canEditAssignees = !isCreatorOnlyMode || isProjectCreator || isTaskCreator
+  const canDeleteTask = !isCreatorOnlyMode || isProjectCreator || isTaskCreator
+
+  // Auto-set assignee to current user for personal projects
+  useEffect(() => {
+    if (isPersonalProject && currentUser && !task) {
+      setAssigneeIds([currentUser.id])
+    }
+  }, [isPersonalProject, currentUser, task])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title.trim() || !currentUser) return
+    if (!title.trim() || !dateRange.from) return
 
-    // 验证项目是否选择
+    // Validate project selection
     if (!projectId || projectId === '') {
       setProjectError(true)
       toast({
@@ -90,11 +135,9 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
       return
     }
     setProjectError(false)
-
-    // 团队是可选的,不需要验证
     setTeamError(false)
 
-    // 验证是否至少有一个负责人
+    // Validate assignees
     if (assigneeIds.length === 0) {
       toast({
         title: "请选择负责人",
@@ -107,7 +150,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
     setIsSubmitting(true)
 
     try {
-      const newTask = {
+      const taskData = {
         title: title.trim(),
         description: description.trim() || undefined,
         startDate: dateRange.from,
@@ -119,36 +162,74 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
         progress,
         projectId,
         teamId: teamId === "none" ? undefined : teamId,
-        creatorId: currentUser.id,
-        userId: assigneeIds.length > 0 ? assigneeIds : [currentUser.id], // 发送负责人 ID 数组
+        userId: assigneeIds.length > 0 ? assigneeIds : undefined,
       }
 
-      // await API 调用,确保创建成功(数据刷新在Store内部后台执行)
-      await addTask(newTask)
-
-      // 更新设置
-      if (rememberProject) {
-        updateSettings({ lastSelectedProjectId: projectId, rememberLastProject: true })
+      if (isEditMode) {
+        // Edit mode: update task
+        await updateTask(task.id, taskData as any)
+        toast({
+          variant: 'success' as any,
+          title: "保存成功",
+          description: `任务「${title}」已更新`,
+        })
       } else {
-        updateSettings({ rememberLastProject: false })
+        // Create mode: add task
+        await addTask({
+          ...taskData,
+          creatorId: currentUser!.id,
+        } as any)
+        
+        // Update settings if remember project is checked
+        if (rememberProject) {
+          updateSettings({ lastSelectedProjectId: projectId, rememberLastProject: true })
+        } else {
+          updateSettings({ rememberLastProject: false })
+        }
+        
+        toast({
+          variant: 'success' as any,
+          title: "创建成功",
+          description: `任务「${title}」已创建`,
+        })
       }
-
-      // API 成功后立即显示提示并关闭弹窗
-      toast({
-        variant: 'success' as any,
-        title: "创建成功",
-        description: `任务「${title}」已创建`,
-      })
+      
       onClose()
     } catch (error) {
-      console.error('Failed to create task:', error)
+      console.error('Failed to save task:', error)
       toast({
-        title: "创建失败",
-        description: "创建任务失败，请重试",
+        title: isEditMode ? "保存失败" : "创建失败",
+        description: isEditMode ? "更新任务失败，请重试" : "创建任务失败，请重试",
         variant: "destructive",
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!task) return
+    
+    setIsDeleting(true)
+    setShowDeleteConfirm(false)
+
+    try {
+      await deleteTask(task.id)
+      toast({
+        variant: 'success' as any,
+        title: "删除成功",
+        description: `任务「${task.title}」已删除`,
+      })
+      onClose()
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+      const errorMessage = error instanceof Error ? error.message : '删除任务失败，请重试'
+      toast({
+        title: "删除失败",
+        description: errorMessage,
+        variant: "destructive",
+      })
+      setIsDeleting(false)
     }
   }
 
@@ -167,7 +248,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
     ? Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1
     : 1
 
-  // ESC 关闭支持
+  // ESC to close
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -186,16 +267,32 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
       <div className="relative w-full max-w-4xl rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold text-foreground">新建事项</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
+          <h2 className="text-lg font-semibold text-foreground">
+            {isEditMode ? "编辑事项" : "新建事项"}
+          </h2>
+          <div className="flex items-center gap-2">
+            {isEditMode && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setShowDeleteConfirm(true)} 
+                className="text-red-500 hover:text-red-600"
+                disabled={isDeleting || isSubmitting || !canDeleteTask}
+                title={!canDeleteTask ? "仅任务创建者或项目创建者可以删除" : "删除任务"}
+              >
+                <Trash2 className="h-5 w-5" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose} disabled={isDeleting || isSubmitting}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-2 gap-6">
-            {/* 左侧列 - 必填项 */}
+            {/* Left column - Required fields */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-foreground border-b pb-2">必填信息</h3>
               
@@ -218,17 +315,21 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   负责人 <span className="text-red-500">*</span>
-                  {isCreatorOnlyMode && !isProjectCreator && (
+                  {isPersonalProject ? (
                     <span className="ml-2 text-xs text-muted-foreground">
-                      (普通成员只能为自己创建任务)
+                      (个人事务只能指派给自己)
                     </span>
-                  )}
+                  ) : isCreatorOnlyMode && !canEditAssignees ? (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {isEditMode ? "(仅任务创建者或项目创建者可编辑)" : "(普通成员只能为自己创建任务)"}
+                    </span>
+                  ) : null}
                 </Label>
                 <UserMultiSelector 
                   selectedUserIds={assigneeIds}
                   onUserChange={setAssigneeIds}
-                  creatorId={currentUser?.id}
-                  disabled={!canEditAssignees}
+                  creatorId={task?.creatorId || currentUser?.id}
+                  disabled={!canEditAssignees || isPersonalProject}
                 />
               </div>
 
@@ -239,18 +340,25 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                   <Label htmlFor="project" className="text-sm font-medium">
                     归属项目 <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={projectId} onValueChange={(value) => {
+                  <Select value={projectId || ''} onValueChange={(value) => {
                     setProjectId(value)
                     setProjectError(false)
+                    
+                    // Clear team if personal project selected
+                    const project = projects.find(p => p.id === value)
+                    if (project?.name.includes('个人事务')) {
+                      setTeamId("none")
+                    }
                   }}>
-                    <SelectTrigger className={cn(projectError && "border-red-500 ring-1 ring-red-500")}>
+                    <SelectTrigger className={cn(
+                      projectError && "border-red-500 text-red-600 ring-1 ring-red-500 focus:ring-red-500 bg-red-50"
+                    )}>
                       <SelectValue placeholder="请选择项目" />
                     </SelectTrigger>
                     <SelectContent>
                       {projects
                         .filter(p => currentUser && p.memberIds.includes(currentUser.id))
                         .sort((a, b) => {
-                          // 个人事务项目置顶
                           const aIsPersonal = a.name.includes('个人事务')
                           const bIsPersonal = b.name.includes('个人事务')
                           if (aIsPersonal && !bIsPersonal) return -1
@@ -268,7 +376,10 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                     </SelectContent>
                   </Select>
                   {projectError && (
-                    <p className="text-sm text-red-500">请选择一个项目</p>
+                    <div className="flex items-center gap-1 mt-1.5 text-red-600 animate-in slide-in-from-top-1 fade-in-0">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <p className="text-xs font-medium">请选择一个归属项目</p>
+                    </div>
                   )}
                 </div>
 
@@ -287,14 +398,21 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                       </Tooltip>
                     </TooltipProvider>
                   </Label>
-                  <Select value={teamId} onValueChange={(value) => {
-                    setTeamId(value)
-                    setTeamError(false)
-                  }}>
+                  <Select 
+                    value={teamId} 
+                    onValueChange={(value) => {
+                      setTeamId(value)
+                      setTeamError(false)
+                    }}
+                    disabled={selectedProject?.name.includes('个人事务')}
+                  >
                     <SelectTrigger className={cn(teamError && "border-red-500 ring-1 ring-red-500")}>
                       <SelectValue placeholder="请选择团队" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-muted-foreground">不设置</span>
+                      </SelectItem>
                       {teams
                         .filter(t => currentUser && t.memberIds.includes(currentUser.id))
                         .sort((a, b) => a.name.localeCompare(b.name))
@@ -360,7 +478,7 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
               )}
             </div>
 
-            {/* 右侧列 - 详情信息 */}
+            {/* Right column - Details */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-foreground border-b pb-2">详细信息</h3>
               
@@ -416,50 +534,95 @@ export function TaskDetailPanel({ startDate, endDate, onClose }: TaskDetailPanel
                 </div>
               </div>
 
-              {/* Creator - 显示创建人（当前用户）*/}
-              {currentUser && (
+              {/* Creator - Show in edit mode or current user in create mode */}
+              {(isEditMode && creator) || (!isEditMode && currentUser) ? (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">创建人</Label>
                   <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-input bg-muted/30">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {currentUser.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">{currentUser.name}</div>
-                      <div className="text-xs text-muted-foreground">{currentUser.email}</div>
-                    </div>
+                    {(() => {
+                      const displayUser = isEditMode ? creator : currentUser
+                      return displayUser ? (
+                        <>
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
+                            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                              {displayUser.name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">{displayUser.name}</div>
+                            <div className="text-xs text-muted-foreground">{displayUser.email}</div>
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">未知创建人</span>
+                      )
+                    })()}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 
-          {/* Remember Project */}
-          <div className="flex items-center gap-2 mt-6">
-            <Checkbox
-              id="remember"
-              checked={rememberProject}
-              onCheckedChange={(checked) => setRememberProject(!!checked)}
-            />
-            <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
-              记住此项目，下次创建时自动选择
-            </Label>
-          </div>
+          {/* Remember Project - Create mode only */}
+          {!isEditMode && (
+            <div className="flex items-center gap-2 mt-6">
+              <Checkbox
+                id="remember"
+                checked={rememberProject}
+                onCheckedChange={(checked) => setRememberProject(!!checked)}
+              />
+              <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
+                记住此项目，下次创建时自动选择
+              </Label>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-6 border-t mt-6 justify-end">
-            <Button type="button" variant="outline" onClick={onClose} className="bg-transparent min-w-24" disabled={isSubmitting}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="bg-transparent min-w-24"
+              disabled={isSubmitting || isDeleting}
+            >
               取消
             </Button>
-            <Button type="submit" className="min-w-28" disabled={!title.trim() || !dateRange.from || isSubmitting}>
-              {isSubmitting ? '创建中...' : '创建事项'}
+            <Button 
+              type="submit" 
+              className="min-w-28" 
+              disabled={!title.trim() || !dateRange.from || isSubmitting || isDeleting}
+            >
+              {isSubmitting ? (isEditMode ? '保存中...' : '创建中...') : (isEditMode ? '保存更改' : '创建事项')}
             </Button>
           </div>
         </form>
       </div>
+
+      {/* Delete Confirmation Dialog - Edit mode only */}
+      {isEditMode && task && (
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认删除任务</AlertDialogTitle>
+              <AlertDialogDescription>
+                确定要删除任务「{task.title}」吗？此操作无法撤销。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeleting ? '删除中...' : '确认删除'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   )
 }

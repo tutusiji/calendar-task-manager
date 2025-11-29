@@ -25,6 +25,9 @@ import {
 import { TeamDialog } from "./team-dialog"
 import { ProjectDialog } from "./project-dialog"
 import type { Team, Project } from "@/lib/types"
+import { userAPI } from "@/lib/api-client"
+import { Badge } from "@/components/ui/badge"
+import { showToast } from "@/lib/toast"
 
 export function NavigationMenu() {
   const { 
@@ -41,6 +44,7 @@ export function NavigationMenu() {
     deleteProject,
     leaveTeam,
     leaveProject,
+    setCurrentUser,
   } = useCalendarStore()
   
   const [teamsExpanded, setTeamsExpanded] = useState(true)
@@ -186,6 +190,18 @@ export function NavigationMenu() {
     }
   }
 
+  const handleSetDefaultTeam = async (teamId: string) => {
+    try {
+      const updatedUser = await userAPI.updateMe({ defaultTeamId: teamId })
+      setCurrentUser(updatedUser)
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser))
+      showToast.success('设置成功', '已设为默认团队')
+    } catch (error) {
+      console.error('Failed to set default team:', error)
+      showToast.error('设置失败', '请稍后重试')
+    }
+  }
+
   return (
     <>
       <div className="flex flex-col gap-1 py-4">
@@ -263,9 +279,14 @@ export function NavigationMenu() {
                     />
                     <span className="truncate max-w-[150px]" title={team.name}>{team.name}</span>
                     {/* 创建者标识 */}
-                    {currentUser && team.creatorId === currentUser.id && (
-                      <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
-                    )}
+                    <div className="ml-auto flex items-center gap-2">
+                      {currentUser?.defaultTeamId === team.id && (
+                        <Pin className="h-3 w-3 text-blue-500 rotate-45" />
+                      )}
+                      {currentUser && team.creatorId === currentUser.id && (
+                        <Crown className="h-3 w-3 text-yellow-600 shrink-0" />
+                      )}
+                    </div>
                   </button>
                   
                   <DropdownMenu>
@@ -309,6 +330,11 @@ export function NavigationMenu() {
                           </DropdownMenuItem>
                         </>
                       )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleSetDefaultTeam(team.id)}>
+                        <Pin className="mr-2 h-4 w-4" />
+                        <span>设为默认</span>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

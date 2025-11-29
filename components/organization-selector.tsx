@@ -49,6 +49,17 @@ export function OrganizationSelector({
       
       if (data.success) {
         setOrganizations(data.data)
+        
+        // 检测是否有完全匹配的组织
+        const exactMatch = data.data.find((org: Organization) => 
+          org.name.toLowerCase() === search.toLowerCase()
+        )
+        
+        if (exactMatch && !selectedOrg) {
+          // 如果找到完全匹配且当前没有选中的组织，自动设置为选中
+          setSelectedOrg(exactMatch)
+          onChange(exactMatch.name, exactMatch)
+        }
       }
     } catch (error) {
       console.error("搜索组织失败:", error)
@@ -106,10 +117,13 @@ export function OrganizationSelector({
     onChange(org.name, org)
   }
 
+  // 检测是否为新组织（没有完全匹配且没有选中）
   const isNewOrganization = searchTerm.trim() !== "" && 
-    organizations.length === 0 && 
-    !isLoading && 
-    !selectedOrg
+    !selectedOrg && 
+    !isLoading
+  
+  // 检测是否有完全匹配的组织
+  const hasExactMatch = selectedOrg !== null
 
   return (
     <div className="space-y-2">
@@ -158,7 +172,7 @@ export function OrganizationSelector({
                     <div className="flex flex-1 items-center gap-2">
                       <span>{org.name}</span>
                       {org.isVerified && (
-                        <Shield className="h-4 w-4 text-blue-500" title="已认证" />
+                        <Shield className="h-4 w-4 text-blue-500" />
                       )}
                     </div>
                     {selectedOrg?.id === org.id && (
@@ -171,20 +185,20 @@ export function OrganizationSelector({
           </div>
         )}
 
-        {/* 提示信息 */}
-        {searchTerm && !showDropdown && (
-          <div className="mt-1 text-xs">
-            {selectedOrg ? (
-              <span className="flex items-center gap-1 text-green-600">
+        {/* 状态标记 */}
+        {searchTerm && (
+          <div className="mt-1.5 text-xs">
+            {hasExactMatch ? (
+              <span className="inline-flex items-center gap-1 text-green-600 font-medium">
                 <Check className="h-3 w-3" />
-                已选择组织
-                {selectedOrg.isVerified && (
-                  <Shield className="h-3 w-3 text-blue-500" title="已认证" />
+                已存在
+                {selectedOrg?.isVerified && (
+                  <Shield className="h-3 w-3 text-blue-500" />
                 )}
               </span>
             ) : isNewOrganization ? (
-              <span className="text-amber-600">
-                该空间/组织未注册（将创建新组织）
+              <span className="text-amber-600 font-medium">
+                未注册
               </span>
             ) : null}
           </div>

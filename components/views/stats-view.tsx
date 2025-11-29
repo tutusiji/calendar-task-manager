@@ -61,10 +61,7 @@ export function StatsView() {
     } else if (navigationMode === "team" && selectedTeamId) {
       const team = getTeamById(selectedTeamId)
       if (team) {
-        filtered = filtered.filter((task) => 
-          task.assignees?.some(a => team.memberIds.includes(a.userId)) ||
-          team.memberIds.includes(task.creatorId)
-        )
+        filtered = filtered.filter((task) => task.teamId === selectedTeamId)
       }
     } else if (navigationMode === "project" && selectedProjectId) {
       const project = getProjectById(selectedProjectId)

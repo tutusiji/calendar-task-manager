@@ -4,12 +4,13 @@ import { useState } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Check, ChevronDown, X } from "lucide-react"
+import { Check, ChevronDown, X, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
@@ -24,11 +25,21 @@ interface UserMultiSelectorProps {
 export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [], creatorId, disabled = false }: UserMultiSelectorProps) {
   const { users, getUserById, currentUser } = useCalendarStore()
   const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // 过滤当前组织的用户
   const organizationUsers = currentUser?.currentOrganizationId
     ? users.filter(u => u.currentOrganizationId === currentUser.currentOrganizationId || !u.currentOrganizationId)
     : users
+
+  // 根据搜索词过滤用户
+  const filteredUsers = organizationUsers.filter(user => {
+    const query = searchQuery.toLowerCase()
+    return (
+      user.name.toLowerCase().includes(query) ||
+      user.username.toLowerCase().includes(query)
+    )
+  })
 
   const getUserInitial = (name: string) => {
     return name.charAt(0).toUpperCase()
@@ -55,8 +66,16 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
     onUserChange(selectedUserIds.filter(id => id !== userId))
   }
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (disabled) return
+    setOpen(isOpen)
+    if (!isOpen) {
+      setSearchQuery("") // 关闭时重置搜索
+    }
+  }
+
   return (
-    <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -105,41 +124,61 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-2" align="start">
-        <div className="space-y-1">
-          {organizationUsers.map((user) => {
-            const isSelected = selectedUserIds.includes(user.id)
-            const isLocked = lockedUserIds.includes(user.id)
-            return (
-              <button
-                key={user.id}
-                onClick={() => toggleUser(user.id)}
-                disabled={isLocked}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent",
-                  isSelected && "bg-accent",
-                  isLocked && "opacity-60 cursor-not-allowed"
-                )}
-              >
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {getUserInitial(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 text-left">
-                  <div className="font-medium">
-                    {user.name}
-                    {creatorId === user.id && <span className="ml-1 text-xs text-muted-foreground">(创建者)</span>}
+      <PopoverContent className="w-[300px] p-0" align="start">
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索姓名或用户名..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-9"
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="max-h-[300px] overflow-y-auto p-2 space-y-1">
+          {filteredUsers.length === 0 ? (
+            <div className="text-sm text-muted-foreground text-center py-4">
+              未找到匹配用户
+            </div>
+          ) : (
+            filteredUsers.map((user) => {
+              const isSelected = selectedUserIds.includes(user.id)
+              const isLocked = lockedUserIds.includes(user.id)
+              return (
+                <button
+                  key={user.id}
+                  onClick={() => toggleUser(user.id)}
+                  disabled={isLocked}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors",
+                    isSelected && "bg-accent",
+                    isLocked && "opacity-60 cursor-not-allowed"
+                  )}
+                >
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {getUserInitial(user.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left overflow-hidden">
+                    <div className="font-medium truncate">
+                      {user.name}
+                      {creatorId === user.id && <span className="ml-1 text-xs text-muted-foreground">(创建者)</span>}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      @{user.username}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{user.email}</div>
-                </div>
-                {isSelected && (
-                  <Check className="h-4 w-4 text-primary" />
-                )}
-              </button>
-            )
-          })}
+                  {isSelected && (
+                    <Check className="h-4 w-4 text-primary shrink-0" />
+                  )}
+                </button>
+              )
+            })
+          )}
         </div>
       </PopoverContent>
     </Popover>

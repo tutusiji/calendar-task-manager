@@ -9,13 +9,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import type { Project, TaskPermission } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
-import { UserSingleSelector } from "../task/user-single-selector"
+import { UserSelector } from "../task/user-selector"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+
+
 
 interface ProjectDialogProps {
   project?: Project // 如果提供则为编辑模式
@@ -165,11 +167,10 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
               <Label htmlFor="creator" className="text-sm font-medium">
                 创建人
               </Label>
-              <UserSingleSelector
+              <UserSelector
                 selectedUserId={creatorId}
                 onUserChange={setCreatorId}
                 disabled={!canEditCreator || viewOnly}
-                placeholder="选择创建人"
               />
             </div>
           )}

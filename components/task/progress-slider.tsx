@@ -108,7 +108,7 @@ export function ProgressSlider({ value, onChange, color }: ProgressSliderProps) 
           
           {/* 滑块 */}
           <div
-            className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 rounded-full shadow-md cursor-grab active:cursor-grabbing"
+            className="absolute top-4 -translate-y-1/2 w-5 h-5 bg-white border-2 rounded-full shadow-md cursor-grab active:cursor-grabbing"
             style={{
               left: `${value}%`,
               transform: `translate(-50%, -50%)`,
@@ -127,7 +127,7 @@ export function ProgressSlider({ value, onChange, color }: ProgressSliderProps) 
           value={inputValue}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
-          className="w-16 h-8 text-center"
+          className="w-18 h-8 text-center"
         />
         <span className="text-sm text-muted-foreground">%</span>
       </div>

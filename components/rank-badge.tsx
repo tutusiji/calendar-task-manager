@@ -128,11 +128,11 @@ export function RankBadge({ points, variant = 'full', showProgress = true, click
       case 'bronze':
         return <Trophy className="h-5 w-5" style={{ color: '#CD7F32' }} />
       case 'silver':
-        return <Trophy className="h-5 w-5" style={{ color: '#C0C0C0' }} />
+        return <Trophy className="h-5 w-5" style={{ color: '#9d9890' }} />
       case 'gold':
         return <Trophy className="h-5 w-5" style={{ color: '#FFD700' }} />
       case 'platinum':
-        return <Trophy className="h-5 w-5" style={{ color: '#E5E4E2' }} />
+        return <Trophy className="h-5 w-5" style={{ color: '#917f59' }} />
       case 'diamond':
         return <Trophy className="h-5 w-5" style={{ color: '#B9F2FF' }} />
       case 'star':

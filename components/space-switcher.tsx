@@ -29,22 +29,22 @@ export function SpaceSwitcher() {
   // 获取用户的组织列表
   const fetchOrganizations = async () => {
     try {
-      console.log("Fetching organizations...")
+      // console.log("Fetching organizations...")
       const data = await organizationAPI.getAll()
-      console.log("Organizations data:", data)
+      // console.log("Organizations data:", data)
       
       if (data && data.length > 0) {
         setOrganizations(data)
         
         // 从用户信息中获取当前组织
         const userStr = localStorage.getItem("currentUser")
-        console.log("Current user from localStorage:", userStr)
+        // console.log("Current user from localStorage:", userStr)
         
         let targetOrgId: string | null = null
         
         if (userStr) {
           const user = JSON.parse(userStr)
-          console.log("Current organization ID:", user.currentOrganizationId)
+          // console.log("Current organization ID:", user.currentOrganizationId)
           targetOrgId = user.currentOrganizationId
         }
         
@@ -61,7 +61,7 @@ export function SpaceSwitcher() {
               const user = JSON.parse(userStr)
               user.currentOrganizationId = targetOrgId
               localStorage.setItem("currentUser", JSON.stringify(user))
-              console.log("Updated currentOrganizationId to:", targetOrgId)
+              // console.log("Updated currentOrganizationId to:", targetOrgId)
             }
           } catch (error) {
             console.error("Failed to switch to default organization:", error)

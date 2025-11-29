@@ -28,6 +28,11 @@ export async function GET(request: NextRequest) {
         organizationId: user.currentOrganizationId,
       },
       include: {
+        organization: {
+          select: {
+            name: true
+          }
+        },
         members: {
           include: {
             user: {

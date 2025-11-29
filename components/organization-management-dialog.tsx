@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban, Plus, LogOut, Eye, Copy, Check } from "lucide-react"
 import { organizationAPI } from "@/lib/api/organization"
 import { OrganizationDetailDialog } from "@/components/organization-detail-dialog"
+import { copyToClipboard } from "@/lib/utils/clipboard"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -372,33 +373,9 @@ export function OrganizationManagementDialog({
     // 构建完整的复制文本
     const copyText = `注册时空间组织输入"${orgName}"，并在下拉列表中选择该选项，输入邀请码 ${code}`
 
-    try {
-      // 检查是否支持 Clipboard API
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(copyText)
-      } else {
-        // 降级方案：使用传统的 document.execCommand
-        const textArea = document.createElement("textarea")
-        textArea.value = copyText
-        textArea.style.position = "fixed"
-        textArea.style.left = "-999999px"
-        textArea.style.top = "-999999px"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        
-        try {
-          const successful = document.execCommand('copy')
-          textArea.remove()
-          if (!successful) {
-            throw new Error("复制失败")
-          }
-        } catch (err) {
-          textArea.remove()
-          throw new Error("复制失败")
-        }
-      }
-      
+    const success = await copyToClipboard(copyText)
+    
+    if (success) {
       setCopiedCode(orgId)
       toast({
         title: "已复制",
@@ -409,8 +386,7 @@ export function OrganizationManagementDialog({
       setTimeout(() => {
         setCopiedCode(null)
       }, 2000)
-    } catch (error) {
-      console.error("复制失败:", error)
+    } else {
       toast({
         title: "复制失败",
         description: "请手动复制邀请码",

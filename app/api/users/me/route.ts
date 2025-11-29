@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         gender: true,
         role: true,
         isAdmin: true,
+        defaultTeamId: true,
         points: true,
         createdAt: true,
         updatedAt: true
@@ -56,7 +57,7 @@ export async function PUT(request: NextRequest) {
     if (auth.error) return auth.error
 
     const body = await request.json()
-    const { name, email, avatar, gender, role } = body
+    const { name, email, avatar, gender, role, defaultTeamId } = body
 
     // 验证邮箱格式（如果提供）
     if (email && !isValidEmail(email)) {
@@ -70,10 +71,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // 验证职业值（如果提供）
-    const validRoles = ['未设置', '设计师', '前端开发', '后端开发', '产品经理', '项目管理', '交互设计师']
-    if (role && !validRoles.includes(role)) {
-      return validationErrorResponse('职业值无效')
-    }
+    // 允许自定义职业，不再限制枚举值
+    // const validRoles = ['未设置', '设计师', '前端开发', '后端开发', '产品经理', '项目管理', '交互设计师']
+    // if (role && !validRoles.includes(role)) {
+    //   return validationErrorResponse('职业值无效')
+    // }
 
     // 构建更新数据
     const updateData: any = {}
@@ -82,6 +84,7 @@ export async function PUT(request: NextRequest) {
     if (avatar !== undefined) updateData.avatar = avatar
     if (gender !== undefined) updateData.gender = gender
     if (role !== undefined) updateData.role = role
+    if (defaultTeamId !== undefined) updateData.defaultTeamId = defaultTeamId
 
     // 更新用户信息
     const user = await prisma.user.update({
@@ -96,6 +99,7 @@ export async function PUT(request: NextRequest) {
         gender: true,
         role: true,
         isAdmin: true,
+        defaultTeamId: true,
         points: true,
         createdAt: true,
         updatedAt: true

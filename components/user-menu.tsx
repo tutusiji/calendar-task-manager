@@ -15,10 +15,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, LogOut, Settings, Building2 } from "lucide-react"
 import { UserProfileDialog } from "./user-profile-dialog"
 import { OrganizationManagementDialog } from "./organization-management-dialog"
+import { getRank } from "@/lib/utils/rank"
 
 export function UserMenu() {
   const router = useRouter()
-  const { currentUser } = useCalendarStore()
+  const { currentUser, teams } = useCalendarStore()
   const [profileOpen, setProfileOpen] = useState(false)
   const [organizationOpen, setOrganizationOpen] = useState(false)
 
@@ -64,6 +65,21 @@ export function UserMenu() {
               <p className="text-xs leading-none text-muted-foreground">
                 {currentUser.email}
               </p>
+              <div className="flex items-center gap-2 pt-1">
+                {/* Points Level */}
+                <div 
+                  className="text-xs "
+                  title={`当前积分: ${currentUser.points || 0}`}
+                >
+                  Lv.{Math.floor(currentUser.points ? currentUser.points / 100 : 0) + 1} {getRank(currentUser.points || 0).name}
+                </div>
+                {/* Default Team */}
+                {/* {currentUser.defaultTeamId && (
+                  <div className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-blue-100 text-blue-700 hover:bg-blue-200">
+                    {teams.find(t => t.id === currentUser.defaultTeamId)?.name || '默认团队'}
+                  </div>
+                )} */}
+              </div>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

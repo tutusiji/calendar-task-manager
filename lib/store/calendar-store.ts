@@ -7,6 +7,7 @@ import { taskAPI, projectAPI, userAPI, teamAPI, handleAPIError } from "../api-cl
 import { showToast } from "../toast"
 import { useLoadingDelay } from "../../hooks/use-loading-delay"
 import { canManageTaskInProject, canManageTaskInTeam, getPermissionDeniedMessage } from "../utils/permission-utils"
+import { getWeekDays } from "../utils/date-utils"
 
 interface CalendarStore {
   // Data
@@ -461,6 +462,7 @@ export const useCalendarStore = create<CalendarStore>()(
       await store.fetchTasks({ projectId: finalState.selectedProjectId })
     } else if (currentUser) {
       // my-days 模式：加载当前用户的任务
+      console.log(`📥 Loading tasks for user: ${currentUser.id}`)
       await store.fetchTasks({ userId: currentUser.id })
     }
   },
@@ -835,8 +837,31 @@ export const useCalendarStore = create<CalendarStore>()(
       try {
         // 刷新团队列表以获取最新成员信息
         await get().fetchTeams()
-        // 获取团队的任务（会获取团队成员的所有任务）
-        await get().fetchTasks({ teamId: id })
+        
+        // 根据当前视图模式确定日期范围
+        const { viewMode, currentDate } = get()
+        let startDate: Date
+        let endDate: Date
+        
+        if (viewMode === 'week') {
+          // 周视图：获取当前周的开始和结束日期
+          const weekDays = getWeekDays(currentDate, false)
+          startDate = weekDays[0]
+          endDate = weekDays[weekDays.length - 1]
+        } else {
+          // 月视图：获取当前月的开始和结束日期
+          const year = currentDate.getFullYear()
+          const month = currentDate.getMonth()
+          startDate = new Date(year, month, 1)
+          endDate = new Date(year, month + 1, 0)
+        }
+        
+        // 获取团队成员在指定日期范围内的所有任务
+        await get().fetchTasks({ 
+          teamId: id,
+          startDate,
+          endDate
+        })
       } catch (error) {
         console.error('Failed to load team data:', error)
       }
@@ -1224,6 +1249,7 @@ export const useCalendarStore = create<CalendarStore>()(
         taskBarSize: state.taskBarSize,
         settings: state.settings,
       }),
+
     }
   )
 )

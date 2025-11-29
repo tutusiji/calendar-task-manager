@@ -115,6 +115,7 @@ export interface User {
   role?: string // 职业
   isAdmin?: boolean // 是否为超级管理员
   currentOrganizationId?: string // 当前选择的组织ID
+  defaultTeamId?: string // 默认团队ID
   points?: number // 用户积分
 }
 

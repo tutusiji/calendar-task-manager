@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         return successResponse([])
       }
 
-      // 查询该团队的任务（只查询 teamId 字段匹配的任务）
+      // 查询该团队的任务
       where.teamId = teamId
     } else if (projectId) {
       // 验证用户是否是项目成员
@@ -66,8 +66,22 @@ export async function GET(request: NextRequest) {
         return successResponse([])
       }
 
-      // 查询该项目的所有任务（不限制userId）
+      // 查询该项目的任务
+      // 如果是个人事务项目，只查询当前用户的任务
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true }
+      })
+      
       where.projectId = projectId
+      
+      // 个人事务项目：只显示当前用户创建或负责的任务
+      if (project?.name.includes('个人事务')) {
+        where.OR = [
+          { creatorId: auth.userId },
+          { assignees: { some: { userId: auth.userId } } }
+        ]
+      }
     } else if (userId) {
       // 如果指定了 userId，检查是否是当前用户
       if (userId !== auth.userId) {

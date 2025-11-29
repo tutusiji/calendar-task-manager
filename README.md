@@ -85,6 +85,30 @@
 - 编辑任务时：团队和项目可以独立选择，互不影响
 
 
+## 🛠️ 工具函数
+
+### 剪贴板工具 (`lib/utils/clipboard.ts`)
+
+提供了统一的复制到剪贴板功能，支持现代浏览器和旧版浏览器：
+
+```typescript
+import { copyToClipboard } from "@/lib/utils/clipboard"
+
+// 使用示例
+const success = await copyToClipboard("要复制的文本")
+if (success) {
+  console.log("复制成功")
+} else {
+  console.log("复制失败")
+}
+```
+
+**特性**：
+- 优先使用现代 Clipboard API
+- 自动降级到 `document.execCommand` 兼容旧浏览器
+- 返回 Promise<boolean> 表示复制是否成功
+- 统一的错误处理
+
 ## 🏗️ 技术栈
 
 ### 核心框架

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Upload, Wand2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { User } from "@/lib/types"
+
+const PREDEFINED_ROLES = [
+  "未设置",
+  "设计师",
+  "前端开发",
+  "后端开发",
+  "产品经理",
+  "项目管理",
+  "交互设计师",
+]
 
 interface EditProfileDialogProps {
   open: boolean
@@ -27,7 +40,11 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
   const [email, setEmail] = useState(currentUser.email)
   const [gender, setGender] = useState(currentUser.gender || '未设置')
   const [role, setRole] = useState(currentUser.role || '未设置')
+  const [avatar, setAvatar] = useState(currentUser.avatar)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [magicSeed, setMagicSeed] = useState(1)
+  const [isAvatarLoading, setIsAvatarLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,6 +56,7 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
         email: email.trim(),
         gender,
         role,
+        avatar,
       })
       onOpenChange(false)
     } catch (error) {
@@ -46,6 +64,35 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setAvatar(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleMagicGenerate = () => {
+    setIsAvatarLoading(true)
+    const nextSeed = magicSeed + 1
+    setMagicSeed(nextSeed)
+    
+    // 模拟魔法施展过程（模糊到清晰）
+    setTimeout(() => {
+      const username = currentUser.username || currentUser.email.split('@')[0]
+      const newAvatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}.${nextSeed}`
+      setAvatar(newAvatarUrl)
+      setIsAvatarLoading(false)
+    }, 500)
+  }
+
+  const getUserInitial = (name: string) => {
+    return name.charAt(0).toUpperCase()
   }
 
   return (
@@ -58,69 +105,137 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          {/* 姓名 */}
-          <div className="space-y-2">
-            <Label htmlFor="name">
-              姓名 <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="请输入姓名"
-              required
-            />
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+          {/* 头像编辑区域 */}
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative group">
+              <Avatar className={cn(
+                "h-24 w-24 border-2 border-border transition-all duration-500",
+                isAvatarLoading ? "blur-sm scale-95 opacity-80" : "blur-0 scale-100 opacity-100"
+              )}>
+                <AvatarImage src={avatar} alt={name} className="object-cover" />
+                <AvatarFallback className="text-2xl">
+                  {getUserInitial(name)}
+                </AvatarFallback>
+              </Avatar>
+              {isAvatarLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Wand2 className="h-8 w-8 text-primary animate-pulse" />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                上传头像
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200"
+                onClick={handleMagicGenerate}
+                disabled={isAvatarLoading}
+              >
+                <Wand2 className={cn("h-4 w-4", isAvatarLoading && "animate-spin")} />
+                魔法棒
+              </Button>
+            </div>
           </div>
 
-          {/* 邮箱 */}
-          <div className="space-y-2">
-            <Label htmlFor="email">
-              邮箱 <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="请输入邮箱"
-              required
-            />
-          </div>
+          <div className="space-y-4">
+            {/* 姓名 */}
+            <div className="space-y-2">
+              <Label htmlFor="name">
+                姓名 <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="请输入姓名"
+                required
+              />
+            </div>
 
-          {/* 性别 */}
-          <div className="space-y-2">
-            <Label htmlFor="gender">性别</Label>
-            <Select value={gender} onValueChange={setGender}>
-              <SelectTrigger>
-                <SelectValue placeholder="请选择性别" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="未设置">未设置</SelectItem>
-                <SelectItem value="男">男</SelectItem>
-                <SelectItem value="女">女</SelectItem>
-                <SelectItem value="其他">其他</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            {/* 邮箱 */}
+            <div className="space-y-2">
+              <Label htmlFor="email">
+                邮箱 <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="请输入邮箱"
+                required
+              />
+            </div>
 
-          {/* 职业 */}
-          <div className="space-y-2">
-            <Label htmlFor="role">职业</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="请选择职业" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="未设置">未设置</SelectItem>
-                <SelectItem value="设计师">设计师</SelectItem>
-                <SelectItem value="前端开发">前端开发</SelectItem>
-                <SelectItem value="后端开发">后端开发</SelectItem>
-                <SelectItem value="产品经理">产品经理</SelectItem>
-                <SelectItem value="项目管理">项目管理</SelectItem>
-                <SelectItem value="交互设计师">交互设计师</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* 性别 */}
+            <div className="space-y-2">
+              <Label htmlFor="gender">性别</Label>
+              <Select value={gender} onValueChange={setGender}>
+                <SelectTrigger>
+                  <SelectValue placeholder="请选择性别" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="未设置">未设置</SelectItem>
+                  <SelectItem value="男">男</SelectItem>
+                  <SelectItem value="女">女</SelectItem>
+                  <SelectItem value="其他">其他</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 职业 */}
+            <div className="space-y-2">
+              <Label htmlFor="role">职业</Label>
+              <Select 
+                value={PREDEFINED_ROLES.includes(role) ? role : "custom"} 
+                onValueChange={(value) => {
+                  if (value === "custom") {
+                    setRole("")
+                  } else {
+                    setRole(value)
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="请选择职业" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PREDEFINED_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                  <SelectItem value="custom">自定义...</SelectItem>
+                </SelectContent>
+              </Select>
+              {(!PREDEFINED_ROLES.includes(role)) && (
+                <Input
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="请输入您的职业"
+                  className="mt-2"
+                  autoFocus
+                />
+              )}
+            </div>
           </div>
 
           <DialogFooter>

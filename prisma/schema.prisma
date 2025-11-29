@@ -73,6 +73,7 @@ model User {
   isAdmin                 Boolean                   @default(false) // 是否为超级管理员
   inviteCode              String?                   @unique // 用户唯一邀请码（可选，注册时生成）
   currentOrganizationId   String? // 当前选择的组织ID
+  defaultTeamId           String? // 默认团队ID
   points                  Int                       @default(0) // 用户积分，用于段位系统
   createdTasks            Task[]                    @relation("TaskCreator") // 创建的任务
   assignedTasks           TaskAssignee[]            @relation("TaskAssignee") // 被分配的任务
