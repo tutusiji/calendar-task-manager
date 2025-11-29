@@ -380,8 +380,8 @@ export function TaskBar({ task, date, track, showUserInfo = false, isPersonalWee
       >
         {/* 视觉标记：两条竖线 */}
         <div className="flex gap-0.5 h-3/5 opacity-80 group-hover/handle:opacity-100">
-          <div className="w-px h-full bg-black shadow-sm animate-pulse" />
-          <div className="w-px h-full bg-black shadow-sm animate-pulse delay-75" />
+          <div className="w-px h-full bg-black shadow-sm" />
+          <div className="w-px h-full bg-black shadow-sm" />
         </div>
         {/* 显示当前进度百分比提示 */}
         {isProgressDragging && (
