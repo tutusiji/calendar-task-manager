@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { Task, TaskType } from "@/lib/types"
 import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
-import { UserSelector } from "./user-selector"
+
 import { UserMultiSelector } from "./user-multi-selector"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ColorPicker } from "./color-picker"
