@@ -24,7 +24,7 @@ services:
 
   # Next.js 应用
   app:
-    image: calendar-task-manager:2025.11.29 # 改成这样
+    image: calendar-task-manager:2025-11-29 # 改成这样
     # 注释掉或删除 build 部分rrrrr
     # build:
     #   context: .
@@ -49,7 +49,7 @@ services:
 
   # Prisma Studio - 数据库管理界面
   prisma-studio:
-    image: calendar-task-manager:2025.11.29
+    image: calendar-task-manager:2025-11-29
     container_name: calendar-prisma-studio
     restart: unless-stopped
     profiles:
