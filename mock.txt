@@ -129,3 +129,30 @@ docker exec calendar-postgres pg_dump -U postgres calendar_tasks > /opt/calendar
 
 重启容器
 docker-compose restart app
+
+
+
+查看所有容器（包括已停止的）：docker ps -a
+查看所有镜像：docker images
+查看悬空镜像（没有被任何容器使用的镜像）：docker images -f "dangling=true"
+查看悬空容器（已停止且没有被使用的容器）：docker ps -a -f "status=exited"
+一键清理所有废旧资源（谨慎使用）：docker system prune -a
+这会删除：
+
+所有已停止的容器
+所有未被使用的镜像
+所有未被使用的网络
+更安全的清理方式：
+
+只清理已停止的容器：docker container prune
+
+只清理悬空镜像：docker image prune
+
+只清理未使用的镜像（包括有标签的）：docker image prune -a
+
+
+建议先用 docker ps -a 和 docker images 查看一下，确认要删除的资源后再执行清理命令。
+
+
+
+
