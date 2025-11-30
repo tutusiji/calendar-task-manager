@@ -27,21 +27,19 @@ export default function Home() {
   const [showLoading, setShowLoading] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   
-  const { 
-    viewMode, 
-    navigationMode, 
-    mainViewMode, 
-    taskCreation, 
-    closeTaskCreation, 
-    taskEdit, 
-    closeTaskEdit,
-    fetchAllData,
-    isLoadingTasks,
-    isLoadingProjects,
-    isLoadingUsers,
-    isLoadingTeams,
-    error,
-  } = useCalendarStore()
+  const fetchAllData = useCalendarStore(state => state.fetchAllData)
+  const isLoadingTasks = useCalendarStore(state => state.isLoadingTasks)
+  const isLoadingProjects = useCalendarStore(state => state.isLoadingProjects)
+  const isLoadingUsers = useCalendarStore(state => state.isLoadingUsers)
+  const isLoadingTeams = useCalendarStore(state => state.isLoadingTeams)
+  const error = useCalendarStore(state => state.error)
+  const viewMode = useCalendarStore(state => state.viewMode)
+  const navigationMode = useCalendarStore(state => state.navigationMode)
+  const mainViewMode = useCalendarStore(state => state.mainViewMode)
+  const taskCreation = useCalendarStore(state => state.taskCreation)
+  const closeTaskCreation = useCalendarStore(state => state.closeTaskCreation)
+  const taskEdit = useCalendarStore(state => state.taskEdit)
+  const closeTaskEdit = useCalendarStore(state => state.closeTaskEdit)
 
   // 检查登录状态并加载数据
   useEffect(() => {
@@ -57,7 +55,8 @@ export default function Home() {
     // 认证通过，开始加载数据
     setIsCheckingAuth(false)
     fetchAllData()
-  }, [router, fetchAllData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router])
 
   // 显示加载状态
   const isLoading = isLoadingTasks || isLoadingProjects || isLoadingUsers || isLoadingTeams

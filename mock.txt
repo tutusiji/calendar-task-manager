@@ -91,3 +91,39 @@ docker exec -it calendar-app ls -la /app/public/uploads/
 
 
 写一个本地镜像 build，本地 save，不要push docker，也不要push github，完全的手动复制上传文件，手动的部署和重启镜像， 包括手动的给数据库增加字段，同步数据库表
+
+
+
+
+
+本地执行
+docker build -t calendar-task-manager:2025-11-29 .
+docker save -o calendar-task-manager_2025-11-29.tar calendar-task-manager:2025-11-29
+
+传送服务器
+
+服务器执行
+
+
+查询正在运行容器
+docker ps | grep calendar-task-manager
+停止旧容器
+docker stop calendar-app 或者 
+docker stop f1fae945bcff 或者
+docker-compose down
+删除旧容器
+docker rmi f1fae945bcff  或者
+docker rmi calendar-task-manager:2025-11-29
+
+加载新镜像
+docker load -i calendar-task-manager_2025-11-29.tar
+重启容器
+docker-compose restart app 或者
+docker-compose up -d
+
+
+
+
+
+重启容器
+docker-compose restart app

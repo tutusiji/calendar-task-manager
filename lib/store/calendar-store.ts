@@ -1,148 +1,195 @@
-"use client"
+"use client";
 
-import { create } from "zustand"
-import { persist, createJSONStorage } from "zustand/middleware"
-import type { Task, Project, User, CalendarSettings, Team, ViewMode, NavigationMode, MainViewMode, ListGroupMode, ListLayoutColumns } from "../types"
-import { taskAPI, projectAPI, userAPI, teamAPI, handleAPIError } from "../api-client"
-import { showToast } from "../toast"
-import { useLoadingDelay } from "../../hooks/use-loading-delay"
-import { canManageTaskInProject, canManageTaskInTeam, getPermissionDeniedMessage } from "../utils/permission-utils"
-import { getWeekDays } from "../utils/date-utils"
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import type {
+  Task,
+  Project,
+  User,
+  CalendarSettings,
+  Team,
+  ViewMode,
+  NavigationMode,
+  MainViewMode,
+  ListGroupMode,
+  ListLayoutColumns,
+} from "../types";
+import {
+  taskAPI,
+  projectAPI,
+  userAPI,
+  teamAPI,
+  handleAPIError,
+} from "../api-client";
+import { showToast } from "../toast";
+import { useLoadingDelay } from "../../hooks/use-loading-delay";
+import {
+  canManageTaskInProject,
+  canManageTaskInTeam,
+  getPermissionDeniedMessage,
+} from "../utils/permission-utils";
+import { getWeekDays } from "../utils/date-utils";
 
 interface CalendarStore {
   // Data
-  tasks: Task[]
-  projects: Project[]
-  users: User[]
-  teams: Team[]
-  currentUser: User | null
+  tasks: Task[];
+  projects: Project[];
+  users: User[];
+  teams: Team[];
+  currentUser: User | null;
 
   // Loading states
-  isLoadingTasks: boolean
-  isLoadingProjects: boolean
-  isLoadingUsers: boolean
-  isLoadingTeams: boolean
-  
+  isLoadingTasks: boolean;
+  isLoadingProjects: boolean;
+  isLoadingUsers: boolean;
+  isLoadingTeams: boolean;
+
   // Error states
-  error: string | null
+  error: string | null;
 
   // View state
-  mainViewMode: MainViewMode // "calendar" | "list" | "stats" 主视图模式
-  listGroupMode: ListGroupMode // "project" | "date" | "user" 清单分组模式
-  listLayoutColumns: ListLayoutColumns // 清单布局列数: 1 | 2 | 3 | 4
-  viewMode: ViewMode // "month" | "week"
-  navigationMode: NavigationMode // "my-days" | "team" | "project"
-  selectedTeamId: string | null
-  selectedProjectId: string | null
-  currentDate: Date
-  selectedDate: Date | null
-  selectedProjectIds: string[] // 选中的项目ID列表，用于过滤
-  hideWeekends: boolean // 是否隐藏周末（周六日）
-  taskBarSize: "compact" | "comfortable" // 任务条大小：紧凑型 | 宽松型
+  mainViewMode: MainViewMode; // "calendar" | "list" | "stats" 主视图模式
+  listGroupMode: ListGroupMode; // "project" | "date" | "user" 清单分组模式
+  listLayoutColumns: ListLayoutColumns; // 清单布局列数: 1 | 2 | 3 | 4
+  viewMode: ViewMode; // "month" | "week"
+  navigationMode: NavigationMode; // "my-days" | "team" | "project"
+  selectedTeamId: string | null;
+  selectedProjectId: string | null;
+  currentDate: Date;
+  selectedDate: Date | null;
+  selectedProjectIds: string[]; // 选中的项目ID列表，用于过滤
+  hideWeekends: boolean; // 是否隐藏周末（周六日）
+  taskBarSize: "compact" | "comfortable"; // 任务条大小：紧凑型 | 宽松型
 
   dragState: {
-    isCreating: boolean
-    startDate: Date | null
-    endDate: Date | null
-    startCell: { x: number; y: number } | null
-    userId: string | null // 拖拽创建时的用户ID，用于限制团队视图中不跨行拖拽
-  }
+    isCreating: boolean;
+    startDate: Date | null;
+    endDate: Date | null;
+    startCell: { x: number; y: number } | null;
+    userId: string | null; // 拖拽创建时的用户ID，用于限制团队视图中不跨行拖拽
+  };
 
   // 拖拽移动任务的状态
   dragMoveState: {
-    isMoving: boolean
-    task: Task | null
-    startDate: Date | null // 拖拽开始时的日期
-    offsetDays: number // 移动的天数偏移
-  }
+    isMoving: boolean;
+    task: Task | null;
+    startDate: Date | null; // 拖拽开始时的日期
+    offsetDays: number; // 移动的天数偏移
+  };
 
   taskCreation: {
-    isOpen: boolean
-    startDate: Date | null
-    endDate: Date | null
-    userId: string | null // 创建任务时指定的用户ID
-    projectId: string | null // 默认选中的项目ID
-    teamId: string | null // 默认选中的团队ID
-  }
+    isOpen: boolean;
+    startDate: Date | null;
+    endDate: Date | null;
+    userId: string | null; // 创建任务时指定的用户ID
+    projectId: string | null; // 默认选中的项目ID
+    teamId: string | null; // 默认选中的团队ID
+  };
 
   taskEdit: {
-    isOpen: boolean
-    task: Task | null
-  }
+    isOpen: boolean;
+    task: Task | null;
+  };
 
   // Settings
-  settings: CalendarSettings
+  settings: CalendarSettings;
 
   // Data Loading Actions
-  fetchTasks: (filters?: { userId?: string; projectId?: string; teamId?: string; startDate?: Date; endDate?: Date }) => Promise<void>
-  fetchProjects: () => Promise<void>
-  fetchUsers: () => Promise<void>
-  fetchTeams: () => Promise<void>
-  fetchAllData: () => Promise<void>
-  setCurrentUserFromStorage: () => void
-  setCurrentUser: (user: User) => void
+  fetchTasks: (filters?: {
+    userId?: string;
+    projectId?: string;
+    teamId?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }) => Promise<void>;
+  fetchProjects: () => Promise<void>;
+  fetchUsers: () => Promise<void>;
+  fetchTeams: () => Promise<void>;
+  fetchAllData: () => Promise<void>;
+  setCurrentUserFromStorage: () => void;
+  setCurrentUser: (user: User) => void;
 
   // Actions
-  addTask: (task: Omit<Task, 'id'>) => Promise<void>
-  updateTask: (id: string, task: Partial<Task>) => Promise<void>
-  deleteTask: (id: string) => Promise<void>
+  addTask: (task: Omit<Task, "id">) => Promise<void>;
+  updateTask: (id: string, task: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
 
-  addTeam: (team: Omit<Team, 'id' | 'createdAt'> & { memberIds: string[] }) => Promise<void>
-  updateTeam: (id: string, team: Partial<Team> & { memberIds?: string[] }) => Promise<void>
-  deleteTeam: (id: string) => Promise<void>
+  addTeam: (
+    team: Omit<Team, "id" | "createdAt"> & { memberIds: string[] }
+  ) => Promise<void>;
+  updateTeam: (
+    id: string,
+    team: Partial<Team> & { memberIds?: string[] }
+  ) => Promise<void>;
+  deleteTeam: (id: string) => Promise<void>;
 
-  addProject: (project: Omit<Project, 'id' | 'createdAt'> & { memberIds: string[] }) => Promise<void>
-  updateProject: (id: string, project: Partial<Project> & { memberIds?: string[] }) => Promise<void>
-  deleteProject: (id: string) => Promise<void>
-  leaveProject: (id: string) => Promise<void>
-  leaveTeam: (id: string) => Promise<void>
+  addProject: (
+    project: Omit<Project, "id" | "createdAt"> & { memberIds: string[] }
+  ) => Promise<void>;
+  updateProject: (
+    id: string,
+    project: Partial<Project> & { memberIds?: string[] }
+  ) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  leaveProject: (id: string) => Promise<void>;
+  leaveTeam: (id: string) => Promise<void>;
 
-  setMainViewMode: (mode: MainViewMode) => void // 设置主视图模式
-  setListGroupMode: (mode: ListGroupMode) => void // 设置清单分组模式
-  setListLayoutColumns: (columns: ListLayoutColumns) => void // 设置清单布局列数
-  setViewMode: (mode: ViewMode) => void
-  setNavigationMode: (mode: NavigationMode) => void
-  setSelectedTeamId: (id: string | null) => Promise<void>
-  setSelectedProjectId: (id: string | null) => Promise<void>
-  setCurrentDate: (date: Date) => void
-  setSelectedDate: (date: Date | null) => void
-  toggleWeekends: () => void // 切换周末显示/隐藏
-  setTaskBarSize: (size: "compact" | "comfortable") => void // 设置任务条大小
-  setError: (error: string | null) => void
+  setMainViewMode: (mode: MainViewMode) => void; // 设置主视图模式
+  setListGroupMode: (mode: ListGroupMode) => void; // 设置清单分组模式
+  setListLayoutColumns: (columns: ListLayoutColumns) => void; // 设置清单布局列数
+  setViewMode: (mode: ViewMode) => void;
+  setNavigationMode: (mode: NavigationMode) => void;
+  setSelectedTeamId: (id: string | null) => Promise<void>;
+  setSelectedProjectId: (id: string | null) => Promise<void>;
+  setCurrentDate: (date: Date) => void;
+  setSelectedDate: (date: Date | null) => void;
+  toggleWeekends: () => void; // 切换周末显示/隐藏
+  setTaskBarSize: (size: "compact" | "comfortable") => void; // 设置任务条大小
+  setError: (error: string | null) => void;
 
   // 项目过滤
-  toggleProjectFilter: (projectId: string) => void
-  selectAllProjects: () => void
-  clearProjectFilter: () => void
+  toggleProjectFilter: (projectId: string) => void;
+  selectAllProjects: () => void;
+  clearProjectFilter: () => void;
 
-  startDragCreate: (date: Date, cell: { x: number; y: number }, userId?: string) => void
-  updateDragCreate: (date: Date) => void
-  endDragCreate: () => { startDate: Date; endDate: Date } | null
-  cancelDragCreate: () => void
+  startDragCreate: (
+    date: Date,
+    cell: { x: number; y: number },
+    userId?: string
+  ) => void;
+  updateDragCreate: (date: Date) => void;
+  endDragCreate: () => { startDate: Date; endDate: Date } | null;
+  cancelDragCreate: () => void;
 
   // 拖拽移动任务的方法
-  startDragMove: (task: Task, date: Date) => void
-  updateDragMove: (date: Date) => void
-  endDragMove: () => void
-  cancelDragMove: () => void
+  startDragMove: (task: Task, date: Date) => void;
+  updateDragMove: (date: Date) => void;
+  endDragMove: () => void;
+  cancelDragMove: () => void;
 
-  openTaskCreation: (startDate: Date, endDate: Date, userId?: string, projectId?: string, teamId?: string) => void
-  closeTaskCreation: () => void
+  openTaskCreation: (
+    startDate: Date,
+    endDate: Date,
+    userId?: string,
+    projectId?: string,
+    teamId?: string
+  ) => void;
+  closeTaskCreation: () => void;
 
-  openTaskEdit: (task: Task) => void
-  closeTaskEdit: () => void
+  openTaskEdit: (task: Task) => void;
+  closeTaskEdit: () => void;
 
-  openTeamCreation: () => void
-  openProjectCreation: () => void
+  openTeamCreation: () => void;
+  openProjectCreation: () => void;
 
-  updateSettings: (settings: Partial<CalendarSettings>) => void
+  updateSettings: (settings: Partial<CalendarSettings>) => void;
 
   // Helpers
-  getTasksForDate: (date: Date) => Task[]
-  getTasksForDateRange: (startDate: Date, endDate: Date) => Task[]
-  getProjectById: (id: string) => Project | undefined
-  getTeamById: (id: string) => Team | undefined
-  getUserById: (id: string) => User | undefined
+  getTasksForDate: (date: Date) => Task[];
+  getTasksForDateRange: (startDate: Date, endDate: Date) => Task[];
+  getProjectById: (id: string) => Project | undefined;
+  getTeamById: (id: string) => Team | undefined;
+  getUserById: (id: string) => User | undefined;
 }
 
 export const useCalendarStore = create<CalendarStore>()(
@@ -213,1027 +260,1153 @@ export const useCalendarStore = create<CalendarStore>()(
         lastSelectedProjectId: "personal",
       },
 
-  // Data Loading Actions
-  setCurrentUserFromStorage: () => {
-    if (typeof window !== 'undefined') {
-      const currentUserStr = localStorage.getItem('currentUser')
-      if (currentUserStr) {
+      // Data Loading Actions
+      setCurrentUserFromStorage: () => {
+        if (typeof window !== "undefined") {
+          const currentUserStr = localStorage.getItem("currentUser");
+          if (currentUserStr) {
+            try {
+              const user = JSON.parse(currentUserStr);
+              set({ currentUser: user });
+            } catch (e) {
+              console.error("Failed to parse current user:", e);
+            }
+          }
+        }
+      },
+
+      setCurrentUser: (user: User) => {
+        set({ currentUser: user });
+      },
+
+      fetchTasks: async (filters) => {
+        const loadingDelay = useLoadingDelay();
+        loadingDelay.start();
+        set({ isLoadingTasks: true, error: null });
+
         try {
-          const user = JSON.parse(currentUserStr)
-          set({ currentUser: user })
-        } catch (e) {
-          console.error('Failed to parse current user:', e)
+          const apiFilters: any = {};
+          if (filters) {
+            if (filters.userId) apiFilters.userId = filters.userId;
+            if (filters.projectId) apiFilters.projectId = filters.projectId;
+            if (filters.teamId) apiFilters.teamId = filters.teamId;
+            if (filters.startDate)
+              apiFilters.startDate = filters.startDate.toISOString();
+            if (filters.endDate)
+              apiFilters.endDate = filters.endDate.toISOString();
+          }
+
+          const tasksData = await taskAPI.getAll(apiFilters);
+          // 转换日期字符串为 Date 对象
+          const tasks = tasksData.map((task: any) => ({
+            ...task,
+            startDate: new Date(task.startDate),
+            endDate: new Date(task.endDate),
+          }));
+
+          // 先更新数据
+          set({ tasks });
+
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingTasks: false });
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          console.error("Fetch tasks error:", errorMsg, error);
+
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingTasks: false });
+
+          // 显示错误提示但不设置全局 error 状态，避免阻塞界面
+          showToast.error("获取任务失败", errorMsg);
+
+          // 如果是认证错误，才设置全局 error
+          if (
+            errorMsg.includes("认证") ||
+            errorMsg.includes("Token") ||
+            errorMsg.includes("登录")
+          ) {
+            set({ error: errorMsg });
+          }
         }
-      }
-    }
-  },
+      },
 
-  setCurrentUser: (user: User) => {
-    set({ currentUser: user })
-  },
+      fetchProjects: async () => {
+        const loadingDelay = useLoadingDelay();
+        loadingDelay.start();
+        set({ isLoadingProjects: true, error: null });
 
-  fetchTasks: async (filters) => {
-    const loadingDelay = useLoadingDelay()
-    loadingDelay.start()
-    set({ isLoadingTasks: true, error: null })
-    
-    try {
-      const apiFilters: any = {}
-      if (filters) {
-        if (filters.userId) apiFilters.userId = filters.userId
-        if (filters.projectId) apiFilters.projectId = filters.projectId
-        if (filters.teamId) apiFilters.teamId = filters.teamId
-        if (filters.startDate) apiFilters.startDate = filters.startDate.toISOString()
-        if (filters.endDate) apiFilters.endDate = filters.endDate.toISOString()
-      }
-
-      const tasksData = await taskAPI.getAll(apiFilters)
-      // 转换日期字符串为 Date 对象
-      const tasks = tasksData.map((task: any) => ({
-        ...task,
-        startDate: new Date(task.startDate),
-        endDate: new Date(task.endDate),
-      }))
-      
-      // 先更新数据
-      set({ tasks })
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingTasks: false })
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      console.error('Fetch tasks error:', errorMsg, error)
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingTasks: false })
-      
-      // 显示错误提示但不设置全局 error 状态，避免阻塞界面
-      showToast.error('获取任务失败', errorMsg)
-      
-      // 如果是认证错误，才设置全局 error
-      if (errorMsg.includes('认证') || errorMsg.includes('Token') || errorMsg.includes('登录')) {
-        set({ error: errorMsg })
-      }
-    }
-  },
-
-  fetchProjects: async () => {
-    const loadingDelay = useLoadingDelay()
-    loadingDelay.start()
-    set({ isLoadingProjects: true, error: null })
-    
-    try {
-      const projectsData = await projectAPI.getAll()
-      // 转换数据格式
-      const projects = projectsData.map((project: any) => ({
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        color: project.color,
-        teamId: project.teamId,
-        organizationId: project.organizationId,
-        creatorId: project.creatorId, // 添加创建者ID
-        taskPermission: project.taskPermission || "ALL_MEMBERS", // 任务权限
-        // API 现在直接返回 memberIds 数组
-        memberIds: project.memberIds || [],
-        createdAt: new Date(project.createdAt),
-      }))
-      
-      // 默认选中所有项目
-      const selectedProjectIds = projects.map((p: Project) => p.id)
-      
-      // 先更新数据
-      set({ projects, selectedProjectIds })
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingProjects: false })
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingProjects: false })
-      showToast.error('获取项目失败', errorMsg)
-    }
-  },
-
-  fetchUsers: async () => {
-    const loadingDelay = useLoadingDelay()
-    loadingDelay.start()
-    set({ isLoadingUsers: true, error: null })
-    
-    try {
-      const users = await userAPI.getAll()
-      
-      // 先更新数据
-      set({ users })
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingUsers: false })
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingUsers: false })
-      showToast.error('获取用户失败', errorMsg)
-    }
-  },
-
-  fetchTeams: async () => {
-    const loadingDelay = useLoadingDelay()
-    loadingDelay.start()
-    set({ isLoadingTeams: true, error: null })
-    
-    try {
-      const teamsData = await teamAPI.getAll()
-      // 转换数据格式
-      const teams = teamsData.map((team: any) => ({
-        id: team.id,
-        name: team.name,
-        description: team.description,
-        color: team.color,
-        organizationId: team.organizationId,
-        creatorId: team.creatorId, // 添加创建者ID
-        taskPermission: team.taskPermission || "ALL_MEMBERS", // 任务权限
-        // API 现在直接返回 memberIds 数组
-        memberIds: team.memberIds || [],
-        createdAt: new Date(team.createdAt),
-      }))
-      
-      // 先更新数据
-      set({ teams })
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingTeams: false })
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      
-      // 确保 loading 至少显示指定时间
-      await loadingDelay.waitForMinDuration()
-      
-      set({ isLoadingTeams: false })
-      showToast.error('获取团队失败', errorMsg)
-    }
-  },
-
-  fetchAllData: async () => {
-    const store = get()
-    
-    // 先从 localStorage 加载用户
-    let currentUser: User | null = null
-    if (typeof window !== 'undefined') {
-      const currentUserStr = localStorage.getItem('currentUser')
-      if (currentUserStr) {
         try {
-          currentUser = JSON.parse(currentUserStr)
-          set({ currentUser })
-        } catch (e) {
-          console.error('Failed to parse current user:', e)
-        }
-      }
-    }
-    
-    // 先加载用户、团队和项目数据
-    await Promise.all([
-      store.fetchUsers(),
-      store.fetchTeams(),
-      store.fetchProjects(),
-    ])
-    
-    // 获取加载后的数据状态
-    const { navigationMode, selectedTeamId, selectedProjectId, teams, projects } = get()
-    
-    // 验证导航状态的有效性,确保选中的团队/项目仍然存在
-    let needsReset = false
-    
-    if (navigationMode === 'team' && selectedTeamId) {
-      // 检查选中的团队是否存在
-      const teamExists = teams.some(t => t.id === selectedTeamId)
-      if (!teamExists) {
-        console.warn(`Selected team ${selectedTeamId} no longer exists, resetting to My Days`)
-        needsReset = true
-      }
-    } else if (navigationMode === 'project' && selectedProjectId) {
-      // 检查选中的项目是否存在
-      const projectExists = projects.some(p => p.id === selectedProjectId)
-      if (!projectExists) {
-        console.warn(`Selected project ${selectedProjectId} no longer exists, resetting to My Days`)
-        needsReset = true
-      }
-    } else if (navigationMode !== 'my-days') {
-      // 如果 navigationMode 不是合法值,重置
-      console.warn(`Invalid navigation mode ${navigationMode}, resetting to My Days`)
-      needsReset = true
-    }
-    
-    // 如果需要重置,设置为 My Days
-    if (needsReset) {
-      set({ 
-        navigationMode: 'my-days',
-        selectedTeamId: null,
-        selectedProjectId: null
-      })
-    }
-    
-    // 根据最终的导航状态加载对应的任务
-    const finalState = get()
-    
-    if (finalState.navigationMode === 'team' && finalState.selectedTeamId) {
-      // 团队模式：加载该团队的任务
-      await store.fetchTasks({ teamId: finalState.selectedTeamId })
-    } else if (finalState.navigationMode === 'project' && finalState.selectedProjectId) {
-      // 项目模式：加载该项目的任务
-      await store.fetchTasks({ projectId: finalState.selectedProjectId })
-    } else if (currentUser) {
-      // my-days 模式：加载当前用户的任务
-      console.log(`📥 Loading tasks for user: ${currentUser.id}`)
-      await store.fetchTasks({ userId: currentUser.id })
-    }
-  },
+          const projectsData = await projectAPI.getAll();
+          // 转换数据格式
+          const projects = projectsData.map((project: any) => ({
+            id: project.id,
+            name: project.name,
+            description: project.description,
+            color: project.color,
+            teamId: project.teamId,
+            organizationId: project.organizationId,
+            creatorId: project.creatorId, // 添加创建者ID
+            taskPermission: project.taskPermission || "ALL_MEMBERS", // 任务权限
+            // API 现在直接返回 memberIds 数组
+            memberIds: project.memberIds || [],
+            createdAt: new Date(project.createdAt),
+          }));
 
-  setError: (error) => set({ error }),
+          // 默认选中所有项目
+          const selectedProjectIds = projects.map((p: Project) => p.id);
 
-  // Actions
-  addTask: async (task) => {
-    const { currentUser, projects, teams } = get()
-    
-    // 权限检查
-    if (currentUser) {
-      const project = projects.find(p => p.id === task.projectId)
-      if (project) {
-        const hasPermission = canManageTaskInProject(
-          currentUser.id,
-          project,
-          currentUser.isAdmin
-        )
-        
-        if (!hasPermission) {
-          const errorMsg = getPermissionDeniedMessage(project.taskPermission)
-          set({ error: errorMsg })
-          showToast.error('权限不足', errorMsg)
-          throw new Error(errorMsg)
-        }
-      }
-    }
-    
-    try {
-      // await API 调用,确保任务创建成功
-      await taskAPI.create(task as any)
-      
-      // API 成功后,在后台刷新数据(不阻塞调用者)
-      Promise.all([
-        // 创建任务可能导致后端自动添加成员,需要刷新项目/团队数据
-        task.projectId ? get().fetchProjects() : Promise.resolve(),
-        task.teamId ? get().fetchTeams() : Promise.resolve(),
-        // 根据当前导航模式重新获取任务列表
-        (async () => {
-          const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
-          if (navigationMode === 'team' && selectedTeamId) {
-            await get().fetchTasks({ teamId: selectedTeamId })
-          } else if (navigationMode === 'project' && selectedProjectId) {
-            await get().fetchTasks({ projectId: selectedProjectId })
-          } else if (currentUser) {
-            await get().fetchTasks({ userId: currentUser.id })
-          }
-        })()
-      ]).catch((error: any) => {
-        console.error('Background data refresh failed after task creation:', error)
-      })
-      
-      // API 调用成功后立即返回,不等待数据刷新
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      throw error
-    }
-  },
+          // 先更新数据
+          set({ projects, selectedProjectIds });
 
-  updateTask: async (id, updatedTask) => {
-    const { currentUser, projects, tasks } = get()
-    
-    // 权限检查
-    if (currentUser) {
-      const task = tasks.find(t => t.id === id)
-      const project = task ? projects.find(p => p.id === task.projectId) : null
-      
-      if (project) {
-        const hasPermission = canManageTaskInProject(
-          currentUser.id,
-          project,
-          currentUser.isAdmin
-        )
-        
-        if (!hasPermission) {
-          const errorMsg = getPermissionDeniedMessage(project.taskPermission)
-          set({ error: errorMsg })
-          showToast.error('权限不足', errorMsg)
-          throw new Error(errorMsg)
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingProjects: false });
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingProjects: false });
+          showToast.error("获取项目失败", errorMsg);
         }
-      }
-    }
-    
-    try {
-      // 记录修改前的任务信息
-      const originalTask = tasks.find(t => t.id === id)
-      
-      // await API 调用,确保任务更新成功
-      await taskAPI.update(id, updatedTask)
-      
-      // 检查是否需要刷新项目/团队数据(因为后端可能自动添加了新成员)
-      const needRefreshProjects = updatedTask.projectId && updatedTask.projectId !== originalTask?.projectId
-      const needRefreshTeams = updatedTask.teamId !== undefined && updatedTask.teamId !== originalTask?.teamId
-      
-      // API 成功后,在后台刷新数据(不阻塞调用者)
-      Promise.all([
-        needRefreshProjects ? get().fetchProjects() : Promise.resolve(),
-        needRefreshTeams ? get().fetchTeams() : Promise.resolve(),
-        // 根据当前导航模式重新获取任务列表
-        (async () => {
-          const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
-          
-          if (navigationMode === 'team' && selectedTeamId) {
-            await get().fetchTasks({ teamId: selectedTeamId })
-          } else if (navigationMode === 'project' && selectedProjectId) {
-            await get().fetchTasks({ projectId: selectedProjectId })
-          } else if (currentUser) {
-            await get().fetchTasks({ userId: currentUser.id })
-          }
-          
-          // 检查任务是否被移出当前视图并给出提示
-          let taskMovedOut = false
-          if (navigationMode === 'project' && selectedProjectId) {
-            if (updatedTask.projectId && updatedTask.projectId !== selectedProjectId) {
-              taskMovedOut = true
-            }
-          } else if (navigationMode === 'my-days' && currentUser) {
-            // 检查当前用户是否还是负责人之一
-            const isStillAssignee = updatedTask.assignees?.some((a: any) => a.userId === currentUser.id) ||
-              updatedTask.creatorId === currentUser.id
-            if (!isStillAssignee) {
-              taskMovedOut = true
+      },
+
+      fetchUsers: async () => {
+        const loadingDelay = useLoadingDelay();
+        loadingDelay.start();
+        set({ isLoadingUsers: true, error: null });
+
+        try {
+          const users = await userAPI.getAll();
+
+          // 先更新数据
+          set({ users });
+
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingUsers: false });
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingUsers: false });
+          showToast.error("获取用户失败", errorMsg);
+        }
+      },
+
+      fetchTeams: async () => {
+        const loadingDelay = useLoadingDelay();
+        loadingDelay.start();
+        set({ isLoadingTeams: true, error: null });
+
+        try {
+          const teamsData = await teamAPI.getAll();
+          // 转换数据格式
+          const teams = teamsData.map((team: any) => ({
+            id: team.id,
+            name: team.name,
+            description: team.description,
+            color: team.color,
+            organizationId: team.organizationId,
+            creatorId: team.creatorId, // 添加创建者ID
+            taskPermission: team.taskPermission || "ALL_MEMBERS", // 任务权限
+            // API 现在直接返回 memberIds 数组
+            memberIds: team.memberIds || [],
+            createdAt: new Date(team.createdAt),
+          }));
+
+          // 先更新数据
+          set({ teams });
+
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingTeams: false });
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+
+          // 确保 loading 至少显示指定时间
+          await loadingDelay.waitForMinDuration();
+
+          set({ isLoadingTeams: false });
+          showToast.error("获取团队失败", errorMsg);
+        }
+      },
+
+      fetchAllData: async () => {
+        const store = get();
+
+        // 先从 localStorage 加载用户
+        let currentUser: User | null = null;
+        if (typeof window !== "undefined") {
+          const currentUserStr = localStorage.getItem("currentUser");
+          if (currentUserStr) {
+            try {
+              currentUser = JSON.parse(currentUserStr);
+              set({ currentUser });
+            } catch (e) {
+              console.error("Failed to parse current user:", e);
             }
           }
-          
-          if (taskMovedOut) {
-            const taskTitle = originalTask?.title || '任务'
-            if (navigationMode === 'project') {
-              const projects = get().projects
-              const newProject = projects.find(p => p.id === updatedTask.projectId)
-              showToast.success(
-                '任务已移动',
-                `「${taskTitle}」已移动到项目「${newProject?.name || '其他项目'}」`
-              )
-            } else if (navigationMode === 'my-days') {
-              showToast.success(
-                '任务已转移',
-                `「${taskTitle}」的负责人已变更，任务已从您的视图中移出`
-              )
-            }
-          }
-        })()
-      ]).catch((error: any) => {
-        console.error('Background data refresh failed after task update:', error)
-      })
-      
-      // API 调用成功后立即返回,不等待数据刷新
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      throw error
-    }
-  },
-
-  deleteTask: async (id) => {
-    const { currentUser, projects, tasks } = get()
-    
-    // 权限检查
-    if (currentUser) {
-      const task = tasks.find(t => t.id === id)
-      const project = task ? projects.find(p => p.id === task.projectId) : null
-      
-      if (project) {
-        const hasPermission = canManageTaskInProject(
-          currentUser.id,
-          project,
-          currentUser.isAdmin
-        )
-        
-        if (!hasPermission) {
-          const errorMsg = getPermissionDeniedMessage(project.taskPermission)
-          set({ error: errorMsg })
-          showToast.error('权限不足', errorMsg)
-          throw new Error(errorMsg)
         }
-      }
-    }
-    
-    try {
-      // await API 调用,确保任务删除成功
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || '删除任务失败')
-      }
-      
-      // API 成功后,在后台刷新任务列表(不阻塞调用者)
-      const refreshData = async () => {
-        const { navigationMode, selectedTeamId, selectedProjectId, currentUser } = get()
-        
-        if (navigationMode === 'team' && selectedTeamId) {
-          await get().fetchTasks({ teamId: selectedTeamId })
-        } else if (navigationMode === 'project' && selectedProjectId) {
-          await get().fetchTasks({ projectId: selectedProjectId })
+
+        // 先加载用户、团队和项目数据
+        await Promise.all([
+          store.fetchUsers(),
+          store.fetchTeams(),
+          store.fetchProjects(),
+        ]);
+
+        // 获取加载后的数据状态
+        const {
+          navigationMode,
+          selectedTeamId,
+          selectedProjectId,
+          teams,
+          projects,
+        } = get();
+
+        // 验证导航状态的有效性,确保选中的团队/项目仍然存在
+        let needsReset = false;
+
+        if (navigationMode === "team" && selectedTeamId) {
+          // 检查选中的团队是否存在
+          const teamExists = teams.some((t) => t.id === selectedTeamId);
+          if (!teamExists) {
+            console.warn(
+              `Selected team ${selectedTeamId} no longer exists, resetting to My Days`
+            );
+            needsReset = true;
+          }
+        } else if (navigationMode === "project" && selectedProjectId) {
+          // 检查选中的项目是否存在
+          const projectExists = projects.some(
+            (p) => p.id === selectedProjectId
+          );
+          if (!projectExists) {
+            console.warn(
+              `Selected project ${selectedProjectId} no longer exists, resetting to My Days`
+            );
+            needsReset = true;
+          }
+        } else if (navigationMode !== "my-days") {
+          // 如果 navigationMode 不是合法值,重置
+          console.warn(
+            `Invalid navigation mode ${navigationMode}, resetting to My Days`
+          );
+          needsReset = true;
+        }
+
+        // 如果需要重置,设置为 My Days
+        if (needsReset) {
+          set({
+            navigationMode: "my-days",
+            selectedTeamId: null,
+            selectedProjectId: null,
+          });
+        }
+
+        // 根据最终的导航状态加载对应的任务
+        const finalState = get();
+
+        if (finalState.navigationMode === "team" && finalState.selectedTeamId) {
+          // 团队模式：加载该团队的任务
+          await store.fetchTasks({ teamId: finalState.selectedTeamId });
+        } else if (
+          finalState.navigationMode === "project" &&
+          finalState.selectedProjectId
+        ) {
+          // 项目模式：加载该项目的任务
+          await store.fetchTasks({ projectId: finalState.selectedProjectId });
         } else if (currentUser) {
-          await get().fetchTasks({ userId: currentUser.id })
+          // my-days 模式：加载当前用户的任务
+          console.log(`📥 Loading tasks for user: ${currentUser.id}`);
+          await store.fetchTasks({ userId: currentUser.id });
         }
-      }
-      
-      refreshData().catch((error: any) => {
-        console.error('Background data refresh failed after task deletion:', error)
-      })
-      
-      // API 调用成功后立即返回,不等待数据刷新
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      throw error
-    }
-  },
+      },
 
-  addProject: async (project) => {
-    try {
-      const newProject = await projectAPI.create(project as any)
-      
-      // 重新获取项目列表以确保数据同步
-      await get().fetchProjects()
-      
-      showToast.success('创建成功', `项目 "${newProject.name}" 已创建`)
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('创建失败', errorMsg)
-      throw error
-    }
-  },
+      setError: (error) => set({ error }),
 
-  updateProject: async (id, updatedProject) => {
-    try {
-      await projectAPI.update(id, updatedProject)
-      
-      // 重新获取项目列表以确保数据同步
-      await get().fetchProjects()
-      
-      showToast.success('更新成功', '项目信息已更新')
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('更新失败', errorMsg)
-      throw error
-    }
-  },
+      // Actions
+      addTask: async (task) => {
+        const { currentUser, projects, teams } = get();
 
-  deleteProject: async (id) => {
-    try {
-      await projectAPI.delete(id)
-      
-      // 重新获取项目列表以确保数据同步
-      await get().fetchProjects()
-      
-      showToast.success('删除成功', '项目已删除')
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('删除失败', errorMsg)
-      throw error
-    }
-  },
+        // 权限检查
+        if (currentUser) {
+          const project = projects.find((p) => p.id === task.projectId);
+          if (project) {
+            const hasPermission = canManageTaskInProject(
+              currentUser.id,
+              project,
+              currentUser.isAdmin
+            );
 
-  leaveProject: async (id) => {
-    try {
-      await projectAPI.leave(id)
-      
-      // 重新获取项目列表以确保数据同步
-      await get().fetchProjects()
-      
-      showToast.success('退出成功', '已退出项目')
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('退出失败', errorMsg)
-      throw error
-    }
-  },
+            if (!hasPermission) {
+              const errorMsg = getPermissionDeniedMessage(
+                project.taskPermission
+              );
+              set({ error: errorMsg });
+              showToast.error("权限不足", errorMsg);
+              throw new Error(errorMsg);
+            }
+          }
+        }
 
-  addTeam: async (team) => {
-    try {
-      const newTeam = await teamAPI.create(team as any)
-      
-      // 重新获取团队列表以确保数据同步
-      await get().fetchTeams()
-      
-      showToast.success('创建成功', `团队 "${newTeam.name}" 已创建`)
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('创建失败', errorMsg)
-      throw error
-    }
-  },
+        try {
+          // await API 调用,确保任务创建成功
+          await taskAPI.create(task as any);
 
-  updateTeam: async (id, updatedTeam) => {
-    try {
-      await teamAPI.update(id, updatedTeam)
-      
-      // 重新获取团队列表以确保数据同步
-      await get().fetchTeams()
-      
-      showToast.success('更新成功', '团队信息已更新')
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('更新失败', errorMsg)
-      throw error
-    }
-  },
+          // API 成功后,在后台刷新数据(不阻塞调用者)
+          Promise.all([
+            // 创建任务可能导致后端自动添加成员,需要刷新项目/团队数据
+            task.projectId ? get().fetchProjects() : Promise.resolve(),
+            task.teamId ? get().fetchTeams() : Promise.resolve(),
+            // 根据当前导航模式重新获取任务列表
+            (async () => {
+              const {
+                navigationMode,
+                selectedTeamId,
+                selectedProjectId,
+                currentUser,
+              } = get();
+              if (navigationMode === "team" && selectedTeamId) {
+                await get().fetchTasks({ teamId: selectedTeamId });
+              } else if (navigationMode === "project" && selectedProjectId) {
+                await get().fetchTasks({ projectId: selectedProjectId });
+              } else if (currentUser) {
+                await get().fetchTasks({ userId: currentUser.id });
+              }
+            })(),
+          ]).catch((error: any) => {
+            console.error(
+              "Background data refresh failed after task creation:",
+              error
+            );
+          });
 
-  deleteTeam: async (id) => {
-    try {
-      await teamAPI.delete(id)
-      
-      // 重新获取团队列表以确保数据同步
-      await get().fetchTeams()
-      
-      showToast.success('删除成功', '团队已删除')
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('删除失败', errorMsg)
-      throw error
-    }
-  },
+          // API 调用成功后立即返回,不等待数据刷新
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          throw error;
+        }
+      },
 
-  leaveTeam: async (id) => {
-    try {
-      await teamAPI.leave(id)
-      
-      // 重新获取团队列表以确保数据同步
-      await get().fetchTeams()
-      
-      showToast.success('退出成功', '已退出团队')
-    } catch (error) {
-      const errorMsg = handleAPIError(error)
-      set({ error: errorMsg })
-      showToast.error('退出失败', errorMsg)
-      throw error
-    }
-  },
+      updateTask: async (id, updatedTask) => {
+        const { currentUser, projects, tasks } = get();
 
-  setMainViewMode: (mode) => set({ mainViewMode: mode }),
-  setListGroupMode: (mode) => set({ listGroupMode: mode }),
-  setListLayoutColumns: (columns) => set({ listLayoutColumns: columns }),
-  setViewMode: (mode) => set({ viewMode: mode }),
-  setNavigationMode: (mode) => {
-    set({ navigationMode: mode, selectedTeamId: null, selectedProjectId: null })
-    
-    // 切换到 my-days 模式时，加载当前用户的任务
-    if (mode === 'my-days') {
-      const currentUser = get().currentUser
-      if (currentUser) {
-        get().fetchTasks({ userId: currentUser.id })
-      }
-    }
-  },
-  setSelectedTeamId: async (id) => {
-    // 防止重复设置相同的 ID
-    const currentId = get().selectedTeamId
-    if (currentId === id) return
-    
-    set({ selectedTeamId: id })
-    // 切换团队时，先刷新团队数据(可能有新成员),再获取任务
-    if (id) {
-      try {
-        // 刷新团队列表以获取最新成员信息
-        await get().fetchTeams()
-        
-        // 根据当前视图模式确定日期范围
-        const { viewMode, currentDate } = get()
-        let startDate: Date
-        let endDate: Date
-        
-        if (viewMode === 'week') {
-          // 周视图：获取当前周的开始和结束日期
-          const weekDays = getWeekDays(currentDate, false)
-          startDate = weekDays[0]
-          endDate = weekDays[weekDays.length - 1]
+        // 权限检查
+        if (currentUser) {
+          const task = tasks.find((t) => t.id === id);
+          const project = task
+            ? projects.find((p) => p.id === task.projectId)
+            : null;
+
+          if (project) {
+            const hasPermission = canManageTaskInProject(
+              currentUser.id,
+              project,
+              currentUser.isAdmin
+            );
+
+            if (!hasPermission) {
+              const errorMsg = getPermissionDeniedMessage(
+                project.taskPermission
+              );
+              set({ error: errorMsg });
+              showToast.error("权限不足", errorMsg);
+              throw new Error(errorMsg);
+            }
+          }
+        }
+
+        try {
+          // 记录修改前的任务信息
+          const originalTask = tasks.find((t) => t.id === id);
+
+          // await API 调用,确保任务更新成功
+          await taskAPI.update(id, updatedTask);
+
+          // 检查是否需要刷新项目/团队数据(因为后端可能自动添加了新成员)
+          const needRefreshProjects =
+            updatedTask.projectId &&
+            updatedTask.projectId !== originalTask?.projectId;
+          const needRefreshTeams =
+            updatedTask.teamId !== undefined &&
+            updatedTask.teamId !== originalTask?.teamId;
+
+          // API 成功后,在后台刷新数据(不阻塞调用者)
+          Promise.all([
+            needRefreshProjects ? get().fetchProjects() : Promise.resolve(),
+            needRefreshTeams ? get().fetchTeams() : Promise.resolve(),
+            // 根据当前导航模式重新获取任务列表
+            (async () => {
+              const {
+                navigationMode,
+                selectedTeamId,
+                selectedProjectId,
+                currentUser,
+              } = get();
+
+              if (navigationMode === "team" && selectedTeamId) {
+                await get().fetchTasks({ teamId: selectedTeamId });
+              } else if (navigationMode === "project" && selectedProjectId) {
+                await get().fetchTasks({ projectId: selectedProjectId });
+              } else if (currentUser) {
+                await get().fetchTasks({ userId: currentUser.id });
+              }
+
+              // 检查任务是否被移出当前视图并给出提示
+              let taskMovedOut = false;
+              if (navigationMode === "project" && selectedProjectId) {
+                const effectiveProjectId =
+                  updatedTask.projectId !== undefined
+                    ? updatedTask.projectId
+                    : originalTask?.projectId;
+                if (
+                  effectiveProjectId &&
+                  effectiveProjectId !== selectedProjectId
+                ) {
+                  taskMovedOut = true;
+                }
+              } else if (navigationMode === "my-days" && currentUser) {
+                // 检查当前用户是否还是负责人之一
+                // 如果 updatedTask 中没有包含 assignees/creatorId，则使用 originalTask 中的值
+                const effectiveAssignees =
+                  updatedTask.assignees !== undefined
+                    ? updatedTask.assignees
+                    : originalTask?.assignees;
+                const effectiveCreatorId =
+                  updatedTask.creatorId !== undefined
+                    ? updatedTask.creatorId
+                    : originalTask?.creatorId;
+
+                const isStillAssignee =
+                  effectiveAssignees?.some(
+                    (a: any) => a.userId === currentUser.id
+                  ) || effectiveCreatorId === currentUser.id;
+
+                if (!isStillAssignee) {
+                  taskMovedOut = true;
+                }
+              }
+
+              if (taskMovedOut) {
+                const taskTitle = originalTask?.title || "任务";
+                if (navigationMode === "project") {
+                  const projects = get().projects;
+                  const newProject = projects.find(
+                    (p) => p.id === updatedTask.projectId
+                  );
+                  showToast.success(
+                    "任务已移动",
+                    `「${taskTitle}」已移动到项目「${
+                      newProject?.name || "其他项目"
+                    }」`
+                  );
+                } else if (navigationMode === "my-days") {
+                  showToast.success(
+                    "任务已转移",
+                    `「${taskTitle}」的负责人已变更，任务已从您的视图中移出`
+                  );
+                }
+              }
+            })(),
+          ]).catch((error: any) => {
+            console.error(
+              "Background data refresh failed after task update:",
+              error
+            );
+          });
+
+          // API 调用成功后立即返回,不等待数据刷新
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          throw error;
+        }
+      },
+
+      deleteTask: async (id) => {
+        const { currentUser, projects, tasks } = get();
+
+        // 权限检查
+        if (currentUser) {
+          const task = tasks.find((t) => t.id === id);
+          const project = task
+            ? projects.find((p) => p.id === task.projectId)
+            : null;
+
+          if (project) {
+            const hasPermission = canManageTaskInProject(
+              currentUser.id,
+              project,
+              currentUser.isAdmin
+            );
+
+            if (!hasPermission) {
+              const errorMsg = getPermissionDeniedMessage(
+                project.taskPermission
+              );
+              set({ error: errorMsg });
+              showToast.error("权限不足", errorMsg);
+              throw new Error(errorMsg);
+            }
+          }
+        }
+
+        try {
+          // await API 调用,确保任务删除成功
+          const response = await fetch(`/api/tasks/${id}`, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+            },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || "删除任务失败");
+          }
+
+          // API 成功后,在后台刷新任务列表(不阻塞调用者)
+          const refreshData = async () => {
+            const {
+              navigationMode,
+              selectedTeamId,
+              selectedProjectId,
+              currentUser,
+            } = get();
+
+            if (navigationMode === "team" && selectedTeamId) {
+              await get().fetchTasks({ teamId: selectedTeamId });
+            } else if (navigationMode === "project" && selectedProjectId) {
+              await get().fetchTasks({ projectId: selectedProjectId });
+            } else if (currentUser) {
+              await get().fetchTasks({ userId: currentUser.id });
+            }
+          };
+
+          refreshData().catch((error: any) => {
+            console.error(
+              "Background data refresh failed after task deletion:",
+              error
+            );
+          });
+
+          // API 调用成功后立即返回,不等待数据刷新
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          throw error;
+        }
+      },
+
+      addProject: async (project) => {
+        try {
+          const newProject = await projectAPI.create(project as any);
+
+          // 重新获取项目列表以确保数据同步
+          await get().fetchProjects();
+
+          showToast.success("创建成功", `项目 "${newProject.name}" 已创建`);
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("创建失败", errorMsg);
+          throw error;
+        }
+      },
+
+      updateProject: async (id, updatedProject) => {
+        try {
+          await projectAPI.update(id, updatedProject);
+
+          // 重新获取项目列表以确保数据同步
+          await get().fetchProjects();
+
+          showToast.success("更新成功", "项目信息已更新");
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("更新失败", errorMsg);
+          throw error;
+        }
+      },
+
+      deleteProject: async (id) => {
+        try {
+          await projectAPI.delete(id);
+
+          // 重新获取项目列表以确保数据同步
+          await get().fetchProjects();
+
+          showToast.success("删除成功", "项目已删除");
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("删除失败", errorMsg);
+          throw error;
+        }
+      },
+
+      leaveProject: async (id) => {
+        try {
+          await projectAPI.leave(id);
+
+          // 重新获取项目列表以确保数据同步
+          await get().fetchProjects();
+
+          showToast.success("退出成功", "已退出项目");
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("退出失败", errorMsg);
+          throw error;
+        }
+      },
+
+      addTeam: async (team) => {
+        try {
+          const newTeam = await teamAPI.create(team as any);
+
+          // 重新获取团队列表以确保数据同步
+          await get().fetchTeams();
+
+          showToast.success("创建成功", `团队 "${newTeam.name}" 已创建`);
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("创建失败", errorMsg);
+          throw error;
+        }
+      },
+
+      updateTeam: async (id, updatedTeam) => {
+        try {
+          await teamAPI.update(id, updatedTeam);
+
+          // 重新获取团队列表以确保数据同步
+          await get().fetchTeams();
+
+          showToast.success("更新成功", "团队信息已更新");
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("更新失败", errorMsg);
+          throw error;
+        }
+      },
+
+      deleteTeam: async (id) => {
+        try {
+          await teamAPI.delete(id);
+
+          // 重新获取团队列表以确保数据同步
+          await get().fetchTeams();
+
+          showToast.success("删除成功", "团队已删除");
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("删除失败", errorMsg);
+          throw error;
+        }
+      },
+
+      leaveTeam: async (id) => {
+        try {
+          await teamAPI.leave(id);
+
+          // 重新获取团队列表以确保数据同步
+          await get().fetchTeams();
+
+          showToast.success("退出成功", "已退出团队");
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          showToast.error("退出失败", errorMsg);
+          throw error;
+        }
+      },
+
+      setMainViewMode: (mode) => set({ mainViewMode: mode }),
+      setListGroupMode: (mode) => set({ listGroupMode: mode }),
+      setListLayoutColumns: (columns) => set({ listLayoutColumns: columns }),
+      setViewMode: (mode) => set({ viewMode: mode }),
+      setNavigationMode: (mode) => {
+        set({
+          navigationMode: mode,
+          selectedTeamId: null,
+          selectedProjectId: null,
+        });
+
+        // 切换到 my-days 模式时，加载当前用户的任务
+        if (mode === "my-days") {
+          const currentUser = get().currentUser;
+          if (currentUser) {
+            get().fetchTasks({ userId: currentUser.id });
+          }
+        }
+      },
+      setSelectedTeamId: async (id) => {
+        // 防止重复设置相同的 ID
+        const currentId = get().selectedTeamId;
+        if (currentId === id) return;
+
+        set({ selectedTeamId: id });
+        // 切换团队时，先刷新团队数据(可能有新成员),再获取任务
+        if (id) {
+          try {
+            // 刷新团队列表以获取最新成员信息
+            await get().fetchTeams();
+
+            // 根据当前视图模式确定日期范围
+            const { viewMode, currentDate } = get();
+            let startDate: Date;
+            let endDate: Date;
+
+            if (viewMode === "week") {
+              // 周视图：获取当前周的开始和结束日期
+              const weekDays = getWeekDays(currentDate, false);
+              startDate = weekDays[0];
+              endDate = weekDays[weekDays.length - 1];
+            } else {
+              // 月视图：获取当前月的开始和结束日期
+              const year = currentDate.getFullYear();
+              const month = currentDate.getMonth();
+              startDate = new Date(year, month, 1);
+              endDate = new Date(year, month + 1, 0);
+            }
+
+            // 获取团队成员在指定日期范围内的所有任务
+            await get().fetchTasks({
+              teamId: id,
+              startDate,
+              endDate,
+            });
+          } catch (error) {
+            console.error("Failed to load team data:", error);
+          }
         } else {
-          // 月视图：获取当前月的开始和结束日期
-          const year = currentDate.getFullYear()
-          const month = currentDate.getMonth()
-          startDate = new Date(year, month, 1)
-          endDate = new Date(year, month + 1, 0)
+          // 如果清空选择，获取所有任务
+          try {
+            await get().fetchTasks();
+          } catch (error) {
+            console.error("Failed to load tasks:", error);
+          }
         }
-        
-        // 获取团队成员在指定日期范围内的所有任务
-        await get().fetchTasks({ 
-          teamId: id,
-          startDate,
-          endDate
-        })
-      } catch (error) {
-        console.error('Failed to load team data:', error)
-      }
-    } else {
-      // 如果清空选择，获取所有任务
-      try {
-        await get().fetchTasks()
-      } catch (error) {
-        console.error('Failed to load tasks:', error)
-      }
-    }
-  },
-  setSelectedProjectId: async (id) => {
-    // 防止重复设置相同的 ID
-    const currentId = get().selectedProjectId
-    if (currentId === id) return
-    
-    set({ selectedProjectId: id })
-    // 切换项目时，先刷新项目数据(可能有新成员),再获取任务
-    if (id) {
-      try {
-        // 刷新项目列表以获取最新成员信息
-        await get().fetchProjects()
-        // 获取项目的任务
-        await get().fetchTasks({ projectId: id })
-      } catch (error) {
-        console.error('Failed to load project data:', error)
-      }
-    } else {
-      // 如果清空选择，获取所有任务
-      try {
-        await get().fetchTasks()
-      } catch (error) {
-        console.error('Failed to load tasks:', error)
-      }
-    }
-  },
-  setCurrentDate: (date) => set({ currentDate: date }),
-  setSelectedDate: (date) => set({ selectedDate: date }),
-  toggleWeekends: () => set((state) => ({ hideWeekends: !state.hideWeekends })),
-  setTaskBarSize: (size) => set({ taskBarSize: size }),
-
-  // 项目过滤方法
-  toggleProjectFilter: (projectId) =>
-    set((state) => {
-      const isSelected = state.selectedProjectIds.includes(projectId)
-      
-      if (isSelected) {
-        // 如果已选中，则取消选中
-        return { selectedProjectIds: state.selectedProjectIds.filter(id => id !== projectId) }
-      } else {
-        // 如果未选中，则添加到选中列表
-        return { selectedProjectIds: [...state.selectedProjectIds, projectId] }
-      }
-    }),
-
-  selectAllProjects: () => 
-    set((state) => {
-      // 如果当前已经全选（所有项目都被选中），则清空选择
-      if (state.selectedProjectIds.length === state.projects.length) {
-        return { selectedProjectIds: [] }
-      } else {
-        // 否则选中所有项目
-        return { selectedProjectIds: state.projects.map(p => p.id) }
-      }
-    }),
-
-  clearProjectFilter: () => set({ selectedProjectIds: [] }),
-
-  startDragCreate: (date, cell, userId) =>
-    set({
-      dragState: {
-        isCreating: true,
-        startDate: date,
-        endDate: date,
-        startCell: cell,
-        userId: userId || null,
       },
-    }),
+      setSelectedProjectId: async (id) => {
+        // 防止重复设置相同的 ID
+        const currentId = get().selectedProjectId;
+        if (currentId === id) return;
 
-  updateDragCreate: (date) =>
-    set((state) => {
-      if (!state.dragState.isCreating || !state.dragState.startDate) return state
-
-      const startDate = state.dragState.startDate
-      const endDate = date
-
-      return {
-        dragState: {
-          ...state.dragState,
-          endDate: startDate <= endDate ? endDate : startDate,
-          startDate: startDate <= endDate ? startDate : endDate,
-        },
-      }
-    }),
-
-  endDragCreate: () => {
-    const state = get()
-    if (!state.dragState.isCreating || !state.dragState.startDate || !state.dragState.endDate) {
-      set({
-        dragState: {
-          isCreating: false,
-          startDate: null,
-          endDate: null,
-          startCell: null,
-          userId: null,
-        },
-      })
-      return null
-    }
-
-    const result = {
-      startDate: state.dragState.startDate,
-      endDate: state.dragState.endDate,
-    }
-
-    set({
-      dragState: {
-        isCreating: false,
-        startDate: null,
-        endDate: null,
-        startCell: null,
-        userId: null,
+        set({ selectedProjectId: id });
+        // 切换项目时，先刷新项目数据(可能有新成员),再获取任务
+        if (id) {
+          try {
+            // 刷新项目列表以获取最新成员信息
+            await get().fetchProjects();
+            // 获取项目的任务
+            await get().fetchTasks({ projectId: id });
+          } catch (error) {
+            console.error("Failed to load project data:", error);
+          }
+        } else {
+          // 如果清空选择，获取所有任务
+          try {
+            await get().fetchTasks();
+          } catch (error) {
+            console.error("Failed to load tasks:", error);
+          }
+        }
       },
-    })
+      setCurrentDate: (date) => set({ currentDate: date }),
+      setSelectedDate: (date) => set({ selectedDate: date }),
+      toggleWeekends: () =>
+        set((state) => ({ hideWeekends: !state.hideWeekends })),
+      setTaskBarSize: (size) => set({ taskBarSize: size }),
 
-    return result
-  },
+      // 项目过滤方法
+      toggleProjectFilter: (projectId) =>
+        set((state) => {
+          const isSelected = state.selectedProjectIds.includes(projectId);
 
-  cancelDragCreate: () =>
-    set({
-      dragState: {
-        isCreating: false,
-        startDate: null,
-        endDate: null,
-        startCell: null,
-        userId: null,
-      },
-    }),
+          if (isSelected) {
+            // 如果已选中，则取消选中
+            return {
+              selectedProjectIds: state.selectedProjectIds.filter(
+                (id) => id !== projectId
+              ),
+            };
+          } else {
+            // 如果未选中，则添加到选中列表
+            return {
+              selectedProjectIds: [...state.selectedProjectIds, projectId],
+            };
+          }
+        }),
 
-  // 拖拽移动任务的实现
-  startDragMove: (task, date) =>
-    set({
-      dragMoveState: {
-        isMoving: true,
-        task,
-        startDate: date,
-        offsetDays: 0,
-      },
-    }),
+      selectAllProjects: () =>
+        set((state) => {
+          // 如果当前已经全选（所有项目都被选中），则清空选择
+          if (state.selectedProjectIds.length === state.projects.length) {
+            return { selectedProjectIds: [] };
+          } else {
+            // 否则选中所有项目
+            return { selectedProjectIds: state.projects.map((p) => p.id) };
+          }
+        }),
 
-  updateDragMove: (date) =>
-    set((state) => {
-      if (!state.dragMoveState.isMoving || !state.dragMoveState.startDate || !state.dragMoveState.task) return state
+      clearProjectFilter: () => set({ selectedProjectIds: [] }),
 
-      const startDate = new Date(state.dragMoveState.startDate)
-      startDate.setHours(0, 0, 0, 0)
-      const currentDate = new Date(date)
-      currentDate.setHours(0, 0, 0, 0)
-
-      const diffTime = currentDate.getTime() - startDate.getTime()
-      const offsetDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
-
-      // 如果偏移量有变化,实时更新任务日期
-      if (offsetDays !== state.dragMoveState.offsetDays) {
-        const task = state.dragMoveState.task
-        const actualOffsetDays = offsetDays - state.dragMoveState.offsetDays
-        
-        const newStartDate = new Date(task.startDate)
-        newStartDate.setDate(newStartDate.getDate() + actualOffsetDays)
-        const newEndDate = new Date(task.endDate)
-        newEndDate.setDate(newEndDate.getDate() + actualOffsetDays)
-
-        // 实时更新任务日期
-        const updatedTasks = state.tasks.map(t =>
-          t.id === task.id
-            ? { ...t, startDate: newStartDate, endDate: newEndDate }
-            : t
-        )
-
-        return {
-          tasks: updatedTasks,
-          dragMoveState: {
-            ...state.dragMoveState,
-            task: { ...task, startDate: newStartDate, endDate: newEndDate },
-            offsetDays,
+      startDragCreate: (date, cell, userId) =>
+        set({
+          dragState: {
+            isCreating: true,
+            startDate: date,
+            endDate: date,
+            startCell: cell,
+            userId: userId || null,
           },
+        }),
+
+      updateDragCreate: (date) =>
+        set((state) => {
+          if (!state.dragState.isCreating || !state.dragState.startDate)
+            return state;
+
+          const startDate = state.dragState.startDate;
+          const endDate = date;
+
+          return {
+            dragState: {
+              ...state.dragState,
+              endDate: startDate <= endDate ? endDate : startDate,
+              startDate: startDate <= endDate ? startDate : endDate,
+            },
+          };
+        }),
+
+      endDragCreate: () => {
+        const state = get();
+        if (
+          !state.dragState.isCreating ||
+          !state.dragState.startDate ||
+          !state.dragState.endDate
+        ) {
+          set({
+            dragState: {
+              isCreating: false,
+              startDate: null,
+              endDate: null,
+              startCell: null,
+              userId: null,
+            },
+          });
+          return null;
         }
-      }
 
-      return {
-        dragMoveState: {
-          ...state.dragMoveState,
-          offsetDays,
-        },
-      }
-    }),
+        const result = {
+          startDate: state.dragState.startDate,
+          endDate: state.dragState.endDate,
+        };
 
-  endDragMove: async () => {
-    const state = get()
-    const { dragMoveState } = state
-    
-    // 如果有拖拽的任务且日期发生了变化，调用API保存
-    if (dragMoveState.task && dragMoveState.offsetDays !== 0) {
-      const task = dragMoveState.task
-      try {
-        // 调用API更新任务
-        const updatedTask = await taskAPI.update(task.id, {
-          startDate: task.startDate,
-          endDate: task.endDate,
-        })
-        
-        // 更新本地状态中的任务
+        set({
+          dragState: {
+            isCreating: false,
+            startDate: null,
+            endDate: null,
+            startCell: null,
+            userId: null,
+          },
+        });
+
+        return result;
+      },
+
+      cancelDragCreate: () =>
+        set({
+          dragState: {
+            isCreating: false,
+            startDate: null,
+            endDate: null,
+            startCell: null,
+            userId: null,
+          },
+        }),
+
+      // 拖拽移动任务的实现
+      startDragMove: (task, date) =>
+        set({
+          dragMoveState: {
+            isMoving: true,
+            task,
+            startDate: date,
+            offsetDays: 0,
+          },
+        }),
+
+      updateDragMove: (date) =>
+        set((state) => {
+          if (
+            !state.dragMoveState.isMoving ||
+            !state.dragMoveState.startDate ||
+            !state.dragMoveState.task
+          )
+            return state;
+
+          const startDate = new Date(state.dragMoveState.startDate);
+          startDate.setHours(0, 0, 0, 0);
+          const currentDate = new Date(date);
+          currentDate.setHours(0, 0, 0, 0);
+
+          const diffTime = currentDate.getTime() - startDate.getTime();
+          const offsetDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+          // 如果偏移量有变化,实时更新任务日期
+          if (offsetDays !== state.dragMoveState.offsetDays) {
+            const task = state.dragMoveState.task;
+            const actualOffsetDays =
+              offsetDays - state.dragMoveState.offsetDays;
+
+            const newStartDate = new Date(task.startDate);
+            newStartDate.setDate(newStartDate.getDate() + actualOffsetDays);
+            const newEndDate = new Date(task.endDate);
+            newEndDate.setDate(newEndDate.getDate() + actualOffsetDays);
+
+            // 实时更新任务日期
+            const updatedTasks = state.tasks.map((t) =>
+              t.id === task.id
+                ? { ...t, startDate: newStartDate, endDate: newEndDate }
+                : t
+            );
+
+            return {
+              tasks: updatedTasks,
+              dragMoveState: {
+                ...state.dragMoveState,
+                task: { ...task, startDate: newStartDate, endDate: newEndDate },
+                offsetDays,
+              },
+            };
+          }
+
+          return {
+            dragMoveState: {
+              ...state.dragMoveState,
+              offsetDays,
+            },
+          };
+        }),
+
+      endDragMove: async () => {
+        const state = get();
+        const { dragMoveState } = state;
+
+        // 如果有拖拽的任务且日期发生了变化，调用API保存
+        if (dragMoveState.task && dragMoveState.offsetDays !== 0) {
+          const task = dragMoveState.task;
+          try {
+            // 调用API更新任务
+            const updatedTask = await taskAPI.update(task.id, {
+              startDate: task.startDate,
+              endDate: task.endDate,
+            });
+
+            // 更新本地状态中的任务
+            set((state) => ({
+              tasks: state.tasks.map((t) =>
+                t.id === updatedTask.id ? updatedTask : t
+              ),
+            }));
+
+            // 显示成功通知
+            showToast.success("任务已更新", "任务时间已成功修改");
+          } catch (error) {
+            console.error("Failed to update task:", error);
+            // 发生错误时重新加载任务以恢复正确状态
+            await get().fetchTasks();
+            showToast.error("更新失败", "网络错误，请重试");
+          }
+        }
+
+        // 清除拖拽状态
+        set({
+          dragMoveState: {
+            isMoving: false,
+            task: null,
+            startDate: null,
+            offsetDays: 0,
+          },
+        });
+      },
+
+      cancelDragMove: () =>
+        set({
+          dragMoveState: {
+            isMoving: false,
+            task: null,
+            startDate: null,
+            offsetDays: 0,
+          },
+        }),
+
+      openTaskCreation: (startDate, endDate, userId, projectId, teamId) => {
+        const {
+          navigationMode,
+          selectedProjectId,
+          selectedTeamId,
+          projects,
+          currentUser,
+        } = get();
+
+        // 确定默认项目ID
+        let defaultProjectId: string | null = projectId || null;
+        if (!defaultProjectId) {
+          if (navigationMode === "project") {
+            defaultProjectId = selectedProjectId;
+          } else if (navigationMode === "my-days") {
+            // My Days 模式下,默认选中个人事务项目
+            const personalProject = currentUser
+              ? projects.find(
+                  (p) =>
+                    p.name.includes("个人事务") &&
+                    p.memberIds.includes(currentUser.id)
+                )
+              : null;
+            defaultProjectId = personalProject?.id || null;
+          }
+        }
+
+        set({
+          taskCreation: {
+            isOpen: true,
+            startDate,
+            endDate,
+            userId: userId || null,
+            // 根据当前导航模式设置默认项目和团队
+            projectId: defaultProjectId,
+            teamId:
+              teamId || (navigationMode === "team" ? selectedTeamId : null),
+          },
+        });
+      },
+
+      closeTaskCreation: () =>
+        set({
+          taskCreation: {
+            isOpen: false,
+            startDate: null,
+            endDate: null,
+            userId: null,
+            projectId: null,
+            teamId: null,
+          },
+        }),
+
+      openTaskEdit: (task) =>
+        set({
+          taskEdit: {
+            isOpen: true,
+            task,
+          },
+        }),
+
+      closeTaskEdit: () =>
+        set({
+          taskEdit: {
+            isOpen: false,
+            task: null,
+          },
+        }),
+
+      openTeamCreation: () => {
+        // TODO: 实现团队创建对话框
+        console.log("Open team creation dialog");
+      },
+
+      openProjectCreation: () => {
+        // TODO: 实现项目创建对话框
+        console.log("Open project creation dialog");
+      },
+
+      updateSettings: (newSettings) =>
         set((state) => ({
-          tasks: state.tasks.map(t => t.id === updatedTask.id ? updatedTask : t)
-        }))
-        
-        // 显示成功通知
-        showToast.success("任务已更新", "任务时间已成功修改")
-      } catch (error) {
-        console.error("Failed to update task:", error)
-        // 发生错误时重新加载任务以恢复正确状态
-        await get().fetchTasks()
-        showToast.error("更新失败", "网络错误，请重试")
-      }
-    }
-    
-    // 清除拖拽状态
-    set({
-      dragMoveState: {
-        isMoving: false,
-        task: null,
-        startDate: null,
-        offsetDays: 0,
+          settings: { ...state.settings, ...newSettings },
+        })),
+
+      // Helpers
+      getTasksForDate: (date) => {
+        const state = get();
+        const filteredTasks =
+          state.selectedProjectIds.length === 0
+            ? state.tasks
+            : state.tasks.filter((task) =>
+                state.selectedProjectIds.includes(task.projectId)
+              );
+
+        return filteredTasks.filter((task) => {
+          const taskStart = new Date(task.startDate);
+          const taskEnd = new Date(task.endDate);
+          taskStart.setHours(0, 0, 0, 0);
+          taskEnd.setHours(23, 59, 59, 999);
+          date.setHours(12, 0, 0, 0);
+          return date >= taskStart && date <= taskEnd;
+        });
       },
-    })
-  },
 
-  cancelDragMove: () =>
-    set({
-      dragMoveState: {
-        isMoving: false,
-        task: null,
-        startDate: null,
-        offsetDays: 0,
+      getTasksForDateRange: (startDate, endDate) => {
+        const state = get();
+        const filteredTasks =
+          state.selectedProjectIds.length === 0
+            ? state.tasks
+            : state.tasks.filter((task) =>
+                state.selectedProjectIds.includes(task.projectId)
+              );
+
+        return filteredTasks.filter((task) => {
+          const taskStart = new Date(task.startDate);
+          const taskEnd = new Date(task.endDate);
+          return (
+            (taskStart >= startDate && taskStart <= endDate) ||
+            (taskEnd >= startDate && taskEnd <= endDate) ||
+            (taskStart <= startDate && taskEnd >= endDate)
+          );
+        });
       },
-    }),
 
-  openTaskCreation: (startDate, endDate, userId, projectId, teamId) => {
-    const { navigationMode, selectedProjectId, selectedTeamId, projects, currentUser } = get()
-    
-    // 确定默认项目ID
-    let defaultProjectId: string | null = projectId || null
-    if (!defaultProjectId) {
-      if (navigationMode === 'project') {
-        defaultProjectId = selectedProjectId
-      } else if (navigationMode === 'my-days') {
-        // My Days 模式下,默认选中个人事务项目
-        const personalProject = currentUser 
-          ? projects.find(p => p.name.includes('个人事务') && p.memberIds.includes(currentUser.id))
-          : null
-        defaultProjectId = personalProject?.id || null
-      }
-    }
-    
-    set({
-      taskCreation: {
-        isOpen: true,
-        startDate,
-        endDate,
-        userId: userId || null,
-        // 根据当前导航模式设置默认项目和团队
-        projectId: defaultProjectId,
-        teamId: teamId || (navigationMode === 'team' ? selectedTeamId : null),
+      getProjectById: (id) => {
+        const state = get();
+        return state.projects.find((project) => project.id === id);
       },
-    })
-  },
 
-  closeTaskCreation: () =>
-    set({
-      taskCreation: {
-        isOpen: false,
-        startDate: null,
-        endDate: null,
-        userId: null,
-        projectId: null,
-        teamId: null,
+      getTeamById: (id) => {
+        const state = get();
+        return state.teams.find((team) => team.id === id);
       },
-    }),
 
-  openTaskEdit: (task) =>
-    set({
-      taskEdit: {
-        isOpen: true,
-        task,
+      getUserById: (id) => {
+        const state = get();
+        return state.users.find((user) => user.id === id);
       },
-    }),
-
-  closeTaskEdit: () =>
-    set({
-      taskEdit: {
-        isOpen: false,
-        task: null,
-      },
-    }),
-
-  openTeamCreation: () => {
-    // TODO: 实现团队创建对话框
-    console.log("Open team creation dialog")
-  },
-
-  openProjectCreation: () => {
-    // TODO: 实现项目创建对话框
-    console.log("Open project creation dialog")
-  },
-
-  updateSettings: (newSettings) =>
-    set((state) => ({
-      settings: { ...state.settings, ...newSettings },
-    })),
-
-  // Helpers
-  getTasksForDate: (date) => {
-    const state = get()
-    const filteredTasks = state.selectedProjectIds.length === 0 
-      ? state.tasks 
-      : state.tasks.filter(task => state.selectedProjectIds.includes(task.projectId))
-    
-    return filteredTasks.filter((task) => {
-      const taskStart = new Date(task.startDate)
-      const taskEnd = new Date(task.endDate)
-      taskStart.setHours(0, 0, 0, 0)
-      taskEnd.setHours(23, 59, 59, 999)
-      date.setHours(12, 0, 0, 0)
-      return date >= taskStart && date <= taskEnd
-    })
-  },
-
-  getTasksForDateRange: (startDate, endDate) => {
-    const state = get()
-    const filteredTasks = state.selectedProjectIds.length === 0 
-      ? state.tasks 
-      : state.tasks.filter(task => state.selectedProjectIds.includes(task.projectId))
-    
-    return filteredTasks.filter((task) => {
-      const taskStart = new Date(task.startDate)
-      const taskEnd = new Date(task.endDate)
-      return (
-        (taskStart >= startDate && taskStart <= endDate) ||
-        (taskEnd >= startDate && taskEnd <= endDate) ||
-        (taskStart <= startDate && taskEnd >= endDate)
-      )
-    })
-  },
-
-  getProjectById: (id) => {
-    const state = get()
-    return state.projects.find((project) => project.id === id)
-  },
-
-  getTeamById: (id) => {
-    const state = get()
-    return state.teams.find((team) => team.id === id)
-  },
-
-  getUserById: (id) => {
-    const state = get()
-    return state.users.find((user) => user.id === id)
-  },
     }),
     {
-      name: 'calendar-storage-v2', // localStorage key (changed to reset old data)
+      name: "calendar-storage-v2", // localStorage key (changed to reset old data)
       storage: createJSONStorage(() => localStorage),
       // 只持久化需要的状态,不持久化 tasks/projects/users/teams 等数据
       partialize: (state) => ({
@@ -1249,7 +1422,6 @@ export const useCalendarStore = create<CalendarStore>()(
         taskBarSize: state.taskBarSize,
         settings: state.settings,
       }),
-
     }
   )
-)
+);
