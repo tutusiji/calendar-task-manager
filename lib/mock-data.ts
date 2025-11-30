@@ -1,4 +1,4 @@
-import type { Task, Project, User } from "./types"
+import type { Task, Project, User } from "./types";
 
 export const mockUsers: User[] = [
   {
@@ -25,7 +25,7 @@ export const mockUsers: User[] = [
     avatar: "/user-avatar-4.png",
     email: "zhaoliu@example.com",
   },
-]
+];
 
 export const mockProjects: Project[] = [
   {
@@ -52,7 +52,7 @@ export const mockProjects: Project[] = [
     memberIds: ["1", "4"],
     createdAt: new Date("2024-02-01"),
   },
-]
+];
 
 export const mockTasks: Task[] = [
   {
@@ -180,4 +180,4 @@ export const mockTasks: Task[] = [
     projectId: "project-1",
     userId: "1",
   },
-]
+];
