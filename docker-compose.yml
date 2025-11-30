@@ -52,6 +52,8 @@ services:
     image: calendar-task-manager:latest
     container_name: calendar-prisma-studio
     restart: unless-stopped
+    profiles:
+      - dev # 只在开发环境启动
     ports:
       - "5555:5555"
     environment:

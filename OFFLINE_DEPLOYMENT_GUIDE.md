@@ -146,9 +146,26 @@ calendar-task-manager   2025-11-29   abc123def456   10 minutes ago   XXX MB
 ```bash
 # 连接到 PostgreSQL 容器
 docker exec -it postgres-db bash
+docker exec -it calendar-postgres bash
+
 
 # 在容器内执行备份
 pg_dump -U your_user -d calendar_db > /tmp/backup_$(date +%Y%m%d_%H%M%S).sql
+pg_dump -U postgres -d calendar_tasks > /tmp/backup_$(date +%Y%m%d_%H%M%S).sql
+
+# 进入容器并连接 PostgreSQL 查看
+docker exec -it calendar-postgres psql -U postgres
+\l  #看数据库
+\c calendar_tasks  #连接数据库
+docker exec -it calendar-postgres psql -U postgres -d calendar_tasks   #直接连接数据库calendar_tasks
+\dt  #看表
+\d "User"  #看表结构
+# 新增字段
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "defaultTeamId" TEXT;
+
+
+# 在宿主机上执行，备份到指定目录
+docker exec calendar-postgres pg_dump -U postgres -d calendar_tasks > /opt/calendar-task-manager/backups/calendar_tasks_backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 退出容器
 exit
@@ -173,6 +190,35 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "defaultTeamId" TEXT;
 
 # 退出
 \q
+```
+
+# 添加字段并初始化默认团队：
+
+```sql
+-- 步骤 1: 添加字段
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "defaultTeamId" TEXT;
+
+-- 步骤 2: 为有团队的用户初始化默认团队（第一个加入的团队）
+UPDATE "User" u
+SET "defaultTeamId" = (
+  SELECT tm."teamId"
+  FROM "TeamMember" tm
+  WHERE tm."userId" = u.id
+  ORDER BY tm."createdAt" ASC
+  LIMIT 1
+)
+WHERE EXISTS (
+  SELECT 1 FROM "TeamMember" tm WHERE tm."userId" = u.id
+);
+
+-- 步骤 3: 验证结果
+SELECT
+  u.id,
+  u.name,
+  u."defaultTeamId",
+  (SELECT COUNT(*) FROM "TeamMember" tm WHERE tm."userId" = u.id) as team_count
+FROM "User" u
+ORDER BY u."createdAt";
 ```
 
 #### 方式二：使用 SQL 文件
