@@ -123,6 +123,8 @@ docker-compose up -d
 
 
 
+数据库备份
+docker exec calendar-postgres pg_dump -U postgres calendar_tasks > /opt/calendar-task-manager/backups/before_restore_$(date +%Y%m%d_%H%M%S).sql
 
 
 重启容器
