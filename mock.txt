@@ -89,3 +89,5 @@ docker-compose restart app
 # 6. 验证容器内的权限
 docker exec -it calendar-app ls -la /app/public/uploads/
 
+
+写一个本地镜像 build，本地 save，不要push docker，也不要push github，完全的手动复制上传文件，手动的部署和重启镜像， 包括手动的给数据库增加字段，同步数据库表

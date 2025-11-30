@@ -24,7 +24,7 @@ docker build -t calendar-task-manager:2025.11.26 .
 
 ```bash
 # 导出镜像到本地文件
-docker save -o calendar-task-manager_2025.11.26.tar calendar-task-manager:2025.11.26
+docker save -o calendar-task-manager_2025.11.29.tar calendar-task-manager:2025.11.29
 ```
 
 此文件约几百 MB，后续会通过 FTP 上传到服务器。
