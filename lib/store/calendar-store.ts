@@ -91,6 +91,9 @@ interface CalendarStore {
     task: Task | null;
   };
 
+  // Hover state for cross-segment highlighting
+  hoveredTaskId: string | null;
+
   // Settings
   settings: CalendarSettings;
 
@@ -179,6 +182,8 @@ interface CalendarStore {
   openTaskEdit: (task: Task) => void;
   closeTaskEdit: () => void;
 
+  setHoveredTaskId: (taskId: string | null) => void;
+
   openTeamCreation: () => void;
   openProjectCreation: () => void;
 
@@ -253,6 +258,8 @@ export const useCalendarStore = create<CalendarStore>()(
         isOpen: false,
         task: null,
       },
+
+      hoveredTaskId: null,
 
       // Initial settings
       settings: {
@@ -1334,6 +1341,8 @@ export const useCalendarStore = create<CalendarStore>()(
             task: null,
           },
         }),
+
+      setHoveredTaskId: (taskId) => set({ hoveredTaskId: taskId }),
 
       openTeamCreation: () => {
         // TODO: 实现团队创建对话框

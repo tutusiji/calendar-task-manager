@@ -33,14 +33,18 @@ export function TaskBar({
     getUserById,
     taskBarSize,
     updateTask,
+    hoveredTaskId,
+    setHoveredTaskId,
   } = useCalendarStore();
-  const [isHovered, setIsHovered] = useState(false);
   const [isProgressDragging, setIsProgressDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(task.progress || 0);
   const [optimisticProgress, setOptimisticProgress] = useState<number | null>(
     null
   );
   const taskBarRef = React.useRef<HTMLDivElement>(null);
+
+  // 使用全局hover状态来实现跨段高亮
+  const isHovered = hoveredTaskId === task.id;
 
   const project = getProjectById(task.projectId);
 
@@ -50,6 +54,8 @@ export function TaskBar({
       setOptimisticProgress(null);
     }
   }, [task.progress, optimisticProgress]);
+
+
 
   // 获取所有负责人
   const assignees = task.assignees || [];
@@ -267,15 +273,33 @@ export function TaskBar({
     setIsProgressDragging(true);
     setDragProgress(task.progress || 0);
 
+    // 计算转换参数（用于将段内进度转换为总进度）
+    const totalDays = calculateSpanDays();
+    const taskStartDate = new Date(task.startDate);
+    taskStartDate.setHours(0, 0, 0, 0);
+    const currentDate = new Date(date);
+    currentDate.setHours(0, 0, 0, 0);
+    const daysBeforeSegment = countDays(taskStartDate, currentDate) - 1;
+    const segmentDays = calculateDisplayDays();
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (taskBarRef.current) {
         const rect = taskBarRef.current.getBoundingClientRect();
         const x = moveEvent.clientX - rect.left;
-        let newProgress = Math.round((x / rect.width) * 100);
+        // 计算段内进度百分比
+        let segmentProgressPercent = Math.round((x / rect.width) * 100);
+        segmentProgressPercent = Math.max(0, Math.min(100, segmentProgressPercent));
 
-        // Clamp between 0 and 100
-        newProgress = Math.max(0, Math.min(100, newProgress));
-        setDragProgress(newProgress);
+        // 将段内进度转换为总进度
+        // 段内进度对应的天数
+        const progressDaysInSegment = (segmentProgressPercent / 100) * segmentDays;
+        // 总进度对应的天数
+        const totalProgressDays = daysBeforeSegment + progressDaysInSegment;
+        // 转换为总进度百分比
+        let newTotalProgress = Math.round((totalProgressDays / totalDays) * 100);
+        newTotalProgress = Math.max(0, Math.min(100, newTotalProgress));
+
+        setDragProgress(newTotalProgress);
       }
     };
 
@@ -303,7 +327,14 @@ export function TaskBar({
       if (taskBarRef.current) {
         const rect = taskBarRef.current.getBoundingClientRect();
         const x = upEvent.clientX - rect.left;
-        let finalProgress = Math.round((x / rect.width) * 100);
+        // 计算段内进度百分比
+        let segmentProgressPercent = Math.round((x / rect.width) * 100);
+        segmentProgressPercent = Math.max(0, Math.min(100, segmentProgressPercent));
+
+        // 将段内进度转换为总进度
+        const progressDaysInSegment = (segmentProgressPercent / 100) * segmentDays;
+        const totalProgressDays = daysBeforeSegment + progressDaysInSegment;
+        let finalProgress = Math.round((totalProgressDays / totalDays) * 100);
         finalProgress = Math.max(0, Math.min(100, finalProgress));
 
         // 如果进度没有变化，直接退出
@@ -314,7 +345,8 @@ export function TaskBar({
 
         // 先设置乐观状态，防止回弹
         setOptimisticProgress(finalProgress);
-        // 然后再结束拖拽状态
+        
+        // 结束拖拽状态
         setIsProgressDragging(false);
 
         try {
@@ -358,22 +390,81 @@ export function TaskBar({
     ? optimisticProgress
     : task.progress || 0;
 
+  // 计算当前段应该显示的进度
+  const getSegmentProgress = () => {
+    // 计算事项总天数
+    const totalDays = calculateSpanDays();
+    
+    // 计算当前段之前已经过的天数
+    const taskStartDate = new Date(task.startDate);
+    taskStartDate.setHours(0, 0, 0, 0);
+    const currentDate = new Date(date);
+    currentDate.setHours(0, 0, 0, 0);
+    const daysBeforeSegment = countDays(taskStartDate, currentDate) - 1; // 当前段之前的天数
+    
+    // 当前段的天数
+    const segmentDays = calculateDisplayDays();
+    
+    // 进度对应的绝对天数（从0开始）
+    const progressDays = totalDays * (displayProgress / 100);
+    
+    // 判断进度在哪个位置
+    if (progressDays < daysBeforeSegment) {
+      // 进度还没到当前段
+      return 0;
+    } else if (progressDays >= daysBeforeSegment + segmentDays) {
+      // 进度已经过了当前段
+      return 100;
+    } else {
+      // 进度在当前段内
+      const progressInSegment = progressDays - daysBeforeSegment;
+      return (progressInSegment / segmentDays) * 100;
+    }
+  };
+
+  const segmentProgress = getSegmentProgress();
+
+  // 判断拖拽手柄是否应该在当前段显示
+  const shouldShowHandle = () => {
+    if (task.type !== "daily") return false;
+    
+    const totalDays = calculateSpanDays();
+    const taskStartDate = new Date(task.startDate);
+    taskStartDate.setHours(0, 0, 0, 0);
+    const currentDate = new Date(date);
+    currentDate.setHours(0, 0, 0, 0);
+    const daysBeforeSegment = countDays(taskStartDate, currentDate) - 1;
+    const segmentDays = calculateDisplayDays();
+    const progressDays = totalDays * (displayProgress / 100);
+    
+    // 手柄应该在包含进度位置的那个段
+    // 或者当进度为100%且当前段是结束段时
+    const isProgressInSegment = progressDays >= daysBeforeSegment && progressDays < daysBeforeSegment + segmentDays;
+    const is100PercentInEndSegment = displayProgress === 100 && segmentEnd;
+    
+    return isProgressInSegment || is100PercentInEndSegment;
+  };
+
+  const showHandle = shouldShowHandle();
+
   return (
     <div
       ref={taskBarRef}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => setHoveredTaskId(task.id)}
+      onMouseLeave={() => setHoveredTaskId(null)}
       className={cn(
-        "task-bar group absolute px-1 font-medium text-white transition-all overflow-hidden",
+        "task-bar group absolute px-1 font-medium text-white transition-all overflow-visible",
         textSizeClass,
         getTaskColor(),
         getRoundedClass(),
         // 拖拽样式
         isBeingDragged
           ? "shadow-[0_8px_30px_rgb(0,0,0,0.4)] cursor-move"
-          : "cursor-move hover:opacity-90 hover:shadow-md",
+          : "cursor-move",
+        // Hover样式 - 使用全局hover状态,实现跨段高亮
+        !isBeingDragged && isHovered && "opacity-90 shadow-md",
         // 其他任务在拖拽时禁用交互
         !isBeingDragged && dragMoveState.isMoving && "pointer-events-none"
       )}
@@ -396,25 +487,33 @@ export function TaskBar({
       <div
         className={cn(
           "absolute left-0 top-0 h-full opacity-30",
-          !isProgressDragging && "transition-all duration-300"
+          !isProgressDragging && "transition-all duration-300",
+          // 左边只在任务开始段时圆角，右边只在接近100%时圆角
+          segmentProgress >= 99 
+            ? getRoundedClass() 
+            : taskStart 
+            ? "rounded-l-full" 
+            : ""
         )}
         style={{
-          width: `${displayProgress}%`,
+          width: `${segmentProgress}%`,
           backgroundColor: getTaskHexColor(),
         }}
       />
 
-      {/* 进度拖拽手柄 - 始终渲染，使用 CSS group-hover 控制显示，解决 React 状态丢失问题 */}
+      {/* 进度拖拽手柄 - 仅日常任务显示，使用 CSS group-hover 控制显示 */}
+      {showHandle && (
       <div
         className={cn(
           "absolute top-0 bottom-0 z-30 w-4 -ml-2 cursor-ew-resize flex items-center justify-center group/handle transition-opacity duration-200",
           // 默认隐藏且不响应事件
           "opacity-0 pointer-events-none",
-          // Hover 或 拖拽时显示并响应事件
+          // 使用 CSS group-hover 控制显示（不受 JS 状态刷新影响）
           "group-hover:opacity-100 group-hover:pointer-events-auto",
+          // 拖拽时始终显示
           isProgressDragging && "opacity-100 pointer-events-auto"
         )}
-        style={{ left: `${displayProgress}%` }}
+        style={{ left: `${segmentProgress}%` }}
         onMouseDown={handleProgressMouseDown}
         onClick={(e) => e.stopPropagation()}
       >
@@ -430,6 +529,7 @@ export function TaskBar({
           </div>
         )}
       </div>
+      )}
 
       <div className="taskbar flex items-center gap-1 truncate h-full relative z-10">
         {showUserInfo && (
