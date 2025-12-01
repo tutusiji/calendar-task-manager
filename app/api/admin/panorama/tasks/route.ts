@@ -160,16 +160,20 @@ export async function GET(request: NextRequest) {
         const orgId = searchParams.get('orgId')
         tasks = await prisma.task.findMany({
           where: {
-            OR: [
-              { creatorId: id },
-              { assignees: { some: { userId: id } } }
-            ],
-            ...(orgId ? {
-              OR: [
-                { project: { organizationId: orgId } },
-                { team: { organizationId: orgId } }
-              ]
-            } : {})
+            AND: [
+              {
+                OR: [
+                  { creatorId: id },
+                  { assignees: { some: { userId: id } } }
+                ]
+              },
+              ...(orgId ? [{
+                OR: [
+                  { project: { organizationId: orgId } },
+                  { team: { organizationId: orgId } }
+                ]
+              }] : [])
+            ]
           },
           include: {
             creator: {

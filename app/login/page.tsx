@@ -232,6 +232,7 @@ export default function AuthPage() {
                         onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                         required
                         disabled={isLoading}
+                        className="placeholder:text-muted-foreground/50"
                       />
                       <Button
                         type="button"

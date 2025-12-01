@@ -2,18 +2,18 @@
  * 通知相关 API
  */
 
-import { get, post, patch } from '../request'
+import { get, post, patch, del } from '../request'
 
 export interface Notification {
   id: string
   userId: string
   type: string
   title: string
-  message: string
+  content: string
   isRead: boolean
   relatedId?: string
   relatedType?: string
-  createdAt: Date
+  createdAt: string
   metadata?: any
 }
 
@@ -51,5 +51,19 @@ export const notificationAPI = {
    */
   async acceptInvite(id: string, accept: boolean): Promise<void> {
     return post<void>('/notifications/accept-invite', { notificationId: id, accept })
+  },
+
+  /**
+   * 删除单条通知
+   */
+  async delete(id: string): Promise<void> {
+    return del<void>(`/notifications/${id}`)
+  },
+
+  /**
+   * 清空所有通知
+   */
+  async clearAll(): Promise<void> {
+    return del<void>('/notifications/clear')
   },
 }

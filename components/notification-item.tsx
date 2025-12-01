@@ -17,16 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-
-interface Notification {
-  id: string
-  type: string
-  title: string
-  content: string
-  metadata?: any
-  isRead: boolean
-  createdAt: string
-}
+import { Notification } from "@/lib/api/notification"
 
 interface NotificationItemProps {
   notification: Notification
@@ -41,6 +32,7 @@ export function NotificationItem({
 }: NotificationItemProps) {
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   // 根据metadata中的status判断是否已处理
   const [isHandled, setIsHandled] = useState(
     notification.metadata?.status === "APPROVED" || notification.metadata?.status === "REJECTED"
@@ -69,6 +61,40 @@ export function NotificationItem({
       default:
         return <Clock className="h-5 w-5 text-gray-500" />
     }
+  }
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation() // 防止触发点击事件
+    if (isProcessing || isDeleting) return
+
+    setIsDeleting(true)
+    
+    // 等待动画完成
+    setTimeout(async () => {
+      setIsProcessing(true)
+      try {
+        const { notificationAPI } = await import("@/lib/api/notification")
+        await notificationAPI.delete(notification.id)
+
+        toast({
+          title: "已删除",
+          description: "消息已删除",
+          duration: 2000,
+        })
+        // 刷新列表
+        onActionComplete()
+      } catch (error) {
+        console.error("删除消息失败:", error)
+        toast({
+          title: "操作失败",
+          description: "无法删除消息",
+          variant: "destructive",
+        })
+        setIsDeleting(false) // 恢复状态
+      } finally {
+        setIsProcessing(false)
+      }
+    }, 300) // 300ms 动画时间
   }
 
   const handleApprove = async () => {
@@ -264,8 +290,9 @@ export function NotificationItem({
   return (
     <div
       className={cn(
-        "p-4 hover:bg-muted/50 transition-colors",
-        !notification.isRead && "bg-blue-50/50 dark:bg-blue-950/20"
+        "p-4 hover:bg-muted/50 transition-all duration-300 ease-in-out relative group",
+        !notification.isRead && "bg-blue-50/50 dark:bg-blue-950/20",
+        isDeleting && "translate-x-full opacity-0"
       )}
     >
       <div className="flex gap-3">
@@ -292,7 +319,20 @@ export function NotificationItem({
             </p>
           )}
 
-          <p className="text-xs text-muted-foreground mt-2">{timeAgo}</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+            
+            {/* 删除按钮 - 鼠标悬停时显示 */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-2 right-2"
+              onClick={handleDelete}
+              title="删除消息"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
+            </Button>
+          </div>
 
           {notification.type === "ORG_JOIN_REQUEST" && renderActions()}
           {notification.type === "ORG_INVITE_RECEIVED" && renderActions()}

@@ -37,13 +37,19 @@ export async function GET(
       members.map(async (m) => {
         const taskCount = await prisma.task.count({
           where: {
-            OR: [
-              { creatorId: m.user.id },
-              { assignees: { some: { userId: m.user.id } } }
-            ],
-            OR: [
-              { project: { organizationId: id } },
-              { team: { organizationId: id } }
+            AND: [
+              {
+                OR: [
+                  { creatorId: m.user.id },
+                  { assignees: { some: { userId: m.user.id } } }
+                ]
+              },
+              {
+                OR: [
+                  { project: { organizationId: id } },
+                  { team: { organizationId: id } }
+                ]
+              }
             ]
           }
         })

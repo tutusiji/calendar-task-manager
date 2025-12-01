@@ -92,19 +92,32 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
     }
   }
 
-  const handleMagicGenerate = () => {
+  const handleMagicGenerate = async () => {
     setIsAvatarLoading(true)
     
-    // 生成 1-100 的随机数
-    const randomSeed = Math.floor(Math.random() * 100) + 1
-    
-    // 模拟魔法施展过程（模糊到清晰）
-    setTimeout(() => {
-      const avatarApiUrl = process.env.NEXT_PUBLIC_AVATAR_API_URL || 'https://api.dicebear.com'
-      const newAvatarUrl = `${avatarApiUrl}/9.x/avataaars/svg?seed=${currentUser.username}${randomSeed}`
+    try {
+      // 从服务端 API 获取运行时配置
+      const response = await fetch('/api/config')
+      const config = await response.json()
+      const avatarApiUrl = config.avatarApiUrl || 'https://api.dicebear.com'
+      
+      // 生成 1-100 的随机数
+      const randomSeed = Math.floor(Math.random() * 100) + 1
+      
+      // 模拟魔法施展过程（模糊到清晰）
+      setTimeout(() => {
+        const newAvatarUrl = `${avatarApiUrl}/9.x/avataaars/svg?seed=${currentUser.username}${randomSeed}`
+        setAvatar(newAvatarUrl)
+        setIsAvatarLoading(false)
+      }, 400)
+    } catch (error) {
+      console.error('Failed to fetch config:', error)
+      // 降级使用默认值
+      const randomSeed = Math.floor(Math.random() * 100) + 1
+      const newAvatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${currentUser.username}${randomSeed}`
       setAvatar(newAvatarUrl)
       setIsAvatarLoading(false)
-    }, 400)
+    }
   }
 
   const getUserInitial = (name: string) => {

@@ -7,17 +7,8 @@ import { Separator } from "@/components/ui/separator"
 // Token 管理已由请求层统一处理
 import { useToast } from "@/hooks/use-toast"
 import { NotificationItem } from "./notification-item"
-import { Loader2 } from "lucide-react"
-
-interface Notification {
-  id: string
-  type: string
-  title: string
-  content: string
-  metadata?: any
-  isRead: boolean
-  createdAt: string
-}
+import { Loader2, Eraser } from "lucide-react"
+import { Notification } from "@/lib/api/notification"
 
 interface NotificationListProps {
   onCountChange?: (count: number) => void
@@ -27,6 +18,7 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
   const { toast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isClearing, setIsClearing] = useState(false)
 
   const fetchNotifications = async () => {
     try {
@@ -73,6 +65,34 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
     }
   }
 
+  const handleClearAll = async () => {
+    if (isClearing) return
+    if (!confirm("确定要清空所有消息吗？")) return
+
+    setIsClearing(true)
+    try {
+      const { notificationAPI } = await import("@/lib/api/notification")
+      await notificationAPI.clearAll()
+
+      setNotifications([])
+      onCountChange?.(0)
+      
+      toast({
+        title: "已清空",
+        description: "所有消息已清空",
+      })
+    } catch (error) {
+      console.error("清空消息失败:", error)
+      toast({
+        title: "操作失败",
+        description: "无法清空消息",
+        variant: "destructive",
+      })
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   const handleActionComplete = () => {
     // 操作完成后刷新列表
     fetchNotifications()
@@ -88,19 +108,34 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
 
   if (notifications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center p-4">
-        <p className="text-muted-foreground">暂无消息</p>
+      <div className="flex flex-col w-full">
+        <div className="px-4 py-3 border-b flex items-center justify-between bg-background z-10">
+          <h3 className="font-semibold">消息通知</h3>
+        </div>
+        <div className="flex flex-col items-center justify-center h-64 text-center p-4">
+          <p className="text-muted-foreground">暂无消息</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full max-h-[600px]">
-      <div className="px-4 py-3 border-b">
+    <div className="flex flex-col w-full">
+      <div className="px-4 py-3 border-b flex items-center justify-between bg-background z-10 shrink-0">
         <h3 className="font-semibold">消息通知</h3>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={handleClearAll} 
+          disabled={isClearing}
+          title="一键清空"
+          className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+        >
+          <Eraser className="h-4 w-4" />
+        </Button>
       </div>
       
-      <ScrollArea className="flex-1">
+      <ScrollArea className="h-[450px]">
         <div className="divide-y">
           {notifications.map((notification) => (
             <NotificationItem

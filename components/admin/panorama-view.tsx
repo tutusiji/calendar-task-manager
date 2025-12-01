@@ -490,8 +490,8 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
 
       {/* 事项详情对话框 */}
       <Dialog open={tasksDialogOpen} onOpenChange={setTasksDialogOpen}>
-        <DialogContent className="max-w-[64vw]! sm:max-w-[64vw]! max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-[64vw]! sm:max-w-[64vw]! flex flex-col max-h-[85vh] p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>
               共 {dialogTasks.length} 个事项
@@ -507,72 +507,74 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
               <p>暂无事项</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {dialogTasks.map((task) => (
-                <Card key={task.id}>
-                  <CardContent className="p-3">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm line-clamp-1">{task.title}</h4>
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                      )}
-                      <div className="flex flex-wrap gap-1">
-                        {task.project && (
-                          <Badge style={{ backgroundColor: task.project.color }} className="text-white text-xs px-1.5 py-0">
-                            {task.project.name}
-                          </Badge>
+            <div className="overflow-y-auto px-6 pb-6 pt-4">
+              <div className="grid grid-cols-3 gap-3">
+                {dialogTasks.map((task) => (
+                  <Card key={task.id}>
+                    <CardContent className="p-3">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm line-clamp-1">{task.title}</h4>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
                         )}
-                        {task.team && (
-                          <Badge style={{ backgroundColor: task.team.color }} className="text-white text-xs px-1.5 py-0">
-                            {task.team.name}
+                        <div className="flex flex-wrap gap-1">
+                          {task.project && (
+                            <Badge style={{ backgroundColor: task.project.color }} className="text-white text-xs px-1.5 py-0">
+                              {task.project.name}
+                            </Badge>
+                          )}
+                          {task.team && (
+                            <Badge style={{ backgroundColor: task.team.color }} className="text-white text-xs px-1.5 py-0">
+                              {task.team.name}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">
+                            {task.type === 'EVENT' ? '事件' : '任务'}
                           </Badge>
-                        )}
-                        <Badge variant="outline" className="text-xs px-1.5 py-0">
-                          {task.type === 'EVENT' ? '事件' : '任务'}
-                        </Badge>
-                      </div>
-                      <div className="space-y-1 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3 shrink-0" />
-                          <span className="truncate">
-                            {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
-                          </span>
                         </div>
-                        {task.startTime && task.endTime && (
+                        <div className="space-y-1 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 shrink-0" />
-                            <span>{task.startTime} - {task.endTime}</span>
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            <span className="truncate">
+                              {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {task.startTime && task.endTime && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 shrink-0" />
+                              <span>{task.startTime} - {task.endTime}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground shrink-0">创建:</span>
+                          <Avatar className="h-4 w-4">
+                            <AvatarImage src={task.creator.avatar} alt={task.creator.name} />
+                            <AvatarFallback className="text-xs">{task.creator.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs truncate">{task.creator.name}</span>
+                        </div>
+                        {task.assignees.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground shrink-0">负责:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {task.assignees.map((assignee) => (
+                                <div key={assignee.user.id} className="flex items-center gap-0.5">
+                                  <Avatar className="h-4 w-4">
+                                    <AvatarImage src={assignee.user.avatar} alt={assignee.user.name} />
+                                    <AvatarFallback className="text-xs">{assignee.user.name.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs truncate max-w-[60px]">{assignee.user.name}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground shrink-0">创建:</span>
-                        <Avatar className="h-4 w-4">
-                          <AvatarImage src={task.creator.avatar} alt={task.creator.name} />
-                          <AvatarFallback className="text-xs">{task.creator.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs truncate">{task.creator.name}</span>
-                      </div>
-                      {task.assignees.length > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground shrink-0">负责:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {task.assignees.map((assignee) => (
-                              <div key={assignee.user.id} className="flex items-center gap-0.5">
-                                <Avatar className="h-4 w-4">
-                                  <AvatarImage src={assignee.user.avatar} alt={assignee.user.name} />
-                                  <AvatarFallback className="text-xs">{assignee.user.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span className="text-xs truncate max-w-[60px]">{assignee.user.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
         </DialogContent>

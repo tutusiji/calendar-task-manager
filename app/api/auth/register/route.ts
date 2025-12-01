@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
           select: { creatorId: true }
         })
 
-        await tx.organizationJoinRequest.create({
+        const joinRequest = await tx.organizationJoinRequest.create({
           data: {
             organizationId: organizationId,
             applicantId: newUser.id,
@@ -222,6 +222,7 @@ export async function POST(request: NextRequest) {
               title: '新的加入申请',
               content: `${cleanName} 申请加入您的组织`,
               metadata: {
+                requestId: joinRequest.id,
                 applicantId: newUser.id,
                 applicantName: cleanName,
                 organizationId: organizationId
