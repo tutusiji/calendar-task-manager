@@ -81,14 +81,25 @@ export function EditProfileDialog({ open, onOpenChange, currentUser, onSave }: E
     }
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setAvatar(reader.result as string)
+      try {
+        setIsAvatarLoading(true)
+        const { compressImage } = await import('@/lib/image-utils')
+        const compressedBase64 = await compressImage(file)
+        setAvatar(compressedBase64)
+      } catch (error) {
+        console.error('Failed to compress image:', error)
+        // 降级处理：如果压缩失败，尝试直接读取
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setAvatar(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+      } finally {
+        setIsAvatarLoading(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 

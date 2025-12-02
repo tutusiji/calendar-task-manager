@@ -131,13 +131,14 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
   // 处理头像上传
   const handleAvatarUpload = async (file: File) => {
     try {
-      showToast.info('上传中', '正在上传头像...')
+      showToast.info('处理中', '正在处理头像...')
       
-      // 1. 上传图片文件
-      const uploadResult = await userAPI.uploadAvatar(file)
+      // 1. 前端压缩图片
+      const { compressImage } = await import('@/lib/image-utils')
+      const compressedBase64 = await compressImage(file)
       
-      // 2. 更新用户头像
-      const updatedUser = await userAPI.updateMe({ avatar: uploadResult.url })
+      // 2. 直接更新用户头像 (Base64)
+      const updatedUser = await userAPI.updateMe({ avatar: compressedBase64 })
       
       // 3. 更新本地状态
       setCurrentUser(updatedUser)

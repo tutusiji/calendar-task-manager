@@ -198,7 +198,7 @@ export function OrganizationSelector({
               </span>
             ) : isNewOrganization ? (
               <span className="text-amber-600 font-medium">
-                未注册
+                未被注册，可使用
               </span>
             ) : null}
           </div>
