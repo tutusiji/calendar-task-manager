@@ -24,7 +24,7 @@ services:
 
   # Next.js 应用
   app:
-    image: calendar-task-manager:2025-12-02 # 改成这样
+    image: calendar-task-manager:2025-12-03 # 改成这样
     # 注释掉或删除 build 部分rrrrr
     # build:
     #   context: .
