@@ -188,7 +188,7 @@ export function PersonalWeekView() {
               onMouseUp={handleMouseUp}
             >
               {dayTasks.map((task) => (
-                <TaskBar key={task.id} task={task} date={day} track={task.track} isPersonalWeekView={true} />
+                <TaskBar key={task.id} task={task} date={day} track={task.track} isPersonalWeekView={true} showUserInfo={true} />
               ))}
             </div>
           )

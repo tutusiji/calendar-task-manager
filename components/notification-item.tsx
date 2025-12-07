@@ -23,12 +23,16 @@ interface NotificationItemProps {
   notification: Notification
   onMarkAsRead: (id: string) => void
   onActionComplete: () => void
+  onDeleteStart?: () => void
+  onDeleteEnd?: () => void
 }
 
 export function NotificationItem({
   notification,
   onMarkAsRead,
   onActionComplete,
+  onDeleteStart,
+  onDeleteEnd,
 }: NotificationItemProps) {
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
@@ -68,6 +72,7 @@ export function NotificationItem({
     if (isProcessing || isDeleting) return
 
     setIsDeleting(true)
+    onDeleteStart?.() // 通知父组件开始删除
     
     // 等待动画完成
     setTimeout(async () => {
@@ -93,6 +98,7 @@ export function NotificationItem({
         setIsDeleting(false) // 恢复状态
       } finally {
         setIsProcessing(false)
+        onDeleteEnd?.() // 通知父组件删除结束
       }
     }, 300) // 300ms 动画时间
   }

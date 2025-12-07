@@ -21,6 +21,7 @@ import { UserMultiSelector } from "./user-multi-selector"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ColorPicker } from "./color-picker"
 import { ProgressSlider } from "./progress-slider"
+import { TimePicker } from "@/components/ui/time-picker"
 import {
   Tooltip,
   TooltipContent,
@@ -114,10 +115,11 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
 
   // Auto-set assignee to current user for personal projects
   useEffect(() => {
-    if (isPersonalProject && currentUser && !task) {
+    if (isPersonalProject && currentUser) {
+      // 无论是创建还是编辑模式，选择个人事务项目时都设置为当前用户
       setAssigneeIds([currentUser.id])
     }
-  }, [isPersonalProject, currentUser, task])
+  }, [isPersonalProject, currentUser])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -509,26 +511,22 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
               {/* Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startTime" className="text-sm font-medium">
+                  <Label className="text-sm font-medium">
                     开始时间
                   </Label>
-                  <Input
-                    id="startTime"
-                    type="time"
+                  <TimePicker
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    onChange={setStartTime}
                     placeholder="选择时间（可选）"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endTime" className="text-sm font-medium">
+                  <Label className="text-sm font-medium">
                     结束时间
                   </Label>
-                  <Input
-                    id="endTime"
-                    type="time"
+                  <TimePicker
                     value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
+                    onChange={setEndTime}
                     placeholder="选择时间（可选）"
                   />
                 </div>

@@ -21,9 +21,9 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
 
   // 根据选中的项目过滤任务
   const filteredTasks = useMemo(() => {
-    // 如果没有选中任何项目，则不显示任何任务
+    // 如果没有选中任何项目，则显示所有任务（因为后端已经根据团队过滤了）
     if (selectedProjectIds.length === 0) {
-      return []
+      return tasks
     }
     return tasks.filter(task => selectedProjectIds.includes(task.projectId))
   }, [tasks, selectedProjectIds])

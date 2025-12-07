@@ -8,7 +8,26 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Users, FolderKanban, Building2, User, Calendar, Clock } from "lucide-react"
+import { Loader2, Users, FolderKanban, Building2, User, Calendar, Clock, Pencil, Trash2, MoreVertical } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 
 interface Organization {
@@ -135,6 +154,18 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
   const [dialogTitle, setDialogTitle] = useState("")
   const [tasksLoading, setTasksLoading] = useState(false)
 
+  // 编辑组织对话框状态
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null)
+  const [editOrgName, setEditOrgName] = useState("")
+  const [editOrgVerified, setEditOrgVerified] = useState(false)
+  const [editLoading, setEditLoading] = useState(false)
+
+  // 删除组织确认对话框状态
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletingOrg, setDeletingOrg] = useState<Organization | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   useEffect(() => {
     fetchOrganizations()
   }, [])
@@ -222,6 +253,92 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
     }
   }
 
+  const handleEditOrg = (org: Organization) => {
+    setEditingOrg(org)
+    setEditOrgName(org.name)
+    setEditOrgVerified(org.isVerified)
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveOrg = async () => {
+    if (!editingOrg || !editOrgName.trim()) return
+
+    setEditLoading(true)
+    try {
+      const response = await fetch(`/api/admin/panorama/organizations/${editingOrg.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editOrgName.trim(),
+          isVerified: editOrgVerified
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // 更新本地组织列表
+        setOrganizations(orgs => 
+          orgs.map(org => org.id === editingOrg.id ? data.data : org)
+        )
+        // 如果当前选中的是被编辑的组织，也更新它
+        if (selectedOrg?.id === editingOrg.id) {
+          setSelectedOrg(data.data)
+        }
+        setEditDialogOpen(false)
+        setError("")
+      } else {
+        setError(data.error || "更新组织失败")
+      }
+    } catch (err) {
+      console.error("Failed to update organization:", err)
+      setError("更新组织失败")
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const handleDeleteOrg = (org: Organization) => {
+    setDeletingOrg(org)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDeleteOrg = async () => {
+    if (!deletingOrg) return
+
+    setDeleteLoading(true)
+    try {
+      const response = await fetch(`/api/admin/panorama/organizations/${deletingOrg.id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // 从列表中移除
+        setOrganizations(orgs => orgs.filter(org => org.id !== deletingOrg.id))
+        // 如果当前选中的是被删除的组织，清空选择
+        if (selectedOrg?.id === deletingOrg.id) {
+          setSelectedOrg(null)
+          setTeams([])
+          setProjects([])
+          setMembers([])
+        }
+        setDeleteDialogOpen(false)
+        setError("")
+      } else {
+        setError(data.error || "删除组织失败")
+        setDeleteDialogOpen(false)
+      }
+    } catch (err) {
+      console.error("Failed to delete organization:", err)
+      setError("删除组织失败")
+      setDeleteDialogOpen(false)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   return (
     <div className="flex h-screen flex-col">
       {/* 顶部导航栏 */}
@@ -253,16 +370,49 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
                   <div
                     key={org.id}
                     className={cn(
-                      "w-full rounded-lg border bg-card p-4 transition-all cursor-pointer hover:border-primary",
+                      "w-full rounded-lg border bg-card p-4 transition-all cursor-pointer hover:border-primary group",
                       selectedOrg?.id === org.id && "border-primary bg-primary/5"
                     )}
                     onClick={() => handleSelectOrganization(org)}
                   >
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium">{org.name}</h3>
-                      {org.isVerified && (
-                        <span className="text-xs text-blue-500">已认证</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {org.isVerified && (
+                          <span className="text-xs text-blue-500">已认证</span>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditOrg(org)
+                            }}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              编辑
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteOrg(org)
+                              }}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              删除
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
                       <span>{org._count.members} 成员</span>
@@ -487,6 +637,94 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
           )}
         </div>
       </div>
+
+      {/* 编辑组织对话框 */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑组织</DialogTitle>
+            <DialogDescription>
+              修改组织的基本信息
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="org-name">组织名称</Label>
+              <Input
+                id="org-name"
+                value={editOrgName}
+                onChange={(e) => setEditOrgName(e.target.value)}
+                placeholder="输入组织名称"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="org-verified"
+                checked={editOrgVerified}
+                onCheckedChange={(checked) => setEditOrgVerified(!!checked)}
+              />
+              <Label htmlFor="org-verified" className="cursor-pointer">
+                已认证组织
+              </Label>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              disabled={editLoading}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={handleSaveOrg}
+              disabled={editLoading || !editOrgName.trim()}
+            >
+              {editLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                '保存'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除组织确认对话框 */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除组织</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除组织「{deletingOrg?.name}」吗？
+              <br />
+              <span className="text-red-600 font-medium">
+                注意：只有没有成员、团队和项目的组织才能被删除。
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteOrg}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                '确认删除'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 事项详情对话框 */}
       <Dialog open={tasksDialogOpen} onOpenChange={setTasksDialogOpen}>

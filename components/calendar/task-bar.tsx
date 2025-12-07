@@ -35,6 +35,7 @@ export function TaskBar({
     updateTask,
     hoveredTaskId,
     setHoveredTaskId,
+    currentUser,
   } = useCalendarStore();
   const [isProgressDragging, setIsProgressDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(task.progress || 0);
@@ -61,11 +62,34 @@ export function TaskBar({
   const assignees = task.assignees || [];
   const assigneeCount = assignees.length;
 
-  // 获取前三个负责人的用户信息
-  const assigneeUsers = assignees
-    .slice(0, 3)
-    .map((a) => getUserById(a.userId))
-    .filter((u): u is import("@/lib/types").User => !!u);
+  // 获取前三个负责人的用户信息（超过3人时，确保包含当前用户）
+  const assigneeUsers = (() => {
+    if (assigneeCount <= 3) {
+      // 3人及以下，直接显示所有人
+      return assignees
+        .map((a) => getUserById(a.userId))
+        .filter((u): u is import("@/lib/types").User => !!u);
+    } else {
+      // 超过3人时，优先显示当前用户
+      const currentUserId = currentUser?.id;
+      const currentUserAssignee = assignees.find(a => a.userId === currentUserId);
+      
+      if (currentUserAssignee) {
+        // 如果当前用户在负责人列表中，确保显示当前用户
+        const otherAssignees = assignees.filter(a => a.userId !== currentUserId);
+        const displayAssignees = [currentUserAssignee, ...otherAssignees.slice(0, 2)];
+        return displayAssignees
+          .map((a) => getUserById(a.userId))
+          .filter((u): u is import("@/lib/types").User => !!u);
+      } else {
+        // 当前用户不在负责人列表中，显示前3个
+        return assignees
+          .slice(0, 3)
+          .map((a) => getUserById(a.userId))
+          .filter((u): u is import("@/lib/types").User => !!u);
+      }
+    }
+  })();
 
   // 如果没有负责人，使用创建者
   const fallbackUser = assigneeCount === 0 ? getUserById(task.creatorId) : null;
@@ -620,11 +644,11 @@ export function TaskBar({
                 <span className="opacity-60">|</span>
               </>
             ) : (
-              // 4个或更多负责人：显示前3个头像 + "等N人"
+              // 4个或更多负责人：显示前3个头像（包括自己）+ "等N人"
               <>
                 <div className="flex items-center gap-1 shrink-0">
                   <div className="flex items-center -space-x-1">
-                    {assigneeUsers.map((user, index) => (
+                    {assigneeUsers.slice(0, 3).map((user, index) => (
                       <Avatar
                         key={user.id}
                         className={cn(

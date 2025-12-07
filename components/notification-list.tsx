@@ -19,6 +19,7 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isClearing, setIsClearing] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchNotifications = async () => {
     try {
@@ -98,6 +99,14 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
     fetchNotifications()
   }
 
+  const handleDeleteStart = () => {
+    setIsDeleting(true)
+  }
+
+  const handleDeleteEnd = () => {
+    setIsDeleting(false)
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -120,14 +129,14 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
   }
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full relative">
       <div className="px-4 py-3 border-b flex items-center justify-between bg-background z-10 shrink-0">
         <h3 className="font-semibold">消息通知</h3>
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={handleClearAll} 
-          disabled={isClearing}
+          disabled={isClearing || isDeleting}
           title="一键清空"
           className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50"
         >
@@ -135,7 +144,7 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
         </Button>
       </div>
       
-      <ScrollArea className="h-[450px]">
+      <ScrollArea className="h-[450px] relative">
         <div className="divide-y">
           {notifications.map((notification) => (
             <NotificationItem
@@ -143,10 +152,25 @@ export function NotificationList({ onCountChange }: NotificationListProps) {
               notification={notification}
               onMarkAsRead={handleMarkAsRead}
               onActionComplete={handleActionComplete}
+              onDeleteStart={handleDeleteStart}
+              onDeleteEnd={handleDeleteEnd}
             />
           ))}
         </div>
       </ScrollArea>
+
+      {/* Loading 覆盖层 */}
+      {(isClearing || isDeleting) && (
+        //  backdrop-blur-sm 
+        <div className="absolute inset-0 bg-background/40 flex items-center justify-center z-50 transition-opacity duration-200">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">
+              {isClearing ? "正在清空..." : "正在删除..."}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

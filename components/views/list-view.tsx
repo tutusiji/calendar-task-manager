@@ -61,6 +61,7 @@ export function ListView() {
     let filtered = tasks
 
     if (navigationMode === "my-days") {
+      // My Days 模式：如果没有选中项目，返回空数组
       if (selectedProjectIds.length === 0) return []
       filtered = filtered.filter(
         (task) => selectedProjectIds.includes(task.projectId) && 

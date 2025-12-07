@@ -522,6 +522,7 @@ export const useCalendarStore = create<CalendarStore>()(
             navigationMode: "my-days",
             selectedTeamId: null,
             selectedProjectId: null,
+            selectedProjectIds: projects.map(p => p.id), // 恢复所有项目
           });
         }
 
@@ -955,18 +956,23 @@ export const useCalendarStore = create<CalendarStore>()(
       setListLayoutColumns: (columns) => set({ listLayoutColumns: columns }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setNavigationMode: (mode) => {
+        const { projects, currentUser } = get();
+        
+        // 切换到 my-days 模式时，恢复所有项目的选择
+        const newSelectedProjectIds = mode === "my-days" 
+          ? projects.map(p => p.id)  // 恢复所有项目
+          : [];
+        
         set({
           navigationMode: mode,
           selectedTeamId: null,
           selectedProjectId: null,
+          selectedProjectIds: newSelectedProjectIds,
         });
 
         // 切换到 my-days 模式时，加载当前用户的任务
-        if (mode === "my-days") {
-          const currentUser = get().currentUser;
-          if (currentUser) {
-            get().fetchTasks({ userId: currentUser.id });
-          }
+        if (mode === "my-days" && currentUser) {
+          get().fetchTasks({ userId: currentUser.id });
         }
       },
       setSelectedTeamId: async (id) => {
@@ -974,7 +980,7 @@ export const useCalendarStore = create<CalendarStore>()(
         const currentId = get().selectedTeamId;
         if (currentId === id) return;
 
-        set({ selectedTeamId: id });
+        set({ selectedTeamId: id, selectedProjectIds: [] }); // 切换团队时重置项目筛选，默认显示所有
         // 切换团队时，先刷新团队数据(可能有新成员),再获取任务
         if (id) {
           try {
@@ -1430,7 +1436,21 @@ export const useCalendarStore = create<CalendarStore>()(
         hideWeekends: state.hideWeekends,
         taskBarSize: state.taskBarSize,
         settings: state.settings,
+        currentDate: state.currentDate,
+        selectedDate: state.selectedDate,
       }),
+      // 自定义序列化/反序列化，确保 Date 对象正确处理
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // 将字符串转换回 Date 对象
+          if (state.currentDate && typeof state.currentDate === 'string') {
+            state.currentDate = new Date(state.currentDate);
+          }
+          if (state.selectedDate && typeof state.selectedDate === 'string') {
+            state.selectedDate = new Date(state.selectedDate);
+          }
+        }
+      },
     }
   )
 );

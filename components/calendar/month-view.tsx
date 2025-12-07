@@ -166,7 +166,7 @@ export function MonthView() {
       })
       
       // 最小高度180px，每个轨道根据taskBarSize动态计算
-      const BASE_HEIGHT = 180
+      const BASE_HEIGHT = 153
       const calculatedHeight = Math.max(BASE_HEIGHT, 80 + maxTrack * TASK_HEIGHT)
       
       return calculatedHeight
@@ -201,8 +201,8 @@ export function MonthView() {
     return checkDate >= start && checkDate <= end
   }
 
-  // 判断是否需要显示用户信息（团队或项目模式下显示）
-  const shouldShowUserInfo = navigationMode === "team" || navigationMode === "project"
+  // 判断是否需要显示用户信息（My Days、团队或项目模式下都显示）
+  const shouldShowUserInfo = navigationMode === "my-days" || navigationMode === "team" || navigationMode === "project"
 
   // 自动滚动到当前周（只在首次加载或月份改变时执行）
   useEffect(() => {
