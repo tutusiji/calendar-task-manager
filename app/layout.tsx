@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import { Toaster } from '@/components/ui/toaster'
 // import { Analytics } from '@vercel/analytics/next'
+import { siteConfig } from '@/lib/site-config'
 import './globals.css'
 
 // 加载自定义字体
@@ -13,26 +14,11 @@ const cangji = localFont({
 })
 
 export const metadata: Metadata = {
-  title: 'OxHorse Planner - 牛马日记',
-  description: 'Happy every day with OxHorse Planner',
-  generator: 'v0.app',
+  title: siteConfig.pageTitle,
+  description: siteConfig.pageDescription,
+  generator: 'tutusiji',
   icons: {
     icon: '/logo.ico',
-    link: [
-      {
-        rel: 'preconnect',
-        href: 'https://fonts.googleapis.com',
-      },
-      {
-        rel: 'preconnect',
-        href: 'https://fonts.gstatic.com',
-        crossOrigin: 'anonymous',
-      },
-      {
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap',
-      },
-    ],
   },
 }
 
@@ -43,6 +29,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cangji.variable}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap" rel="stylesheet" />
+      </head>
       <body className={`font-sans antialiased`}>
         {children}
         <Toaster />

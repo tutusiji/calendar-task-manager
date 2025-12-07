@@ -1,6 +1,9 @@
 # 构建阶段
 FROM node:20-alpine AS builder
 
+# 接收构建参数，默认为 company
+ARG ENV_TYPE=company
+
 # 安装 pnpm
 RUN npm install -g pnpm
 
@@ -14,6 +17,9 @@ RUN pnpm install --frozen-lockfile
 
 # 复制项目文件
 COPY . .
+
+# 复制对应的 .env 文件
+COPY .env.${ENV_TYPE} .env
 
 # 生成 Prisma Client（设置临时 DATABASE_URL，仅用于生成客户端代码）
 ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/calendar_tasks?schema=public"

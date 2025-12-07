@@ -21,6 +21,7 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getToken } from "@/lib/api-client"
 import { showToast } from "@/lib/toast"
 import { LoadingLogo } from "@/components/loading-logo"
+import { siteConfig } from "@/lib/site-config"
 
 export default function Home() {
   const router = useRouter()
@@ -153,7 +154,7 @@ export default function Home() {
             <div className="relative w-10 h-10 shrink-0">
               <Image
                 src="/logo.png"
-                alt="OxHorse Planner Logo"
+                alt={siteConfig.logoAlt}
                 width={40}
                 height={40}
                 className="object-contain"
@@ -162,9 +163,9 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-[22px] font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>
-                OxHorse Planner
+                {siteConfig.appName}
               </h1>
-              <p className="text-[12px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>打工人必备的轻量任务管理工具</p>
+              <p className="text-[13px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>{siteConfig.appSlogan}</p>
             </div>
           </div>
         </div>

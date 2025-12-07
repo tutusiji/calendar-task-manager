@@ -1,16 +1,49 @@
-# API Documentation Task
+# 1. 手动打包 company 版本
+docker build --build-arg ENV_TYPE=company -t calendar-task-manager:company-2025-12-08 .
+docker save -o calendar-task-manager_company_2025-12-08.tar calendar-task-manager:company-2025-12-08
+docker load -i calendar-task-manager_company_2025-12-08.tar
 
-# API Documentation Task
+# 2. 手动打包 personal 版本
+docker build --build-arg ENV_TYPE=personal -t calendar-task-manager:personal-2025-12-08 .
+docker save -o calendar-task-manager_personal_2025-12-08.tar calendar-task-manager:personal-2025-12-08
 
-- [/] Scan `app/api` to identify all API endpoints <!-- id: 0 -->
-- [/] Analyze `prisma/schema.prisma` and `lib/types.ts` for data models <!-- id: 1 -->
-- [ ] Analyze individual `route.ts` files to extract request/response schemas <!-- id: 2 -->
-  - [/] Auth & Users <!-- id: 3 -->
-  - [/] Projects & Teams <!-- id: 4 -->
-  - [/] Tasks <!-- id: 5 -->
-- [/] Notifications <!-- id: 6 -->
-- [/] Organizations <!-- id: 7 -->
-- [/] Generate OpenAPI/Swagger specification file (`openapi.yaml`) <!-- id: 8 -->
-- [/] Create a guide on how to use/view the documentation <!-- id: 9 -->
-- [x] Create Offline Deployment Guide (`OFFLINE_DEPLOYMENT.md`) <!-- id: 10 -->
-- [x] Create Docker Migration Guide (`DOCKER_MIGRATION_GUIDE.md`) <!-- id: 11 -->
+# 3. 修改 docker-compose.yml 中的 image 字段
+# image: calendar-task-manager:company-2025-12-08
+
+# 4. 启动容器
+docker-compose up -d
+
+
+
+### 清理悬空镜像
+sudo docker system prune
+
+
+
+# 查看所有 calendar-task-manager 镜像
+Windows：
+docker images | Select-String "calendar-task-manager"
+或
+docker images --filter "reference=calendar-task-manager*"
+
+Linux：
+docker images | grep calendar-task-manager
+
+
+删除镜像
+docker rmi calendar-task-manager:company-2025-12-07
+
+
+Windows 清理命令（PowerShell）
+# 1. 清理未使用的镜像、容器、网络（推荐先用这个）
+docker system prune -a
+
+# 2. 清理构建缓存（最能释放空间）
+docker builder prune -a
+ docker builder prune -a -f
+
+# 3. 同时清理所有（最彻底）
+docker system prune -a && docker builder prune -a
+
+# 4. 查看 Docker 占用的空间
+docker system df

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { authAPI } from "@/lib/api-client"
 import { OrganizationSelector } from "@/components/organization-selector"
+import { siteConfig } from "@/lib/site-config"
 
 export default function AuthPage() {
   const router = useRouter()
@@ -174,7 +175,7 @@ export default function AuthPage() {
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
             <Image
               src="/logo.png"
-              alt="OxHorse Planner Logo"
+              alt={siteConfig.logoAlt}
               width={80}
               height={80}
               className="object-contain"
@@ -182,9 +183,9 @@ export default function AuthPage() {
             />
           </div>
           <h1 className="text-4xl font-bold bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>
-            OxHorse Planner
+            {siteConfig.appName}
           </h1>
-          <p className="mt-2 text-md text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>牛马日记 —— 打工人必备的轻量任务管理工具</p>
+          <p className="mt-2 text-md text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>{siteConfig.fullTitle}</p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">
