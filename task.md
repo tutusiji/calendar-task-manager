@@ -12,6 +12,7 @@ docker load -i calendar-task-manager_personal_2025-12-09.tar
 # image: calendar-task-manager:company-2025-12-08
 
 # 4. 启动容器
+docker-compose down
 docker-compose up -d
 
 
