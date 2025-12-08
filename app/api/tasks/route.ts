@@ -30,9 +30,45 @@ export async function GET(request: NextRequest) {
     const teamId = searchParams.get('teamId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const organizationId = searchParams.get('organizationId')
+
+    // 必须提供组织ID，或者用户必须有当前组织ID
+    // 优先使用参数中的organizationId，如果没有则尝试使用用户的currentOrganizationId
+    let targetOrgId = organizationId
+
+    if (!targetOrgId) {
+      const user = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { currentOrganizationId: true }
+      })
+      targetOrgId = user?.currentOrganizationId || null
+    }
+
+    if (!targetOrgId) {
+      return validationErrorResponse('未指定组织ID')
+    }
+
+    // 验证某些用户是否有权限访问该组织
+    const isMember = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: auth.userId,
+          organizationId: targetOrgId
+        }
+      }
+    })
+
+    if (!isMember) {
+      return validationErrorResponse('无权访问该组织的数据')
+    }
 
     // 构建查询条件
-    const where: any = {}
+    const where: any = {
+      // 强制关联项目所属的组织
+      project: {
+        organizationId: targetOrgId
+      }
+    }
 
     // 权限验证和查询逻辑
     if (teamId) {
@@ -46,8 +82,17 @@ export async function GET(request: NextRequest) {
 
       if (!teamMember) {
         // 如果用户不是团队成员，返回空数组而不是错误
-        // 这样可以避免切换组织后出现错误
         return successResponse([])
+      }
+
+      // 验证团队是否属于该组织
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        select: { organizationId: true }
+      })
+
+      if (team?.organizationId !== targetOrgId) {
+        return validationErrorResponse('团队不属于当前组织')
       }
 
       // 查询该团队的任务
@@ -62,16 +107,19 @@ export async function GET(request: NextRequest) {
       })
 
       if (!projectMember) {
-        // 如果用户不是项目成员，返回空数组而不是错误
+        // 如果用户不是项目成员，返回空数组
         return successResponse([])
       }
 
       // 查询该项目的任务
-      // 如果是个人事务项目，只查询当前用户的任务
       const project = await prisma.project.findUnique({
         where: { id: projectId },
-        select: { name: true }
+        select: { name: true, organizationId: true }
       })
+
+      if (project?.organizationId !== targetOrgId) {
+        return validationErrorResponse('项目不属于当前组织')
+      }
       
       where.projectId = projectId
       
@@ -85,11 +133,12 @@ export async function GET(request: NextRequest) {
     } else if (userId) {
       // 如果指定了 userId，检查是否是当前用户
       if (userId !== auth.userId) {
-        // 检查是否在同一团队
+        // 检查是否在同一团队 (且在同一组织下)
         const isTeammate = await prisma.teamMember.findFirst({
           where: {
             userId: auth.userId,
             team: {
+              organizationId: targetOrgId,
               members: {
                 some: { userId }
               }
@@ -98,7 +147,22 @@ export async function GET(request: NextRequest) {
         })
 
         if (!isTeammate) {
-          return validationErrorResponse('无权查看其他用户的任务')
+           // 或者是同一项目的成员
+           const isProjectMate = await prisma.projectMember.findFirst({
+             where: {
+               userId: auth.userId,
+               project: {
+                 organizationId: targetOrgId,
+                 members: {
+                    some: { userId }
+                 }
+               }
+             }
+           })
+           
+           if (!isProjectMate) {
+              return validationErrorResponse('无权查看其他用户的任务')
+           }
         }
       }
       // 查询该用户作为负责人的任务
@@ -119,26 +183,37 @@ export async function GET(request: NextRequest) {
         return validationErrorResponse('日期格式无效')
       }
 
-      where.OR = [
-        {
-          startDate: {
-            gte: new Date(startDate),
-            lte: new Date(endDate)
+      const dateFilter = {
+        OR: [
+          {
+            startDate: {
+              gte: new Date(startDate),
+              lte: new Date(endDate)
+            }
+          },
+          {
+            endDate: {
+              gte: new Date(startDate),
+              lte: new Date(endDate)
+            }
+          },
+          {
+            AND: [
+              { startDate: { lte: new Date(startDate) } },
+              { endDate: { gte: new Date(endDate) } }
+            ]
           }
-        },
-        {
-          endDate: {
-            gte: new Date(startDate),
-            lte: new Date(endDate)
-          }
-        },
-        {
-          AND: [
-            { startDate: { lte: new Date(startDate) } },
-            { endDate: { gte: new Date(endDate) } }
-          ]
-        }
-      ]
+        ]
+      }
+
+      // 合并 AND 逻辑，避免覆盖上面可能存在的 OR
+      if (where.OR) {
+        where.AND = [
+           dateFilter
+        ]
+      } else {
+        Object.assign(where, dateFilter)
+      }
     }
 
     // 查询任务

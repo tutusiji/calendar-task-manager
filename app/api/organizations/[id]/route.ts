@@ -151,6 +151,7 @@ export async function PUT(
       data: {
         ...(name && { name: name.trim() }),
         ...(description !== undefined && { description: description?.trim() }),
+        ...(body.joinRequiresApproval !== undefined && { joinRequiresApproval: body.joinRequiresApproval }),
       },
     })
 

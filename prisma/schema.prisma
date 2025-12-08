@@ -19,6 +19,7 @@ model Organization {
   name         String                    @unique // 组织名称，全局唯一
   description  String?
   isVerified   Boolean                   @default(false) // 是否已认证
+  joinRequiresApproval Boolean           @default(false) // 加入是否需要审批
   creatorId    String
   creator      User                      @relation("OrganizationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members      OrganizationMember[]

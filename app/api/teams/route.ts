@@ -9,23 +9,48 @@ export async function GET(request: NextRequest) {
     const auth = await authenticate(request)
     if (auth.error) return auth.error
 
-    // 获取用户信息以获取当前组织
-    const user = await prisma.user.findUnique({
-      where: { id: auth.userId },
-      select: { currentOrganizationId: true },
-    })
+    const { searchParams } = new URL(request.url)
+    const organizationId = searchParams.get('organizationId')
 
-    if (!user || !user.currentOrganizationId) {
+    let targetOrgId = organizationId
+
+    if (!targetOrgId) {
+      // 获取用户信息以获取当前组织
+      const user = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { currentOrganizationId: true },
+      })
+      targetOrgId = user?.currentOrganizationId || null
+    }
+
+    if (!targetOrgId) {
       return NextResponse.json({
         success: true,
         data: []
       })
     }
 
+    // 验证某些用户是否有权限访问该组织
+    const isMember = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: auth.userId,
+          organizationId: targetOrgId
+        }
+      }
+    })
+
+    if (!isMember) {
+      return NextResponse.json({
+          success: false,
+          error: '无权访问该组织的数据'
+      }, { status: 403 })
+    }
+
     // 获取当前组织内的所有团队（供个人中心等场景使用）
     const teams = await prisma.team.findMany({
       where: {
-        organizationId: user.currentOrganizationId,
+        organizationId: targetOrgId,
       },
       include: {
         organization: {

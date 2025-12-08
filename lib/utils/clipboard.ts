@@ -9,7 +9,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     // 检查是否支持 Clipboard API
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text)
+      await navigator.clipboard.writeText(text)
       return true
     } else {
       // 降级方案：使用传统的 document.execCommand

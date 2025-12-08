@@ -19,6 +19,7 @@ export interface Organization {
   creatorId: string
   createdAt: Date
   updatedAt: Date
+  joinRequiresApproval: boolean
 }
 
 export interface OrganizationMember {
@@ -105,7 +106,7 @@ export const organizationAPI = {
   /**
    * 更新组织
    */
-  async update(id: string, data: { name?: string; description?: string }): Promise<Organization> {
+  async update(id: string, data: { name?: string; description?: string; joinRequiresApproval?: boolean }): Promise<Organization> {
     return put<Organization>(`/organizations/${id}`, data)
   },
 

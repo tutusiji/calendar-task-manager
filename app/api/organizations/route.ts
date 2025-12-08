@@ -2,6 +2,12 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
 import { authenticate } from "@/lib/middleware"
+import { randomBytes } from "crypto"
+
+// 生成短邀请码(8位)
+function generateInviteCode(): string {
+  return randomBytes(4).toString('hex').toUpperCase()
+}
 
 // GET /api/organizations - 获取用户的所有组织
 export async function GET(req: NextRequest) {
@@ -33,11 +39,19 @@ export async function GET(req: NextRequest) {
     const auth = await authenticate(req)
     if (auth.error) return auth.error
 
+    const organizationId = searchParams.get('organizationId')
+
+    const where: any = {
+      userId: auth.userId,
+    }
+
+    if (organizationId) {
+      where.organizationId = organizationId
+    }
+
     // 返回用户所属的所有组织
     const organizationMembers = await prisma.organizationMember.findMany({
-      where: {
-        userId: auth.userId,
-      },
+      where,
       include: {
         organization: {
           include: {
@@ -59,6 +73,7 @@ export async function GET(req: NextRequest) {
       description: om.organization.description,
       isVerified: om.organization.isVerified,
       creatorId: om.organization.creatorId,
+      joinRequiresApproval: om.organization.joinRequiresApproval,
       role: om.role,
       memberCount: om.organization._count.members,
       teamCount: om.organization._count.teams,
@@ -101,6 +116,18 @@ export async function POST(req: NextRequest) {
       select: { currentOrganizationId: true },
     })
 
+    // 为创建者生成唯一的邀请码
+    let memberInviteCode = generateInviteCode()
+    let exists = await prisma.organizationMember.findFirst({ 
+      where: { inviteCode: memberInviteCode } 
+    })
+    while (exists) {
+      memberInviteCode = generateInviteCode()
+      exists = await prisma.organizationMember.findFirst({ 
+        where: { inviteCode: memberInviteCode } 
+      })
+    }
+
     // 创建组织
     const organization = await prisma.organization.create({
       data: {
@@ -108,10 +135,12 @@ export async function POST(req: NextRequest) {
         description: description?.trim(),
         creatorId: auth.userId,
         isVerified: true, // 新创建的组织默认已认证
+        joinRequiresApproval: false, // 默认不需要审批
         members: {
           create: {
             userId: auth.userId,
             role: "OWNER", // 创建者自动成为所有者
+            inviteCode: memberInviteCode, // 为创建者生成邀请码
           },
         },
       },
@@ -124,6 +153,28 @@ export async function POST(req: NextRequest) {
           },
         },
       },
+    })
+
+    // 获取创建者信息用于创建个人项目
+    const creator = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { name: true }
+    })
+
+    // 为创建者创建个人项目
+    await prisma.project.create({
+      data: {
+        name: `${creator?.name || '我'}的个人事务`,
+        color: '#3b82f6',
+        description: '个人日常任务和事项',
+        organizationId: organization.id,
+        creatorId: auth.userId,
+        members: {
+          create: {
+            userId: auth.userId
+          }
+        }
+      }
     })
 
     // 如果用户当前没有选择的组织，自动设置为新创建的组织

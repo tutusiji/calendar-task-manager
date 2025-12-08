@@ -4,11 +4,11 @@ import { prisma } from "@/lib/prisma"
 // PUT /api/admin/panorama/organizations/[id] - 更新组织信息
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { name, isVerified } = await request.json()
-    const { id } = params
+    const { id } = await params
 
     // 检查组织是否存在
     const existingOrg = await prisma.organization.findUnique({
@@ -93,23 +93,14 @@ export async function PUT(
 // DELETE /api/admin/panorama/organizations/[id] - 删除组织
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     // 检查组织是否存在
     const existingOrg = await prisma.organization.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: {
-            members: true,
-            teams: true,
-            projects: true,
-          }
-        }
-      }
+      where: { id }
     })
 
     if (!existingOrg) {
@@ -119,17 +110,9 @@ export async function DELETE(
       )
     }
 
-    // 检查组织是否有成员、团队或项目
-    if (existingOrg._count.members > 0 || existingOrg._count.teams > 0 || existingOrg._count.projects > 0) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "无法删除：组织中还有成员、团队或项目。请先清空组织后再删除。" 
-        },
-        { status: 400 }
-      )
-    }
-
+    // 全景视图中的删除是强制删除,不检查是否有成员、团队或项目
+    // Prisma schema 中的 onDelete: Cascade 会自动级联删除相关数据
+    
     // 删除组织
     await prisma.organization.delete({
       where: { id }

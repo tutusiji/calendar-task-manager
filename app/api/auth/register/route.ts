@@ -85,11 +85,32 @@ export async function POST(request: NextRequest) {
 
     // 如果选择了已有组织，验证邀请码
     let inviterId: string | null = null
-    if (organizationId && inviteCode) {
-      // 查找该组织中拥有该邀请码的成员
+    let targetOrg: any = null
+
+    if (organizationId) {
+      if (!inviteCode || inviteCode.trim().length === 0) {
+        return validationErrorResponse('加入已有组织必须填写邀请码')
+      }
+
+      // 获取目标组织信息（包括审批设置和创建者）
+      targetOrg = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          id: true,
+          name: true,
+          joinRequiresApproval: true,
+          creatorId: true
+        }
+      })
+
+      if (!targetOrg) {
+        return errorResponse('选择的组织不存在', 404)
+      }
+
+      // 验证邀请码
       const member = await prisma.organizationMember.findFirst({
         where: {
-          inviteCode,
+          inviteCode: inviteCode.toUpperCase(),
           organizationId
         },
         select: {
@@ -139,100 +160,103 @@ export async function POST(request: NextRequest) {
       let orgId = organizationId
       let notificationData: { inviterId?: string; organizationId?: string } = {}
       
-      if (organizationId && inviterId) {
-        // 用户通过邀请码加入已有组织，直接成为成员
-        // 为新成员生成唯一的邀请码
-        let memberInviteCode = generateInviteCode()
-        let exists = await tx.organizationMember.findFirst({ where: { inviteCode: memberInviteCode } })
-        while (exists) {
-          memberInviteCode = generateInviteCode()
-          exists = await tx.organizationMember.findFirst({ where: { inviteCode: memberInviteCode } })
-        }
-        
-        await tx.organizationMember.create({
-          data: {
-            userId: newUser.id,
-            organizationId: organizationId,
-            role: 'MEMBER',
-            inviterId: inviterId, // 记录邀请人
-            inviteCode: memberInviteCode // 生成该成员在该组织的邀请码
+      if (organizationId && targetOrg) {
+        // 判断是否需要审批
+        if (!targetOrg.joinRequiresApproval) {
+          // 不需要审批 -> 直接加入
+          
+          // 为新成员生成唯一的邀请码
+          let memberInviteCode = generateInviteCode()
+          let exists = await tx.organizationMember.findFirst({ where: { inviteCode: memberInviteCode } })
+          while (exists) {
+            memberInviteCode = generateInviteCode()
+            exists = await tx.organizationMember.findFirst({ where: { inviteCode: memberInviteCode } })
           }
-        })
-
-        // 设置当前组织
-        await tx.user.update({
-          where: { id: newUser.id },
-          data: { currentOrganizationId: organizationId }
-        })
-
-        // 创建个人项目
-        await tx.project.create({
-          data: {
-            name: `${cleanName}的个人事务`,
-            color: '#3b82f6',
-            description: '个人日常任务和事项',
-            organizationId: organizationId,
-            creatorId: newUser.id,
-            members: {
-              create: {
-                userId: newUser.id
-              }
-            }
-          }
-        })
-
-        // 发送站内信给邀请人
-        await tx.notification.create({
-          data: {
-            userId: inviterId,
-            type: 'USER_INVITED_JOINED',
-            title: '新成员加入',
-            content: `${cleanName} 通过您的邀请码 ${inviteCode} 加入了组织`,
-            metadata: {
-              newUserId: newUser.id,
-              newUserName: cleanName,
-              organizationId: organizationId,
-              inviteCode: inviteCode
-            }
-          }
-        })
-
-        notificationData = { inviterId, organizationId }
-      } else if (organizationId && !inviterId) {
-        // 用户选择了已有组织但没有邀请码，创建加入申请
-        const org = await tx.organization.findUnique({
-          where: { id: organizationId },
-          select: { creatorId: true }
-        })
-
-        const joinRequest = await tx.organizationJoinRequest.create({
-          data: {
-            organizationId: organizationId,
-            applicantId: newUser.id,
-            status: 'PENDING'
-          }
-        })
-
-        // 发送站内信给组织创建人
-        if (org) {
-          await tx.notification.create({
+          
+          await tx.organizationMember.create({
             data: {
-              userId: org.creatorId,
-              type: 'ORG_JOIN_REQUEST',
-              title: '新的加入申请',
-              content: `${cleanName} 申请加入您的组织`,
-              metadata: {
-                requestId: joinRequest.id,
-                applicantId: newUser.id,
-                applicantName: cleanName,
-                organizationId: organizationId
+              userId: newUser.id,
+              organizationId: organizationId,
+              role: 'MEMBER',
+              inviterId: inviterId, // 记录邀请人
+              inviteCode: memberInviteCode // 生成该成员在该组织的邀请码
+            }
+          })
+
+          // 设置当前组织
+          await tx.user.update({
+            where: { id: newUser.id },
+            data: { currentOrganizationId: organizationId }
+          })
+
+          // 创建个人项目
+          await tx.project.create({
+            data: {
+              name: `${cleanName}的个人事务`,
+              color: '#3b82f6',
+              description: '个人日常任务和事项',
+              organizationId: organizationId,
+              creatorId: newUser.id,
+              members: {
+                create: {
+                  userId: newUser.id
+                }
               }
             }
           })
-        }
 
-        notificationData = { organizationId }
-        // 不设置 currentOrganizationId，等待审批
+          // 发送站内信给组织创建人（而不是邀请人）
+          if (targetOrg.creatorId) {
+            await tx.notification.create({
+              data: {
+                userId: targetOrg.creatorId,
+                type: 'USER_INVITED_JOINED',
+                title: '新成员加入',
+                content: `${cleanName} 通过成员邀请码加入您的组织 ${targetOrg.name}`,
+                metadata: {
+                  newUserId: newUser.id,
+                  newUserName: cleanName,
+                  organizationId: organizationId,
+                  inviteCode: inviteCode
+                }
+              }
+            })
+          }
+
+          notificationData = { inviterId: inviterId || undefined, organizationId }
+        } else {
+          // 需要审批 -> 创建加入申请
+          const joinRequest = await tx.organizationJoinRequest.create({
+            data: {
+              organizationId: organizationId,
+              applicantId: newUser.id,
+              status: 'PENDING',
+              inviterId: inviterId, // 记录使用的是谁的邀请码
+              message: `使用邀请码 ${inviteCode} 申请加入`
+            }
+          })
+
+          // 发送站内信给组织创建人
+          if (targetOrg.creatorId) {
+            await tx.notification.create({
+              data: {
+                userId: targetOrg.creatorId,
+                type: 'ORG_JOIN_REQUEST',
+                title: '新的加入申请',
+                content: `${cleanName} 申请加入您的组织 ${targetOrg.name}（需审批）`,
+                metadata: {
+                  requestId: joinRequest.id,
+                  applicantId: newUser.id,
+                  applicantName: cleanName,
+                  organizationId: organizationId
+                }
+              }
+            })
+          }
+
+          notificationData = { organizationId }
+          // 不设置 currentOrganizationId，等待审批
+        }
       } else {
         // 用户输入了新组织名称，创建新组织
         // 为创始人生成唯一的邀请码
@@ -248,6 +272,7 @@ export async function POST(request: NextRequest) {
             name: cleanOrganization,
             creatorId: newUser.id,
             isVerified: false,
+            joinRequiresApproval: false, // 默认不需要审批
             members: {
               create: {
                 userId: newUser.id,

@@ -1,11 +1,12 @@
 # 1. 手动打包 company 版本
-docker build --build-arg ENV_TYPE=company -t calendar-task-manager:company-2025-12-08 .
-docker save -o calendar-task-manager_company_2025-12-08.tar calendar-task-manager:company-2025-12-08
-docker load -i calendar-task-manager_company_2025-12-08.tar
+docker build --build-arg ENV_TYPE=company -t calendar-task-manager:company-2025-12-09 .
+docker save -o calendar-task-manager_company_2025-12-09.tar calendar-task-manager:company-2025-12-09
+docker load -i calendar-task-manager_company_2025-12-09.tar
 
 # 2. 手动打包 personal 版本
-docker build --build-arg ENV_TYPE=personal -t calendar-task-manager:personal-2025-12-08 .
-docker save -o calendar-task-manager_personal_2025-12-08.tar calendar-task-manager:personal-2025-12-08
+docker build --build-arg ENV_TYPE=personal -t calendar-task-manager:personal-2025-12-09 .
+docker save -o calendar-task-manager_personal_2025-12-09.tar calendar-task-manager:personal-2025-12-09
+docker load -i calendar-task-manager_personal_2025-12-09.tar
 
 # 3. 修改 docker-compose.yml 中的 image 字段
 # image: calendar-task-manager:company-2025-12-08
@@ -47,3 +48,10 @@ docker system prune -a && docker builder prune -a
 
 # 4. 查看 Docker 占用的空间
 docker system df
+
+
+
+# 直接执行 SQL 命令
+docker exec -i calendar-postgres psql -U postgres -d calendar_tasks -c "ALTER TABLE \"Organization\" ADD COLUMN IF NOT EXISTS \"joinRequiresApproval\" BOOLEAN NOT NULL DEFAULT false; UPDATE \"Organization\" SET \"joinRequiresApproval\" = false;"
+# 验证结果
+docker exec -it calendar-postgres psql -U postgres -d calendar_tasks -c "SELECT id, name, \"joinRequiresApproval\" FROM \"Organization\";"

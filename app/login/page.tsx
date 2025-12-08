@@ -392,7 +392,7 @@ export default function AuthPage() {
                   {registerData.organizationId && (
                     <div className="space-y-2">
                       <Label htmlFor="register-invite-code">
-                        邀请码 <span className="text-muted-foreground text-xs">(选填)</span>
+                        邀请码 <span className="text-red-500">*</span>
                       </Label>
                       <div className="space-y-2">
                         <Input
@@ -430,6 +430,7 @@ export default function AuthPage() {
                           disabled={isLoading || isValidatingCode}
                           maxLength={8}
                           className="uppercase font-mono"
+                          required
                         />
                         {isValidatingCode && (
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -448,9 +449,7 @@ export default function AuthPage() {
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          {registerData.inviteCode ? 
-                            "使用邀请码可直接加入组织，否则需要等待管理员审批" : 
-                            "不填写邀请码将创建加入申请，需要等待管理员审批"}
+                          该组织成员在空间管理可查看邀请码
                         </p>
                       </div>
                     </div>

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
@@ -41,6 +42,7 @@ interface Organization {
   teamCount?: number
   projectCount?: number
   creatorId: string
+  joinRequiresApproval: boolean
 }
 
 interface OrganizationManagementDialogProps {
@@ -74,6 +76,7 @@ export function OrganizationManagementDialog({
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    joinRequiresApproval: false,
   })
   const [inviteCodes, setInviteCodes] = useState<Record<string, string>>({}) // 存储每个组织的邀请码
   const [copiedCode, setCopiedCode] = useState<string | null>(null) // 记录刚复制的邀请码
@@ -120,6 +123,7 @@ export function OrganizationManagementDialog({
     setFormData({
       name: "",
       description: "",
+      joinRequiresApproval: false,
     })
     setSearchResults([])
     setSelectedExistingOrg(null)
@@ -167,6 +171,7 @@ export function OrganizationManagementDialog({
     setFormData({
       name: org.name,
       description: org.description || "",
+      joinRequiresApproval: org.joinRequiresApproval || false,
     })
     setSelectedExistingOrg(org.id)
     setSearchResults([])
@@ -197,7 +202,7 @@ export function OrganizationManagementDialog({
           duration: 3000,
         })
         setIsCreating(false)
-        setFormData({ name: "", description: "" })
+        setFormData({ name: "", description: "", joinRequiresApproval: false })
         setSearchResults([])
         setSelectedExistingOrg(null)
       } catch (error) {
@@ -223,7 +228,7 @@ export function OrganizationManagementDialog({
         description: "空间已创建",
       })
       setIsCreating(false)
-      setFormData({ name: "", description: "" })
+      setFormData({ name: "", description: "", joinRequiresApproval: false })
       setSearchResults([])
       setSelectedExistingOrg(null)
       fetchOrganizations()
@@ -244,6 +249,7 @@ export function OrganizationManagementDialog({
     setFormData({
       name: org.name,
       description: org.description || "",
+      joinRequiresApproval: org.joinRequiresApproval || false,
     })
   }
 
@@ -408,7 +414,7 @@ export function OrganizationManagementDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="!max-w-[640px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>空间管理</DialogTitle>
             <DialogDescription>
@@ -416,7 +422,8 @@ export function OrganizationManagementDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          {/* 新增按钮 - 固定不滚动 */}
+          <div className="pt-4">
             <Button
               onClick={handleCreate}
               className="w-full"
@@ -425,6 +432,10 @@ export function OrganizationManagementDialog({
               <Plus className="h-4 w-4 mr-2" />
               新增/加入 空间
             </Button>
+          </div>
+
+          {/* 组织列表 - 可滚动区域 */}
+          <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
             {organizations.map((org) => (
               <div
                 key={org.id}
@@ -570,6 +581,19 @@ export function OrganizationManagementDialog({
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="输入空间描述（可选）"
                 rows={3}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label className="text-base">加入需要审批</Label>
+                <div className="text-sm text-muted-foreground">
+                  开启后,即使通过邀请码加入也需要管理员审批
+                </div>
+              </div>
+              <Switch
+                checked={formData.joinRequiresApproval}
+                onCheckedChange={(checked) => setFormData({ ...formData, joinRequiresApproval: checked })}
               />
             </div>
 
