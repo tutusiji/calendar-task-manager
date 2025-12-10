@@ -200,21 +200,9 @@ export function TaskBar({
   };
 
   // 判断是否在周末（周日）截断
-  const isWeekEndCut = () => {
-    const displayDays = calculateDisplayDays();
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-    const lastDisplayDate = new Date(currentDate);
-    lastDisplayDate.setDate(lastDisplayDate.getDate() + displayDays - 1);
-
-    // 如果最后显示日期是周日，且任务还没结束，则截断
-    return lastDisplayDate.getDay() === 0 && !isSegmentEnd();
-  };
-
   const spanDays = calculateDisplayDays();
   const taskStart = isTaskStart();
   const segmentEnd = isSegmentEnd();
-  const weekEndCut = isWeekEndCut();
 
   // 获取圆角样式
   const getRoundedClass = () => {
@@ -223,8 +211,8 @@ export function TaskBar({
       return "rounded-full";
     }
 
-    // 情况2：任务开始段，但会被周末截断 → 左圆角
-    if (taskStart && weekEndCut) {
+    // 情况2：任务开始段，但没有结束（被截断） → 左圆角
+    if (taskStart && !segmentEnd) {
       return "rounded-l-full";
     }
 

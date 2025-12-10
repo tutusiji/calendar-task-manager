@@ -75,9 +75,9 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
   const [color, setColor] = useState<string>(task?.color || 'blue')
   const [progress, setProgress] = useState<number>(task?.progress || 0)
   const [teamId, setTeamId] = useState<string>(
-    task?.teamId || 
-    taskCreation.teamId || 
-    (currentUser?.defaultTeamId ? currentUser.defaultTeamId : "none")
+    task
+      ? (task.teamId || "none")
+      : (taskCreation.teamId || currentUser?.defaultTeamId || "none")
   )
   const [projectId, setProjectId] = useState(
     task?.projectId || 
