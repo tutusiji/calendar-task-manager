@@ -163,7 +163,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
         color: taskType === 'daily' ? color : undefined,
         progress,
         projectId,
-        teamId: teamId === "none" ? undefined : teamId,
+        teamId: teamId === "none" ? null : teamId,
         userId: assigneeIds.length > 0 ? assigneeIds : undefined,
       }
 
