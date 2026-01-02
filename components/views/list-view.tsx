@@ -138,12 +138,25 @@ export function ListView() {
       // 按人头分组（按任务负责人分组）
       const userMap = new Map<string, Task[]>()
       filteredTasks.forEach((task) => {
-        // 优先使用第一个负责人，如果没有负责人则使用创建人
-        const userId = task.assignees?.[0]?.userId || task.creatorId
-        if (!userMap.has(userId)) {
-          userMap.set(userId, [])
+        const assignees = task.assignees || []
+        
+        if (assignees.length > 0) {
+          // Add task for each assignee
+          assignees.forEach(assignee => {
+            const userId = assignee.userId
+            if (!userMap.has(userId)) {
+              userMap.set(userId, [])
+            }
+            userMap.get(userId)!.push(task)
+          })
+        } else {
+          // Fallback to creator if no assignees
+          const userId = task.creatorId
+          if (!userMap.has(userId)) {
+            userMap.set(userId, [])
+          }
+          userMap.get(userId)!.push(task)
         }
-        userMap.get(userId)!.push(task)
       })
 
       return Array.from(userMap.entries()).map(([userId, tasks]) => {

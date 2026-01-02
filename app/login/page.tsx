@@ -95,18 +95,68 @@ export default function AuthPage() {
     }
   }
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
-
-    // 验证职业
-    if (!registerData.role) {
-      setError("请选择职业")
-      setIsLoading(false)
-      return
+    // 验证用户名 helper
+    const validateUsername = (username: string) => {
+      // Check allowed characters
+      if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+        return "用户名只能包含字母、数字、点(.)和下划线(_)"
+      }
+      // Check disallowed patterns
+      if (/^\d+$/.test(username)) {
+        return "用户名不能全是数字"
+      }
+      if (/^\.+$/.test(username)) {
+        return "用户名不能全是点"
+      }
+      if (/^_+$/.test(username)) {
+        return "用户名不能全是下划线"
+      }
+      
+      // Check for at least 3 English letters
+      const letterCount = (username.match(/[a-zA-Z]/g) || []).length
+      if (letterCount < 3) {
+        return "用户名至少包含3位英文字母"
+      }
+      return null
     }
+
+    const handleUsernameBlur = () => {
+      if (!registerData.username) return
+      
+      const errorMsg = validateUsername(registerData.username)
+      if (errorMsg) {
+        setError(errorMsg)
+      } else {
+        // 如果当前显示的错误是用户名相关的，则清除它
+        if (error && (
+            error.includes("用户名") || 
+            error.includes("username")
+        )) {
+            setError("")
+        }
+      }
+    }
+
+    const handleRegister = async (e: React.FormEvent) => {
+      e.preventDefault()
+      setIsLoading(true)
+      setError("")
+      setSuccess("")
+  
+      // Verify username
+      const usernameError = validateUsername(registerData.username)
+      if (usernameError) {
+        setError(usernameError)
+        setIsLoading(false)
+        return
+      }
+  
+      // 验证职业
+      if (!registerData.role) {
+        setError("请选择职业")
+        setIsLoading(false)
+        return
+      }
 
     // 验证自定义职业
     if (registerData.role === '自定义' && !registerData.customRole.trim()) {
@@ -188,7 +238,14 @@ export default function AuthPage() {
           <p className="mt-2 text-md text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>{siteConfig.fullTitle}</p>
         </div>
 
-        <Tabs defaultValue="login" className="w-full">
+        <Tabs 
+          defaultValue="login" 
+          className="w-full"
+          onValueChange={() => {
+            setError("")
+            setSuccess("")
+          }}
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">登录</TabsTrigger>
             <TabsTrigger value="register">注册</TabsTrigger>
@@ -301,6 +358,7 @@ export default function AuthPage() {
                         onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
                         required
                         disabled={isLoading}
+                        onBlur={handleUsernameBlur}
                       />
                     </div>
 

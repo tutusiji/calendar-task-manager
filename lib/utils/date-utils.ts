@@ -25,15 +25,16 @@ export function getMonthDays(year: number, month: number, hideWeekends: boolean 
   }
 
   // Add next month's days to fill the last week
-  const daysPerWeek = hideWeekends ? 5 : 7
+  // Add next month's days to fill the last week
   const targetDays = hideWeekends ? 30 : 42 // 6周*5天 or 6周*7天
-  const remainingDays = targetDays - days.length
   
-  for (let i = 1; i <= remainingDays; i++) {
+  let i = 1
+  while (days.length < targetDays) {
     const day = new Date(year, month + 1, i)
     if (!hideWeekends || (day.getDay() !== 0 && day.getDay() !== 6)) {
       days.push(day)
     }
+    i++
   }
 
   return days

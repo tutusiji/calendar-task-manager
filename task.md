@@ -1,12 +1,12 @@
 # 1. 手动打包 company 版本
-docker build --build-arg ENV_TYPE=company -t calendar-task-manager:company-2025-12-11 .
-docker save -o calendar-task-manager_company_2025-12-11.tar calendar-task-manager:company-2025-12-11
-docker load -i calendar-task-manager_company_2025-12-11.tar
+docker build --build-arg ENV_TYPE=company -t calendar-task-manager:company-2026-1-1 .
+docker save -o calendar-task-manager_company_2026-1-1.tar calendar-task-manager:company-2026-1-1
+docker load -i calendar-task-manager_company_2026-1-1.tar
 
 # 2. 手动打包 personal 版本
-docker build --build-arg ENV_TYPE=personal -t calendar-task-manager:personal-2025-12-11 .
-docker save -o calendar-task-manager_personal_2025-12-11.tar calendar-task-manager:personal-2025-12-11
-docker load -i calendar-task-manager_personal_2025-12-11.tar
+docker build --build-arg ENV_TYPE=personal -t calendar-task-manager:personal-2026-1-1 .
+docker save -o calendar-task-manager_personal_2026-1-1.tar calendar-task-manager:personal-2026-1-1
+docker load -i calendar-task-manager_personal_2026-1-1.tar
 
 # 3. 修改 docker-compose.yml 中的 image 字段
 # image: calendar-task-manager:company-2025-12-08
