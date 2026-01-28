@@ -18,6 +18,14 @@
 - [deploy/scripts/3-start-app.sh](file://deploy/scripts/3-start-app.sh)
 </cite>
 
+## 更新摘要
+**所做更改**
+- 更新了Docker镜像标签从`calendar-task-manager:company-2026-1-1`到`calendar-task-manager:personal-2026-1-1`
+- 更新了部署目标从企业级向个人开发者和小团队的战略转移
+- 更新了Prisma Studio镜像标签从`calendar-task-manager:2025-11-29`到`calendar-task-manager:2025-11-29`
+- 更新了相关的部署流程和环境配置说明
+- 强调了个人版部署的简化配置和优化
+
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
@@ -33,6 +41,8 @@
 ## 简介
 
 本指南详细介绍如何使用Docker Compose对日历任务管理系统进行容器化部署。该系统采用现代化的微服务架构，包含PostgreSQL数据库、Next.js前端应用和Prisma Studio管理界面三个核心服务。文档涵盖了完整的部署流程、配置参数说明、环境变量设置、端口映射、卷挂载以及健康检查配置。
+
+**更新** 部署目标已从企业级向个人开发者和小团队转移，镜像标签从`:company-2026-1-1`更新为`:personal-2026-1-1`，反映了更简洁的部署策略和更低的资源消耗需求。
 
 ## 项目结构
 
@@ -83,7 +93,7 @@ PostgreSQL服务是系统的核心数据存储，采用官方Alpine Linux镜像�
 应用服务基于Node.js 20 Alpine镜像，实现了完整的多阶段构建优化。
 
 **核心特性：**
-- **镜像**: calendar-task-manager:personal-2026-1-1
+- **镜像**: calendar-task-manager:personal-2026-1-1 **（个人版标签）**
 - **端口映射**: 7049:3000（宿主:容器）
 - **环境变量**: 包含数据库连接、节点环境、头像API配置
 - **数据卷**: 挂载上传文件目录
@@ -162,7 +172,7 @@ O --> P[启动应用]
 - [Dockerfile](file://Dockerfile#L1-L72)
 
 **构建阶段特性：**
-- **构建参数**: ENV_TYPE=company（支持不同环境配置）
+- **构建参数**: ENV_TYPE=personal（支持个人版配置）
 - **依赖安装**: 使用pnpm替代npm，提升安装速度
 - **Prisma集成**: 在构建阶段生成客户端代码
 - **多阶段优化**: 最终镜像仅包含运行时必需文件
@@ -195,7 +205,7 @@ O --> P[启动应用]
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| image | calendar-task-manager:personal-2026-1-1 | 应用镜像 |
+| image | calendar-task-manager:personal-2026-1-1 **（个人版标签）** | 应用镜像 |
 | container_name | calendar-app | 容器名称 |
 | restart | unless-stopped | 重启策略 |
 | ports | 7049:3000 | 端口映射 |
@@ -206,7 +216,7 @@ O --> P[启动应用]
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| image | calendar-task-manager:2025-11-29 | 开发镜像 |
+| image | calendar-task-manager:2025-11-29 **（保持不变）** | 开发镜像 |
 | container_name | calendar-prisma-studio | 容器名称 |
 | profiles | dev | 仅开发环境启用 |
 | ports | 5555:5555 | 端口映射 |
@@ -434,11 +444,14 @@ D --> L[验证容器状态]
 
 本Docker容器化部署方案提供了完整的日历任务管理系统部署解决方案。通过多阶段构建优化、严格的环境变量管理、完善的健康检查机制和灵活的部署脚本，确保了系统的稳定性、可维护性和可扩展性。
 
+**更新** 部署目标已从企业级向个人开发者和小团队转移，镜像标签从`:company-2026-1-1`更新为`:personal-2026-1-1`，反映了更简洁的部署策略和更低的资源消耗需求。
+
 关键优势包括：
 - **安全性**: 非root用户运行、最小权限原则
 - **可维护性**: 清晰的环境变量分离、标准化的部署流程
 - **可扩展性**: 模块化的服务架构、灵活的资源配置
 - **可靠性**: 健康检查、自动重启、数据持久化
+- **成本效益**: 个人版镜像优化，降低部署成本
 
 建议在生产环境中进一步完善：
 1. 配置SSL证书和HTTPS
@@ -466,6 +479,15 @@ docker-compose logs -f
 
 # 停止服务
 docker-compose down
+```
+
+**个人版部署配置：**
+```yaml
+# 使用个人版镜像标签
+services:
+  app:
+    image: calendar-task-manager:personal-2026-1-1
+    # 其他配置保持不变
 ```
 
 **生产环境配置：**
