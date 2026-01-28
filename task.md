@@ -56,3 +56,5 @@ docker system df
 docker exec -i calendar-postgres psql -U postgres -d calendar_tasks -c "ALTER TABLE \"Organization\" ADD COLUMN IF NOT EXISTS \"joinRequiresApproval\" BOOLEAN NOT NULL DEFAULT false; UPDATE \"Organization\" SET \"joinRequiresApproval\" = false;"
 # 验证结果
 docker exec -it calendar-postgres psql -U postgres -d calendar_tasks -c "SELECT id, name, \"joinRequiresApproval\" FROM \"Organization\";"
+
+git reset --hard origin/master
