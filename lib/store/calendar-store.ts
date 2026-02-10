@@ -358,6 +358,8 @@ export const useCalendarStore = create<CalendarStore>()(
             organizationId: project.organizationId,
             creatorId: project.creatorId, // 添加创建者ID
             taskPermission: project.taskPermission || "ALL_MEMBERS", // 任务权限
+            isArchived: project.isArchived || false, // 是否已归档
+            archivedAt: project.archivedAt ? new Date(project.archivedAt) : undefined, // 归档时间
             // API 现在直接返回 memberIds 数组
             memberIds: project.memberIds || [],
             createdAt: new Date(project.createdAt),

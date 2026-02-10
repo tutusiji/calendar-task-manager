@@ -102,6 +102,8 @@ export interface Project {
   memberIds: string[]
   creatorId: string // 创建者ID
   taskPermission: TaskPermission // 任务权限
+  isArchived?: boolean // 是否已归档
+  archivedAt?: Date // 归档时间
   createdAt: Date
 }
 

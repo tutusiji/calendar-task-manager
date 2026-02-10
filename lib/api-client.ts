@@ -352,6 +352,24 @@ export const projectAPI = {
       method: 'POST',
     })
   },
+
+  /**
+   * 归档项目
+   */
+  async archive(projectId: string): Promise<ProjectWithMembers> {
+    return fetchAPI<ProjectWithMembers>(`/projects/${projectId}/archive`, {
+      method: 'POST',
+    })
+  },
+
+  /**
+   * 取消归档项目
+   */
+  async unarchive(projectId: string): Promise<ProjectWithMembers> {
+    return fetchAPI<ProjectWithMembers>(`/projects/${projectId}/archive`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 // ==================== 团队 API ====================
