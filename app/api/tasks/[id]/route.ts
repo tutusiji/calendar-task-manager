@@ -78,24 +78,24 @@ export async function GET(
     
     if (!isAssignee && !isCreator) {
       // 检查是否是同一团队/项目成员
-      const hasAccess = await prisma.$or([
-        // 项目成员
+      const accessChecks = await Promise.all([
         prisma.projectMember.findFirst({
           where: {
             projectId: task.projectId,
             userId: auth.userId
           }
         }),
-        // 团队成员（如果任务关联了团队）
-        task.teamId ? prisma.teamMember.findFirst({
-          where: {
-            teamId: task.teamId,
-            userId: auth.userId
-          }
-        }) : Promise.resolve(null)
+        task.teamId
+          ? prisma.teamMember.findFirst({
+              where: {
+                teamId: task.teamId,
+                userId: auth.userId
+              }
+            })
+          : Promise.resolve(null)
       ])
 
-      if (!hasAccess || !hasAccess.some(Boolean)) {
+      if (!accessChecks.some(Boolean)) {
         return forbiddenResponse('无权查看此任务')
       }
     }
