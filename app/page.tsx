@@ -37,10 +37,15 @@ export default function Home() {
   const viewMode = useCalendarStore(state => state.viewMode)
   const navigationMode = useCalendarStore(state => state.navigationMode)
   const mainViewMode = useCalendarStore(state => state.mainViewMode)
+  const setMainViewMode = useCalendarStore(state => state.setMainViewMode)
   const taskCreation = useCalendarStore(state => state.taskCreation)
   const closeTaskCreation = useCalendarStore(state => state.closeTaskCreation)
   const taskEdit = useCalendarStore(state => state.taskEdit)
   const closeTaskEdit = useCalendarStore(state => state.closeTaskEdit)
+
+  const handleLogoClick = () => {
+    setMainViewMode("calendar")
+  }
 
   // 检查登录状态并加载数据
   useEffect(() => {
@@ -148,10 +153,22 @@ export default function Home() {
     <div className="flex h-screen">
       <aside className="w-72 border-r border-border bg-background flex flex-col">
         {/* Logo */}
-        <div className="border-b border-border bg-card px-6 pt-[14px] pb-[15px]">
-          <div className="flex items-center gap-3">
+        <div className="border-b border-border bg-card px-6 pt-[14px] pb-[13px]">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={handleLogoClick}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                handleLogoClick()
+              }
+            }}
+            className="flex items-center gap-3 cursor-pointer select-none focus:outline-none"
+            aria-label="切换到日历视图"
+            >
             {/* Logo 图片 */}
-            <div className="relative w-10 h-10 shrink-0">
+            <div className="relative h-10 w-10 shrink-0">
               <Image
                 src="/logo.png"
                 alt={siteConfig.logoAlt}
@@ -165,7 +182,9 @@ export default function Home() {
               <h1 className="text-[22px] font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>
                 {siteConfig.appName}
               </h1>
-              <p className="text-[13px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>{siteConfig.appSlogan}</p>
+              <p className="text-[13px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>
+                {siteConfig.appSlogan}
+              </p>
             </div>
           </div>
         </div>
