@@ -163,10 +163,10 @@ async function cleanupDatabaseIssues() {
       console.log(`  修复了 ${fixedCount} 个无效的默认团队设置`)
     }
 
-    // 5. 清理过期的通知 (超过30天的已读通知)
+    // 5. 清理过期的通知 (超过45天的已读通知)
     console.log('\n🔍 清理过期的通知...')
     const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 45)
 
     const deletedNotifications = await prisma.notification.deleteMany({
       where: {
