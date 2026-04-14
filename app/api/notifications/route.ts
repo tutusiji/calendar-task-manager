@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
 import { authenticate } from "@/lib/middleware"
+import { getNotificationCutoffDate } from "@/lib/notification-utils"
 
 // GET /api/notifications - 获取当前用户的消息列表
 export async function GET(req: NextRequest) {
@@ -15,13 +16,12 @@ export async function GET(req: NextRequest) {
     console.log("查询消息列表，用户ID:", auth.userId, "仅未读:", unreadOnly)
 
     // 获取30天内的消息
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const cutoffDate = getNotificationCutoffDate()
 
     const whereClause: any = {
       userId: auth.userId,
       createdAt: {
-        gte: thirtyDaysAgo,
+        gte: cutoffDate,
       },
     }
 
@@ -91,6 +91,9 @@ export async function HEAD(req: NextRequest) {
       where: {
         userId: auth.userId,
         isRead: false,
+        createdAt: {
+          gte: getNotificationCutoffDate(),
+        },
       },
     })
 

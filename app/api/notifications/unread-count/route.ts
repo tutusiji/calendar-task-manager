@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
 import { authenticate } from "@/lib/middleware"
+import { getNotificationCutoffDate } from "@/lib/notification-utils"
 
 // GET /api/notifications/unread-count - 获取未读消息数量
 export async function GET(req: NextRequest) {
@@ -15,6 +16,9 @@ export async function GET(req: NextRequest) {
       where: {
         userId: auth.userId,
         isRead: false,
+        createdAt: {
+          gte: getNotificationCutoffDate(),
+        },
       },
     })
 

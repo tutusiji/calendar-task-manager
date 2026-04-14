@@ -21,7 +21,7 @@ export function NotificationBell() {
     try {
       const { notificationAPI } = await import("@/lib/api/notification")
       const data = await notificationAPI.getUnreadCount()
-      setUnreadCount(data.count || data)
+      setUnreadCount(data.count ?? 0)
     } catch (error) {
       console.error("获取未读消息数量失败:", error)
     }

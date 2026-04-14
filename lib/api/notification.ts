@@ -17,6 +17,10 @@ export interface Notification {
   metadata?: any
 }
 
+export interface NotificationUnreadCount {
+  count: number
+}
+
 export const notificationAPI = {
   /**
    * 获取通知列表
@@ -28,8 +32,8 @@ export const notificationAPI = {
   /**
    * 获取未读数量
    */
-  async getUnreadCount(): Promise<number> {
-    return get<number>('/notifications/unread-count')
+  async getUnreadCount(): Promise<NotificationUnreadCount> {
+    return get<NotificationUnreadCount>('/notifications/unread-count')
   },
 
   /**
