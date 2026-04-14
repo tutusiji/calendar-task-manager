@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, ListTodo, BarChart3 } from "lucide-react"
+import { Calendar, ListTodo, BarChart3, KanbanSquare } from "lucide-react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { cn } from "@/lib/utils"
 import type { MainViewMode } from "@/lib/types"
@@ -12,6 +12,7 @@ export function MainNavigation() {
     { mode: "calendar", label: "日历", icon: <Calendar className="h-5 w-5" /> },
     { mode: "list", label: "清单", icon: <ListTodo className="h-5 w-5" /> },
     { mode: "stats", label: "统计", icon: <BarChart3 className="h-5 w-5" /> },
+    { mode: "plan", label: "计划", icon: <KanbanSquare className="h-5 w-5" /> },
   ]
 
   return (

@@ -27,6 +27,7 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
   const { users, teams, getUserById, currentUser } = useCalendarStore()
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedFilterTeamId, setSelectedFilterTeamId] = useState<string | null>(null)
 
   // 过滤当前组织的用户
   const organizationUsers = currentUser?.currentOrganizationId
@@ -38,8 +39,16 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
     ? teams.filter(t => t.organizationId === currentUser.currentOrganizationId)
     : teams
 
+  const selectedFilterTeam = selectedFilterTeamId
+    ? organizationTeams.find(team => team.id === selectedFilterTeamId) || null
+    : null
+
+  const teamFilteredUsers = selectedFilterTeam
+    ? organizationUsers.filter(user => selectedFilterTeam.memberIds.includes(user.id))
+    : organizationUsers
+
   // 根据搜索词过滤用户
-  const filteredUsers = organizationUsers.filter(user => {
+  const filteredUsers = teamFilteredUsers.filter(user => {
     const query = searchQuery.toLowerCase()
     return (
       user.name.toLowerCase().includes(query) ||
@@ -69,25 +78,34 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
     }
   }
 
-  const toggleTeam = (teamId: string) => {
-    const team = teams.find(t => t.id === teamId)
-    if (!team) return
+  const toggleTeamFilter = (teamId: string) => {
+    setSelectedFilterTeamId(current => current === teamId ? null : teamId)
+  }
 
-    const memberIds = team.memberIds
-    // 检查是否所有成员都已选中
-    const allSelected = memberIds.every(id => selectedUserIds.includes(id))
+  const selectableVisibleUserIds = filteredUsers
+    .map(user => user.id)
+    .filter(userId => !lockedUserIds.includes(userId))
 
-    if (allSelected) {
-      // 如果全选了，则取消选择该团队的所有成员（除了锁定的）
-      const newSelectedIds = selectedUserIds.filter(id => 
-        !memberIds.includes(id) || lockedUserIds.includes(id)
-      )
-      onUserChange(newSelectedIds)
-    } else {
-      // 否则，添加所有未选中的成员
-      const newIds = memberIds.filter(id => !selectedUserIds.includes(id))
-      onUserChange([...selectedUserIds, ...newIds])
+  const isAllVisibleUsersSelected =
+    selectableVisibleUserIds.length > 0 &&
+    selectableVisibleUserIds.every(userId => selectedUserIds.includes(userId))
+
+  const toggleSelectVisibleUsers = () => {
+    if (selectableVisibleUserIds.length === 0) {
+      return
     }
+
+    if (isAllVisibleUsersSelected) {
+      onUserChange(
+        selectedUserIds.filter(
+          userId => !selectableVisibleUserIds.includes(userId) || lockedUserIds.includes(userId)
+        )
+      )
+      return
+    }
+
+    const nextIds = selectableVisibleUserIds.filter(userId => !selectedUserIds.includes(userId))
+    onUserChange([...selectedUserIds, ...nextIds])
   }
 
   const removeUser = (userId: string, e: React.MouseEvent) => {
@@ -104,6 +122,7 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
     setOpen(isOpen)
     if (!isOpen) {
       setSearchQuery("") // 关闭时重置搜索
+      setSelectedFilterTeamId(null)
     }
   }
 
@@ -193,18 +212,15 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
                   </div>
                 ) : (
                   filteredTeams.map((team) => {
-                    const memberIds = team.memberIds || []
-                    const selectedCount = memberIds.filter(id => selectedUserIds.includes(id)).length
-                    const isAllSelected = memberIds.length > 0 && selectedCount === memberIds.length
-                    const isPartialSelected = selectedCount > 0 && selectedCount < memberIds.length
+                    const isActive = selectedFilterTeamId === team.id
 
                     return (
                       <button
                         key={team.id}
-                        onClick={() => toggleTeam(team.id)}
+                        onClick={() => toggleTeamFilter(team.id)}
                         className={cn(
                           "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors",
-                          (isAllSelected || isPartialSelected) && "bg-accent/50"
+                          isActive && "bg-accent/50"
                         )}
                       >
                         <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary shrink-0">
@@ -213,14 +229,11 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
                         <div className="flex-1 text-left overflow-hidden">
                           <div className="font-medium truncate">{team.name}</div>
                           <div className="text-xs text-muted-foreground truncate">
-                            {memberIds.length} 位成员
+                            {team.memberIds.length} 位成员
                           </div>
                         </div>
-                        {isAllSelected && (
-                          <Check className="h-4 w-4 text-primary shrink-0" />
-                        )}
-                        {isPartialSelected && (
-                          <div className="h-2 w-2 rounded-full bg-primary/50 shrink-0" />
+                        {isActive && (
+                          <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
                         )}
                       </button>
                     )
@@ -232,9 +245,24 @@ export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds
 
           {/* 用户列表 */}
           <div className="w-1/2 flex flex-col overflow-hidden">
-            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/30 flex items-center gap-2 shrink-0">
-              <UsersRound className="h-3 w-3" />
-              成员
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/30 flex items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <UsersRound className="h-3 w-3" />
+                <span>成员</span>
+                {selectedFilterTeam && (
+                  <span className="text-[11px] text-primary">{selectedFilterTeam.name}</span>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={selectableVisibleUserIds.length === 0}
+                onClick={toggleSelectVisibleUsers}
+                className="h-6 px-2 text-[11px] font-medium"
+              >
+                {isAllVisibleUsersSelected ? "取消全选" : "全选"}
+              </Button>
             </div>
             <ScrollArea className="flex-1 overflow-y-auto">
               <div className="p-2 space-y-1">

@@ -16,6 +16,7 @@ import { MainNavigation } from "@/components/navigation/main-navigation"
 import { SpaceSwitcher } from "@/components/space-switcher"
 import { NotificationBell } from "@/components/notification-bell"
 import { ListView } from "@/components/views/list-view"
+import { PlanView } from "@/components/views/plan-view"
 import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getToken } from "@/lib/api-client"
@@ -138,6 +139,8 @@ export default function Home() {
             <StatsView />
           </>
         )
+      case "plan":
+        return <PlanView />
       case "calendar":
       default:
         return (
@@ -150,7 +153,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       <aside className="w-72 border-r border-border bg-background flex flex-col">
         {/* Logo */}
         <div className="border-b border-border bg-card px-6 pt-[14px] pb-[13px]">
@@ -200,10 +203,10 @@ export default function Home() {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Top Bar with Main Navigation and View Controls */}
         <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
-          {/* Left: Space Switcher + Main Navigation (日历/清单/统计) */}
+          {/* Left: Space Switcher + Main Navigation (日历/清单/统计/计划) */}
           <div className="flex items-center gap-4">
             <SpaceSwitcher />
             <div className="h-6 w-px bg-border" />
@@ -212,14 +215,14 @@ export default function Home() {
           
           {/* Right: View Toggle, Notification Bell and User Menu */}
           <div className="flex items-center gap-4">
-            <ViewToggle />
+            {mainViewMode !== "plan" && <ViewToggle />}
             <NotificationBell />
             <UserMenu />
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-hidden flex flex-col relative">
+        <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           {showLoading && (
             <div 
               className={`absolute inset-0 bg-background/50 z-40 flex items-center justify-center transition-opacity duration-300 ${

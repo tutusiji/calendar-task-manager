@@ -82,6 +82,10 @@ model User {
   projectMembers          ProjectMember[]
   createdTeams            Team[]                    @relation("TeamCreator")
   createdProjects         Project[]                 @relation("ProjectCreator")
+  ownedPlanningBoards    PlanningBoard[]           @relation("PlanningBoardOwner")
+  createdPlanningBoards  PlanningBoard[]           @relation("PlanningBoardCreator")
+  createdPlanningCards   PlanningCard[]            @relation("PlanningCardCreator")
+  planningCardAssignments PlanningCardAssignee[]   @relation("PlanningCardAssignee")
   createdOrganizations    Organization[]            @relation("OrganizationCreator")
   organizationMembers     OrganizationMember[]
   invitedMembers          OrganizationMember[]      @relation("MemberInviter") // 邀请的成员
@@ -107,6 +111,7 @@ model Team {
   creator        User           @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members        TeamMember[]
   tasks          Task[] // 团队可以有多个任务
+  planningBoards PlanningBoard[]
   taskPermission TaskPermission @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -127,6 +132,7 @@ model Project {
   creator        User            @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members        ProjectMember[]
   tasks          Task[]
+  planningBoards PlanningBoard[]
   taskPermission TaskPermission  @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
   isArchived     Boolean         @default(false) // 是否已归档
   archivedAt     DateTime? // 归档时间
@@ -180,11 +186,103 @@ model TaskAssignee {
   @@index([userId])
 }
 
+model PlanningBoard {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  color       String            @default("#3b82f6")
+  scopeType   PlanningScopeType
+  ownerUserId String?
+  ownerUser   User?             @relation("PlanningBoardOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        Team?             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creatorId   String
+  creator     User              @relation("PlanningBoardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  buckets     PlanningBucket[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([ownerUserId])
+  @@index([teamId])
+  @@index([projectId])
+  @@index([creatorId])
+  @@index([scopeType])
+}
+
+model PlanningBucket {
+  id        String         @id @default(cuid())
+  boardId   String
+  board     PlanningBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  title     String
+  width     Int            @default(296)
+  sortOrder Int            @default(0)
+  cards     PlanningCard[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([boardId, sortOrder])
+}
+
+model PlanningCard {
+  id          String               @id @default(cuid())
+  bucketId     String
+  bucket       PlanningBucket      @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  headerColor  String              @default("#3b82f6")
+  sortOrder    Int                 @default(0)
+  creatorId    String
+  creator      User                @relation("PlanningCardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  items        PlanningCardItem[]
+  assignees    PlanningCardAssignee[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([bucketId, sortOrder])
+  @@index([creatorId])
+}
+
+model PlanningCardItem {
+  id          String        @id @default(cuid())
+  cardId      String
+  card        PlanningCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  content     String
+  isCompleted Boolean       @default(false)
+  sortOrder   Int           @default(0)
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([cardId, sortOrder])
+  @@index([cardId, isCompleted])
+}
+
+model PlanningCardAssignee {
+  id        String       @id @default(cuid())
+  cardId    String
+  userId    String
+  card      PlanningCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user      User         @relation("PlanningCardAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([cardId, userId])
+  @@index([cardId])
+  @@index([userId])
+}
+
 // 任务类型枚举
 enum TaskType {
   daily
   meeting
   vacation
+}
+
+enum PlanningScopeType {
+  PERSONAL
+  TEAM
+  PROJECT
 }
 
 // 任务权限枚举
