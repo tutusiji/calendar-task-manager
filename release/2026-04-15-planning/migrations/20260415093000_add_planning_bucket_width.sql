@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "PlanningBucket" ADD COLUMN "width" INTEGER NOT NULL DEFAULT 296;
