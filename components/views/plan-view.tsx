@@ -215,6 +215,15 @@ type CardDropIndicatorState = {
   position: "before" | "after"
 }
 
+type DraggingBucketState = {
+  bucketId: string
+}
+
+type BucketDropIndicatorState = {
+  targetBucketId: string
+  position: "before" | "after"
+}
+
 function shouldSubmitOnEnter(event: ReactKeyboardEvent<HTMLElement>) {
   return event.key === "Enter" && !event.shiftKey && !(event.target instanceof HTMLTextAreaElement)
 }
@@ -302,6 +311,8 @@ export function PlanView() {
   const [editingItemContent, setEditingItemContent] = useState("")
   const [pendingDeleteItemId, setPendingDeleteItemId] = useState<string | null>(null)
   const [activeItemActionId, setActiveItemActionId] = useState<string | null>(null)
+  const [draggingBucket, setDraggingBucket] = useState<DraggingBucketState | null>(null)
+  const [bucketDropIndicator, setBucketDropIndicator] = useState<BucketDropIndicatorState | null>(null)
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null)
   const [cardDropIndicator, setCardDropIndicator] = useState<CardDropIndicatorState | null>(null)
   const [editingBucketId, setEditingBucketId] = useState<string | null>(null)
@@ -677,6 +688,137 @@ export function PlanView() {
     }
 
     setIsBucketResizing(true)
+  }
+
+  const reorderBucketsInBoard = async (
+    board: PlanningBoard,
+    movingBucketId: string,
+    targetBucketId: string,
+    position: "before" | "after"
+  ) => {
+    const currentBuckets = [...board.buckets]
+    const movingBucketIndex = currentBuckets.findIndex((bucket) => bucket.id === movingBucketId)
+    const targetBucketIndex = currentBuckets.findIndex((bucket) => bucket.id === targetBucketId)
+
+    if (movingBucketIndex === -1 || targetBucketIndex === -1 || movingBucketId === targetBucketId) {
+      return
+    }
+
+    const [movingBucket] = currentBuckets.splice(movingBucketIndex, 1)
+    const nextTargetIndex = currentBuckets.findIndex((bucket) => bucket.id === targetBucketId)
+    const insertIndex = position === "after" ? nextTargetIndex + 1 : nextTargetIndex
+
+    currentBuckets.splice(insertIndex, 0, movingBucket)
+
+    if (currentBuckets.every((bucket, index) => bucket.id === board.buckets[index]?.id)) {
+      return
+    }
+
+    const reorderedBuckets = currentBuckets.map((bucket, index) => ({
+      ...bucket,
+      sortOrder: index,
+    }))
+
+    setBoards((currentBoards) =>
+      currentBoards.map((currentBoard) =>
+        currentBoard.id === board.id
+          ? {
+              ...currentBoard,
+              buckets: reorderedBuckets,
+            }
+          : currentBoard
+      )
+    )
+
+    try {
+      setIsRefreshing(true)
+      await Promise.all(
+        reorderedBuckets.map((bucket, index) =>
+          planningAPI.updateBucket(bucket.id, {
+            sortOrder: index,
+          })
+        )
+      )
+      await loadBoards(true)
+    } catch (error) {
+      console.error("Failed to reorder planning buckets:", error)
+      showToast.error(
+        "保存分类列顺序失败",
+        error instanceof Error ? error.message : "请稍后重试"
+      )
+      await loadBoards(true)
+    }
+  }
+
+  const handleBucketDragStart = (
+    event: ReactDragEvent<HTMLDivElement>,
+    bucket: PlanningBucket
+  ) => {
+    if (editingBucketId === bucket.id || isBucketResizing) {
+      event.preventDefault()
+      return
+    }
+
+    setDraggingBucket({
+      bucketId: bucket.id,
+    })
+    setBucketDropIndicator(null)
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", bucket.id)
+  }
+
+  const handleBucketDragEnd = () => {
+    setDraggingBucket(null)
+    setBucketDropIndicator(null)
+  }
+
+  const handleBucketDragOver = (
+    event: ReactDragEvent<HTMLDivElement>,
+    targetBucketId: string
+  ) => {
+    if (!draggingBucket || draggingBucket.bucketId === targetBucketId) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const position = event.clientX < rect.left + rect.width / 2 ? "before" : "after"
+
+    setBucketDropIndicator((current) => {
+      if (
+        current?.targetBucketId === targetBucketId &&
+        current.position === position
+      ) {
+        return current
+      }
+
+      return {
+        targetBucketId,
+        position,
+      }
+    })
+  }
+
+  const handleBucketDrop = async (
+    event: ReactDragEvent<HTMLDivElement>,
+    board: PlanningBoard,
+    targetBucketId: string
+  ) => {
+    if (!draggingBucket || draggingBucket.bucketId === targetBucketId) {
+      return
+    }
+
+    event.preventDefault()
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const position = event.clientX < rect.left + rect.width / 2 ? "before" : "after"
+
+    const movingBucketId = draggingBucket.bucketId
+    setDraggingBucket(null)
+    setBucketDropIndicator(null)
+    await reorderBucketsInBoard(board, movingBucketId, targetBucketId, position)
   }
 
   const handleCardSubmit = async (values: {
@@ -1104,9 +1246,12 @@ export function PlanView() {
                   <div
                     key={bucket.id}
                     data-plan-interactive="true"
+                    onDragOver={(event) => handleBucketDragOver(event, bucket.id)}
+                    onDrop={(event) => void handleBucketDrop(event, selectedBoard, bucket.id)}
                     className={cn(
                       "relative shrink-0 cursor-default rounded-[24px] border border-slate-200/80 bg-white/90 p-2.5 shadow-sm backdrop-blur transition-shadow",
-                      editingBucketId === bucket.id && "shadow-[0_0_0_2px_rgba(56,189,248,0.18)]"
+                      editingBucketId === bucket.id && "shadow-[0_0_0_2px_rgba(56,189,248,0.18)]",
+                      draggingBucket?.bucketId === bucket.id && "opacity-55"
                     )}
                     style={{
                       width:
@@ -1115,6 +1260,14 @@ export function PlanView() {
                           : bucket.width || DEFAULT_PLANNING_BUCKET_WIDTH,
                     }}
                   >
+                    {bucketDropIndicator?.targetBucketId === bucket.id && (
+                      <div
+                        className={cn(
+                          "pointer-events-none absolute top-4 bottom-4 z-20 w-1 rounded-full bg-linear-to-b from-cyan-400 via-sky-500 to-fuchsia-500 shadow-[0_0_10px_rgba(56,189,248,0.5)] animate-[pulse_0.65s_ease-in-out_infinite]",
+                          bucketDropIndicator.position === "before" ? "-left-1.5" : "-right-1.5"
+                        )}
+                      />
+                    )}
                     {editingBucketId === bucket.id && (
                       <>
                         <div className="pointer-events-none absolute inset-0 rounded-[24px] border-2 border-sky-400/70 animate-pulse" />
@@ -1128,7 +1281,15 @@ export function PlanView() {
                         />
                       </>
                     )}
-                    <div className="mb-2 rounded-[18px] bg-slate-50 px-2.5 py-1.5">
+                    <div
+                      draggable={editingBucketId !== bucket.id}
+                      onDragStart={(event) => handleBucketDragStart(event, bucket)}
+                      onDragEnd={handleBucketDragEnd}
+                      className={cn(
+                        "mb-2 rounded-[18px] bg-slate-50 px-2.5 py-1.5",
+                        editingBucketId !== bucket.id && "cursor-grab active:cursor-grabbing"
+                      )}
+                    >
                       <div className="flex items-center justify-between gap-2">
                         {editingBucketId === bucket.id ? (
                           <div className="min-w-0 flex-1">
@@ -1245,7 +1406,7 @@ export function PlanView() {
                               cardDropIndicator.targetCardId === card.id && (
                                 <div
                                   className={cn(
-                                    "pointer-events-none absolute left-3 right-3 z-20 h-1 rounded-full bg-sky-400 animate-pulse",
+                                    "pointer-events-none absolute left-3 right-3 z-20 h-1 rounded-full bg-linear-to-r from-cyan-400 via-sky-500 to-fuchsia-500 shadow-[0_0_10px_rgba(56,189,248,0.5)] animate-[pulse_0.65s_ease-in-out_infinite]",
                                     cardDropIndicator.position === "before" ? "top-0" : "bottom-0"
                                   )}
                                 />
