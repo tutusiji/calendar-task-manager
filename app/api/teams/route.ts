@@ -3,6 +3,21 @@ import { prisma } from '@/lib/prisma'
 import { authenticate } from '@/lib/middleware'
 import { addPointsForTeamCreation } from '@/lib/utils/points'
 
+async function getOrderedTeamIds(organizationId: string) {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM "Team"
+      WHERE "organizationId" = ${organizationId}
+      ORDER BY "sortOrder" ASC, name ASC, "createdAt" ASC
+    `
+    return rows.map(row => row.id)
+  } catch (error) {
+    console.warn('Team sortOrder column is unavailable, falling back to name order:', error)
+    return null
+  }
+}
+
 // GET /api/teams - 获取当前用户可访问的团队列表
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +62,8 @@ export async function GET(request: NextRequest) {
       }, { status: 403 })
     }
 
+    const orderedTeamIds = await getOrderedTeamIds(targetOrgId)
+
     // 获取当前组织内的所有团队（供个人中心等场景使用）
     const teams = await prisma.team.findMany({
       where: {
@@ -84,13 +101,19 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: {
-        name: 'asc'
-      }
+      orderBy: orderedTeamIds
+        ? undefined
+        : {
+            name: 'asc'
+          }
     })
 
+    const orderedTeams = orderedTeamIds
+      ? [...teams].sort((a, b) => orderedTeamIds.indexOf(a.id) - orderedTeamIds.indexOf(b.id))
+      : teams
+
     // 格式化响应数据，包含成员详细信息
-    const formattedTeams = teams.map(team => {
+    const formattedTeams = orderedTeams.map(team => {
       const { members, _count, ...teamData } = team
       return {
         ...teamData,
@@ -207,6 +230,21 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    try {
+      await prisma.$executeRaw`
+        UPDATE "Team"
+        SET "sortOrder" = (
+          SELECT COALESCE(MAX("sortOrder"), -1) + 1
+          FROM "Team"
+          WHERE "organizationId" = ${user.currentOrganizationId}
+            AND id <> ${team.id}
+        )
+        WHERE id = ${team.id}
+      `
+    } catch (error) {
+      console.warn('Failed to assign team sortOrder:', error)
+    }
 
     // 创建团队获得积分（异步执行，不影响响应）
     addPointsForTeamCreation(creatorId).catch(error => {

@@ -113,11 +113,13 @@ model Team {
   tasks          Task[] // 团队可以有多个任务
   planningBoards PlanningBoard[]
   taskPermission TaskPermission @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
+  sortOrder      Int            @default(0) // 侧边栏排序
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
   @@index([creatorId])
   @@index([organizationId])
+  @@index([organizationId, sortOrder])
 }
 
 // 项目模型
@@ -136,12 +138,14 @@ model Project {
   taskPermission TaskPermission  @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
   isArchived     Boolean         @default(false) // 是否已归档
   archivedAt     DateTime? // 归档时间
+  sortOrder       Int             @default(0) // 侧边栏排序
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
   @@index([creatorId])
   @@index([organizationId])
   @@index([isArchived])
+  @@index([organizationId, sortOrder])
 }
 
 // 任务模型

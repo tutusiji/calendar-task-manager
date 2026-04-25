@@ -154,6 +154,8 @@ interface CalendarStore {
   toggleProjectFilter: (projectId: string) => void;
   selectAllProjects: () => void;
   clearProjectFilter: () => void;
+  reorderTeams: (teamIds: string[], options?: { persist?: boolean }) => Promise<void>;
+  reorderProjects: (projectIds: string[], options?: { persist?: boolean }) => Promise<void>;
 
   startDragCreate: (
     date: Date,
@@ -1088,6 +1090,60 @@ export const useCalendarStore = create<CalendarStore>()(
         }),
 
       clearProjectFilter: () => set({ selectedProjectIds: [] }),
+
+      reorderTeams: async (teamIds, options) => {
+        const previousTeams = get().teams;
+        const orderMap = new Map(teamIds.map((id, index) => [id, index]));
+
+        set({
+          teams: [...previousTeams].sort((a, b) => {
+            const aIndex = orderMap.get(a.id);
+            const bIndex = orderMap.get(b.id);
+            if (aIndex === undefined && bIndex === undefined) return 0;
+            if (aIndex === undefined) return 1;
+            if (bIndex === undefined) return -1;
+            return aIndex - bIndex;
+          }),
+        });
+
+        if (options?.persist === false) return;
+
+        try {
+          await teamAPI.reorder(teamIds);
+        } catch (error) {
+          set({ teams: previousTeams });
+          const errorMsg = handleAPIError(error);
+          showToast.error("排序保存失败", errorMsg);
+          throw error;
+        }
+      },
+
+      reorderProjects: async (projectIds, options) => {
+        const previousProjects = get().projects;
+        const orderMap = new Map(projectIds.map((id, index) => [id, index]));
+
+        set({
+          projects: [...previousProjects].sort((a, b) => {
+            const aIndex = orderMap.get(a.id);
+            const bIndex = orderMap.get(b.id);
+            if (aIndex === undefined && bIndex === undefined) return 0;
+            if (aIndex === undefined) return 1;
+            if (bIndex === undefined) return -1;
+            return aIndex - bIndex;
+          }),
+        });
+
+        if (options?.persist === false) return;
+
+        try {
+          await projectAPI.reorder(projectIds);
+        } catch (error) {
+          set({ projects: previousProjects });
+          const errorMsg = handleAPIError(error);
+          showToast.error("排序保存失败", errorMsg);
+          throw error;
+        }
+      },
 
       startDragCreate: (date, cell, userId) =>
         set({

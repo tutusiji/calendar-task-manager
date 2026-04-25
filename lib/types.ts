@@ -90,6 +90,7 @@ export interface Team {
   memberIds: string[]
   creatorId: string // 创建者ID
   taskPermission: TaskPermission // 任务权限
+  sortOrder?: number // 侧边栏排序
   createdAt: Date
 }
 
@@ -104,6 +105,7 @@ export interface Project {
   taskPermission: TaskPermission // 任务权限
   isArchived?: boolean // 是否已归档
   archivedAt?: Date // 归档时间
+  sortOrder?: number // 侧边栏排序
   createdAt: Date
 }
 

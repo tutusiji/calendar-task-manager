@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut, Pin, Archive, ArchiveRestore } from "lucide-react"
+import { useState, type DragEvent } from "react"
+import { Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut, Pin, Archive, ArchiveRestore, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { Button } from "@/components/ui/button"
@@ -44,12 +44,16 @@ export function NavigationMenu() {
     deleteProject,
     leaveTeam,
     leaveProject,
+    reorderTeams,
+    reorderProjects,
     setCurrentUser,
   } = useCalendarStore()
   
   const [teamsExpanded, setTeamsExpanded] = useState(true)
   const [projectsExpanded, setProjectsExpanded] = useState(true)
   const [archivedProjectsExpanded, setArchivedProjectsExpanded] = useState(false)
+  const [draggedTeamId, setDraggedTeamId] = useState<string | null>(null)
+  const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null)
   
   // 对话框状态
   const [teamDialogOpen, setTeamDialogOpen] = useState(false)
@@ -59,6 +63,46 @@ export function NavigationMenu() {
   const [editingProject, setEditingProject] = useState<Project | undefined>()
   const [viewingProject, setViewingProject] = useState<Project | undefined>()
   
+  const moveItem = (ids: string[], activeId: string, targetId: string) => {
+    const fromIndex = ids.indexOf(activeId)
+    const toIndex = ids.indexOf(targetId)
+
+    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+      return ids
+    }
+
+    const nextIds = [...ids]
+    const [movedId] = nextIds.splice(fromIndex, 1)
+    nextIds.splice(toIndex, 0, movedId)
+    return nextIds
+  }
+
+  const handleTeamDragOver = (event: DragEvent<HTMLDivElement>, targetId: string) => {
+    event.preventDefault()
+    if (!draggedTeamId || draggedTeamId === targetId) return
+
+    void reorderTeams(moveItem(myTeams.map(team => team.id), draggedTeamId, targetId), { persist: false })
+  }
+
+  const handleProjectDragOver = (event: DragEvent<HTMLDivElement>, targetId: string) => {
+    event.preventDefault()
+    if (!draggedProjectId || draggedProjectId === targetId) return
+
+    void reorderProjects(moveItem(myProjects.map(project => project.id), draggedProjectId, targetId), { persist: false })
+  }
+
+  const persistTeamOrder = () => {
+    if (!draggedTeamId) return
+    void reorderTeams(myTeams.map(team => team.id))
+    setDraggedTeamId(null)
+  }
+
+  const persistProjectOrder = () => {
+    if (!draggedProjectId) return
+    void reorderProjects(myProjects.map(project => project.id))
+    setDraggedProjectId(null)
+  }
+
   // 过滤当前用户的团队
   const myTeams = currentUser
     ? teams.filter(t => t.memberIds.includes(currentUser.id))
@@ -68,14 +112,6 @@ export function NavigationMenu() {
   const myProjects = currentUser 
     ? projects
         .filter(p => p.memberIds.includes(currentUser.id) && !p.isArchived)
-        .sort((a, b) => {
-          // 个人事务项目置顶
-          const aIsPersonal = a.name.includes('个人事务')
-          const bIsPersonal = b.name.includes('个人事务')
-          if (aIsPersonal && !bIsPersonal) return -1
-          if (!aIsPersonal && bIsPersonal) return 1
-          return a.name.localeCompare(b.name)
-        })
     : []
   
   // 过滤已归档的项目
@@ -315,15 +351,35 @@ export function NavigationMenu() {
               {myTeams.map((team) => (
                 <div
                   key={team.id}
-                  className="group flex items-center gap-2 pr-2"
+                  onDragOver={(event) => handleTeamDragOver(event, team.id)}
+                  onDrop={persistTeamOrder}
+                  className={cn(
+                    "group flex items-center gap-1 pr-2 transition-opacity",
+                    draggedTeamId === team.id && "opacity-60"
+                  )}
                 >
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={(event) => {
+                      setDraggedTeamId(team.id)
+                      event.dataTransfer.effectAllowed = "move"
+                      event.dataTransfer.setData("text/plain", team.id)
+                    }}
+                    onDragEnd={persistTeamOrder}
+                    className="flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground active:cursor-grabbing"
+                    aria-label={`拖拽调整团队 ${team.name} 的顺序`}
+                    title="拖拽调整顺序"
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={async () => {
                       setNavigationMode("team")
                       await setSelectedTeamId(team.id)
                     }}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
+                      "flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
                       navigationMode === "team" && selectedTeamId === team.id && "bg-muted"
                     )}
                   >
@@ -429,18 +485,41 @@ export function NavigationMenu() {
           
           {projectsExpanded && (
             <div className="ml-6 mt-1 space-y-1">
-              {myProjects.map((project, index) => (
+              {myProjects.map((project) => {
+                const isPersonalProject = project.name.includes('个人事务')
+
+                return (
                 <div
                   key={project.id}
-                  className="group flex items-center gap-2 pr-2"
+                  onDragOver={(event) => handleProjectDragOver(event, project.id)}
+                  onDrop={persistProjectOrder}
+                  className={cn(
+                    "group flex items-center gap-1 pr-2 transition-opacity",
+                    draggedProjectId === project.id && "opacity-60"
+                  )}
                 >
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={(event) => {
+                      setDraggedProjectId(project.id)
+                      event.dataTransfer.effectAllowed = "move"
+                      event.dataTransfer.setData("text/plain", project.id)
+                    }}
+                    onDragEnd={persistProjectOrder}
+                    className="flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground active:cursor-grabbing"
+                    aria-label={`拖拽调整项目 ${project.name} 的顺序`}
+                    title="拖拽调整顺序"
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={async () => {
                       setNavigationMode("project")
                       await setSelectedProjectId(project.id)
                     }}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
+                      "flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
                       navigationMode === "project" && selectedProjectId === project.id && "bg-muted"
                     )}
                   >
@@ -449,18 +528,18 @@ export function NavigationMenu() {
                       style={{ backgroundColor: project.color }}
                     />
                     <span className="truncate max-w-[150px]" title={project.name}>{project.name}</span>
-                    {/* 第一个项目(个人事务)显示图钉图标 */}
-                    {index === 0 && (
+                    {isPersonalProject && (
                       <Pin className="h-3 w-3 text-muted-foreground shrink-0 ml-auto translate-x-[-6px] rotate-45" />
                     )}
-                    {/* 创建者标识(非第一个项目) */}
-                    {index !== 0 && currentUser && project.creatorId === currentUser.id && (
+                    {!isPersonalProject && currentUser && project.creatorId === currentUser.id && (
                       <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
                     )}
                   </button>
                   
-                  {/* 第一个项目(个人事务)不显示编辑/删除按钮 */}
-                  {index !== 0 && (
+                  {/*
+                    个人事务项目保留固定的系统项目限制，不显示编辑/删除菜单。
+                  */}
+                  {!isPersonalProject && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -511,7 +590,8 @@ export function NavigationMenu() {
                     </DropdownMenu>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

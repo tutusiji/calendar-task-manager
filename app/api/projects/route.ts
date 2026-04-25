@@ -3,6 +3,21 @@ import { prisma } from '@/lib/prisma'
 import { authenticate } from '@/lib/middleware'
 import { addPointsForProjectCreation } from '@/lib/utils/points'
 
+async function getOrderedProjectIds(organizationId: string) {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM "Project"
+      WHERE "organizationId" = ${organizationId}
+      ORDER BY "sortOrder" ASC, "createdAt" ASC, name ASC
+    `
+    return rows.map(row => row.id)
+  } catch (error) {
+    console.warn('Project sortOrder column is unavailable, falling back to createdAt order:', error)
+    return null
+  }
+}
+
 // GET /api/projects - 获取当前用户可访问的项目列表
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +62,8 @@ export async function GET(request: NextRequest) {
       }, { status: 403 })
     }
 
+    const orderedProjectIds = await getOrderedProjectIds(targetOrgId)
+
     // 获取当前组织内的所有项目（供个人中心等场景使用）
     const where: any = {
       organizationId: targetOrgId,
@@ -81,13 +98,19 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: {
-        createdAt: 'asc' // 按创建时间升序排序,新建项目总是在最后
-      }
+      orderBy: orderedProjectIds
+        ? undefined
+        : {
+            createdAt: 'asc' // 按创建时间升序排序,新建项目总是在最后
+          }
     })
 
+    const orderedProjects = orderedProjectIds
+      ? [...projects].sort((a, b) => orderedProjectIds.indexOf(a.id) - orderedProjectIds.indexOf(b.id))
+      : projects
+
     // 格式化响应数据，包含成员详细信息
-    const formattedProjects = projects.map(project => {
+    const formattedProjects = orderedProjects.map(project => {
       const { members, _count, ...projectData } = project
       return {
         ...projectData,
@@ -204,6 +227,21 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    try {
+      await prisma.$executeRaw`
+        UPDATE "Project"
+        SET "sortOrder" = (
+          SELECT COALESCE(MAX("sortOrder"), -1) + 1
+          FROM "Project"
+          WHERE "organizationId" = ${user.currentOrganizationId}
+            AND id <> ${project.id}
+        )
+        WHERE id = ${project.id}
+      `
+    } catch (error) {
+      console.warn('Failed to assign project sortOrder:', error)
+    }
 
     // 创建项目获得积分（异步执行，不影响响应）
     addPointsForProjectCreation(creatorId).catch(error => {

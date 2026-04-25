@@ -370,6 +370,16 @@ export const projectAPI = {
       method: 'DELETE',
     })
   },
+
+  /**
+   * 调整项目顺序
+   */
+  async reorder(projectIds: string[]): Promise<void> {
+    return fetchAPI<void>('/projects/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ projectIds }),
+    })
+  },
 }
 
 // ==================== 团队 API ====================
@@ -442,6 +452,16 @@ export const teamAPI = {
   async join(teamId: string): Promise<void> {
     return fetchAPI<void>(`/teams/${teamId}/join`, {
       method: 'POST',
+    })
+  },
+
+  /**
+   * 调整团队顺序
+   */
+  async reorder(teamIds: string[]): Promise<void> {
+    return fetchAPI<void>('/teams/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ teamIds }),
     })
   },
 }
