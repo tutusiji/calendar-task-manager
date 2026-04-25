@@ -220,7 +220,7 @@ export function NavigationMenu() {
 
   const handleArchiveProject = async (project: Project) => {
     try {
-      const result = await projectAPI.archive(project.id)
+      await projectAPI.archive(project.id)
       
       // 更新本地状态
       const updatedProjects = projects.map(p => 
@@ -243,7 +243,7 @@ export function NavigationMenu() {
 
   const handleUnarchiveProject = async (project: Project) => {
     try {
-      const result = await projectAPI.unarchive(project.id)
+      await projectAPI.unarchive(project.id)
       
       // 更新本地状态
       const updatedProjects = projects.map(p => 
@@ -576,6 +576,10 @@ export function NavigationMenu() {
                               <Eye className="mr-2 h-4 w-4" />
                               <span>查看</span>
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleArchiveProject(project)}>
+                              <Archive className="mr-2 h-4 w-4" />
+                              <span>归档</span>
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => handleLeaveProject(project)}
@@ -674,6 +678,10 @@ export function NavigationMenu() {
                             <DropdownMenuItem onClick={() => handleViewProject(project)}>
                               <Eye className="mr-2 h-4 w-4" />
                               <span>查看</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUnarchiveProject(project)}>
+                              <ArchiveRestore className="mr-2 h-4 w-4" />
+                              <span>取消归档</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 

@@ -625,15 +625,32 @@ export const useCalendarStore = create<CalendarStore>()(
           const project = task
             ? projects.find((p) => p.id === task.projectId)
             : null;
+          const isProjectReassignment =
+            updatedTask.projectId !== undefined &&
+            updatedTask.projectId !== task?.projectId;
+
+          if (isProjectReassignment) {
+            const targetProject = projects.find(
+              (p) => p.id === updatedTask.projectId
+            );
+
+            if (!targetProject || !targetProject.memberIds.includes(currentUser.id)) {
+              const errorMsg = "只有目标项目成员才可以将事项迁移到该项目";
+              set({ error: errorMsg });
+              showToast.error("权限不足", errorMsg);
+              throw new Error(errorMsg);
+            }
+          }
 
           if (project) {
-            const hasPermission = canManageTaskInProject(
+            const hasProjectPermission = canManageTaskInProject(
               currentUser.id,
               project,
               currentUser.isAdmin
             );
 
-            if (!hasPermission) {
+            // 迁移项目归属是全开放操作，不受协同权限限制
+            if (!hasProjectPermission && !isProjectReassignment) {
               const errorMsg = getPermissionDeniedMessage(
                 project.taskPermission
               );
@@ -1356,6 +1373,7 @@ export const useCalendarStore = create<CalendarStore>()(
             const personalProject = currentUser
               ? projects.find(
                   (p) =>
+                    !p.isArchived &&
                     p.name.includes("个人事务") &&
                     p.memberIds.includes(currentUser.id)
                 )

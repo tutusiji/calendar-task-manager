@@ -58,6 +58,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
   // 判断当前用户是否是创建者或超级管理员
   const isCreator = currentUser?.id === project?.creatorId
   const canEditCreator = (isCreator || currentUser?.isAdmin) && !viewOnly
+  const memberSelectorReadOnly = viewOnly || taskPermission === "CREATOR_ONLY"
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -185,7 +186,13 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
               onUserChange={setMemberIds}
               lockedUserIds={viewOnly ? memberIds : [creatorId]} // 查看模式下所有成员都锁定
               creatorId={creatorId} // 传入创建者ID用于显示标签
+              disabled={memberSelectorReadOnly}
             />
+            {taskPermission === "CREATOR_ONLY" && (
+              <p className="text-xs text-muted-foreground">
+                当前协同权限为“仅创建人”，项目成员列表为只读。
+              </p>
+            )}
           </div>
 
           {/* Task Permission */}

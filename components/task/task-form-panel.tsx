@@ -99,8 +99,26 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
   // Get creator info (edit mode only)
   const creator = task ? (task.creator || getUserById(task.creatorId)) : null
   
+  const selectableProjects = projects
+    .filter((p) => {
+      const isMember = currentUser ? p.memberIds.includes(currentUser.id) : false
+      if (!isMember) {
+        return isEditMode && task?.projectId === p.id
+      }
+
+      if (isEditMode && task?.projectId === p.id) return true
+      return !p.isArchived
+    })
+    .sort((a, b) => {
+      const aIsPersonal = a.name.includes('个人事务')
+      const bIsPersonal = b.name.includes('个人事务')
+      if (aIsPersonal && !bIsPersonal) return -1
+      if (!aIsPersonal && bIsPersonal) return 1
+      return a.name.localeCompare(b.name)
+    })
+
   // Get selected project
-  const selectedProject = projects.find(p => p.id === projectId)
+  const selectedProject = selectableProjects.find(p => p.id === projectId)
   
   // Check if it's a personal project
   const isPersonalProject = selectedProject?.name.includes('个人事务')
@@ -120,6 +138,15 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
       setAssigneeIds([currentUser.id])
     }
   }, [isPersonalProject, currentUser])
+
+  // 默认项目如果已被当前用户归档，则回退到可用项目
+  useEffect(() => {
+    if (selectableProjects.length === 0) return
+    const exists = selectableProjects.some((p) => p.id === projectId)
+    if (!exists) {
+      setProjectId(selectableProjects[0].id)
+    }
+  }, [projectId, selectableProjects])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -347,7 +374,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                     setProjectError(false)
                     
                     // Clear team if personal project selected
-                    const project = projects.find(p => p.id === value)
+                    const project = selectableProjects.find(p => p.id === value)
                     if (project?.name.includes('个人事务')) {
                       setTeamId("none")
                     }
@@ -358,16 +385,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                       <SelectValue placeholder="请选择项目" />
                     </SelectTrigger>
                     <SelectContent>
-                      {projects
-                        .filter(p => currentUser && p.memberIds.includes(currentUser.id))
-                        .sort((a, b) => {
-                          const aIsPersonal = a.name.includes('个人事务')
-                          const bIsPersonal = b.name.includes('个人事务')
-                          if (aIsPersonal && !bIsPersonal) return -1
-                          if (!aIsPersonal && bIsPersonal) return 1
-                          return a.name.localeCompare(b.name)
-                        })
-                        .map((project) => (
+                      {selectableProjects.map((project) => (
                         <SelectItem key={project.id} value={project.id} title={project.name}>
                           <div className="flex items-center gap-2">
                             <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: project.color }} />

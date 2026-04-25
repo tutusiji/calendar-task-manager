@@ -286,6 +286,11 @@ export interface ProjectWithMembers extends Project {
   members?: User[]
 }
 
+export interface ProjectArchiveState {
+  projectId: string
+  isArchived: boolean
+}
+
 export const projectAPI = {
   /**
    * 获取所有项目
@@ -356,8 +361,8 @@ export const projectAPI = {
   /**
    * 归档项目
    */
-  async archive(projectId: string): Promise<ProjectWithMembers> {
-    return fetchAPI<ProjectWithMembers>(`/projects/${projectId}/archive`, {
+  async archive(projectId: string): Promise<ProjectArchiveState> {
+    return fetchAPI<ProjectArchiveState>(`/projects/${projectId}/archive`, {
       method: 'POST',
     })
   },
@@ -365,8 +370,8 @@ export const projectAPI = {
   /**
    * 取消归档项目
    */
-  async unarchive(projectId: string): Promise<ProjectWithMembers> {
-    return fetchAPI<ProjectWithMembers>(`/projects/${projectId}/archive`, {
+  async unarchive(projectId: string): Promise<ProjectArchiveState> {
+    return fetchAPI<ProjectArchiveState>(`/projects/${projectId}/archive`, {
       method: 'DELETE',
     })
   },

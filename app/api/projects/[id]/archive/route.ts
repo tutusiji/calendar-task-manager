@@ -22,57 +22,46 @@ export async function POST(
     // 检查项目是否存在
     const existingProject = await prisma.project.findUnique({
       where: { id },
-      include: {
-        organization: true
-      }
+      select: { id: true },
     })
 
     if (!existingProject) {
       return notFoundResponse('项目不存在')
     }
 
-    // 获取当前用户信息（检查是否是超级管理员）
-    const currentUser = await prisma.user.findUnique({
-      where: { id: auth.userId },
-      select: { isAdmin: true }
+    // 仅允许当前项目成员归档自己的项目标记
+    const membership = await prisma.projectMember.findUnique({
+      where: {
+        userId_projectId: {
+          userId: auth.userId,
+          projectId: id,
+        },
+      },
     })
 
-    // 权限验证：项目创建者、组织创建者或超级管理员可以归档项目
-    const isProjectCreator = existingProject.creatorId === auth.userId
-    const isOrgCreator = existingProject.organization.creatorId === auth.userId
-    const isAdmin = currentUser?.isAdmin
-
-    if (!isProjectCreator && !isOrgCreator && !isAdmin) {
-      return forbiddenResponse('只有项目创建者、组织创建者或超级管理员可以归档项目')
+    if (!membership) {
+      return forbiddenResponse('只有项目成员可以归档项目')
     }
 
-    // 归档项目
-    const project = await prisma.project.update({
-      where: { id },
-      data: {
-        isArchived: true,
-        archivedAt: new Date()
-      },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        }
-      }
-    })
+    await prisma.$executeRaw`
+      UPDATE "ProjectMember"
+      SET
+        "isArchived" = true,
+        "archivedAt" = ${new Date()}
+      WHERE "userId" = ${auth.userId}
+        AND "projectId" = ${id}
+    `
 
-    return successResponse(project, '项目已归档')
+    return successResponse(
+      {
+        projectId: id,
+        isArchived: true,
+      },
+      '项目已归档'
+    )
   } catch (error) {
     console.error('Error archiving project:', error)
-    return serverErrorResponse('归档项目失败')
+    return serverErrorResponse('归档项目失败，请确认数据库迁移已执行')
   }
 }
 
@@ -90,56 +79,44 @@ export async function DELETE(
     // 检查项目是否存在
     const existingProject = await prisma.project.findUnique({
       where: { id },
-      include: {
-        organization: true
-      }
+      select: { id: true },
     })
 
     if (!existingProject) {
       return notFoundResponse('项目不存在')
     }
 
-    // 获取当前用户信息（检查是否是超级管理员）
-    const currentUser = await prisma.user.findUnique({
-      where: { id: auth.userId },
-      select: { isAdmin: true }
+    const membership = await prisma.projectMember.findUnique({
+      where: {
+        userId_projectId: {
+          userId: auth.userId,
+          projectId: id,
+        },
+      },
     })
 
-    // 权限验证：项目创建者、组织创建者或超级管理员可以取消归档项目
-    const isProjectCreator = existingProject.creatorId === auth.userId
-    const isOrgCreator = existingProject.organization.creatorId === auth.userId
-    const isAdmin = currentUser?.isAdmin
-
-    if (!isProjectCreator && !isOrgCreator && !isAdmin) {
-      return forbiddenResponse('只有项目创建者、组织创建者或超级管理员可以取消归档项目')
+    if (!membership) {
+      return forbiddenResponse('只有项目成员可以取消归档项目')
     }
 
-    // 取消归档项目
-    const project = await prisma.project.update({
-      where: { id },
-      data: {
-        isArchived: false,
-        archivedAt: null
-      },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        }
-      }
-    })
+    await prisma.$executeRaw`
+      UPDATE "ProjectMember"
+      SET
+        "isArchived" = false,
+        "archivedAt" = null
+      WHERE "userId" = ${auth.userId}
+        AND "projectId" = ${id}
+    `
 
-    return successResponse(project, '项目已取消归档')
+    return successResponse(
+      {
+        projectId: id,
+        isArchived: false,
+      },
+      '项目已取消归档'
+    )
   } catch (error) {
     console.error('Error unarchiving project:', error)
-    return serverErrorResponse('取消归档项目失败')
+    return serverErrorResponse('取消归档项目失败，请确认数据库迁移已执行')
   }
 }

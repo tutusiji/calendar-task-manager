@@ -18,6 +18,31 @@ async function getOrderedProjectIds(organizationId: string) {
   }
 }
 
+async function getUserArchiveMap(userId: string, organizationId: string) {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ projectId: string; isArchived: boolean; archivedAt: Date | null }>>`
+      SELECT
+        pm."projectId" AS "projectId",
+        pm."isArchived" AS "isArchived",
+        pm."archivedAt" AS "archivedAt"
+      FROM "ProjectMember" pm
+      INNER JOIN "Project" p ON p.id = pm."projectId"
+      WHERE pm."userId" = ${userId}
+        AND p."organizationId" = ${organizationId}
+    `
+
+    return new Map(
+      rows.map((row) => [
+        row.projectId,
+        { isArchived: row.isArchived, archivedAt: row.archivedAt },
+      ])
+    )
+  } catch (error) {
+    console.warn('ProjectMember archive columns are unavailable, falling back to unarchived state:', error)
+    return new Map<string, { isArchived: boolean; archivedAt: Date | null }>()
+  }
+}
+
 // GET /api/projects - 获取当前用户可访问的项目列表
 export async function GET(request: NextRequest) {
   try {
@@ -109,11 +134,17 @@ export async function GET(request: NextRequest) {
       ? [...projects].sort((a, b) => orderedProjectIds.indexOf(a.id) - orderedProjectIds.indexOf(b.id))
       : projects
 
+    const archiveMap = await getUserArchiveMap(auth.userId, targetOrgId)
+
     // 格式化响应数据，包含成员详细信息
     const formattedProjects = orderedProjects.map(project => {
       const { members, _count, ...projectData } = project
+      const archiveMeta = archiveMap.get(project.id)
       return {
         ...projectData,
+        // 成员维度归档：只返回当前登录用户自己的归档标记
+        isArchived: archiveMeta?.isArchived || false,
+        archivedAt: archiveMeta?.archivedAt || null,
         memberIds: members.map(m => m.userId),
         members: members.map(m => m.user),
         memberCount: _count.members

@@ -155,6 +155,9 @@ export async function PUT(
       select: { isAdmin: true }
     })
 
+    const { title, description, startDate, endDate, startTime, endTime, type, color, progress, projectId, teamId, userId } = body
+    const isProjectReassignment = projectId !== undefined && projectId !== existingTask.projectId
+
     // 协同权限验证：检查是否有权限修改任务
     let hasPermission = false
     
@@ -185,11 +188,9 @@ export async function PUT(
       }
     }
 
-    if (!hasPermission) {
+    if (!hasPermission && !isProjectReassignment) {
       return forbiddenResponse('无权修改此任务。根据协同权限设置，只有任务创建者或拥有协同权限的成员可以修改任务')
     }
-
-    const { title, description, startDate, endDate, startTime, endTime, type, color, progress, projectId, teamId, userId } = body
 
     // 特别验证项目ID（如果提供）
     if (projectId !== undefined && (!projectId || projectId.trim() === '')) {
@@ -230,7 +231,7 @@ export async function PUT(
       }
     }
 
-    // 如果更改项目，验证项目访问权限并自动添加任务负责人为成员
+    // 如果更改项目，要求修改者必须是目标项目成员，并补齐负责人成员关系
     if (projectId && projectId !== existingTask.projectId) {
       const project = await prisma.project.findUnique({
         where: { id: projectId },
@@ -243,10 +244,15 @@ export async function PUT(
         return validationErrorResponse('目标项目不存在')
       }
 
-      // 检查当前用户是否有权限访问目标项目
-      const hasAccess = project.members.some(m => m.userId === auth.userId)
-      if (!hasAccess) {
-        return forbiddenResponse('无权访问目标项目')
+      // 数据隔离：不允许跨组织迁移事项
+      if (project.organizationId !== existingTask.project.organizationId) {
+        return validationErrorResponse('不允许跨组织迁移事项')
+      }
+
+      // 迁移项目归属不受源项目协同权限限制，但必须是目标项目成员
+      const hasTargetProjectAccess = project.members.some(m => m.userId === auth.userId)
+      if (!hasTargetProjectAccess) {
+        return forbiddenResponse('只有目标项目成员才可以将事项迁移到该项目')
       }
 
       // 确定任务的负责人列表（可能正在被修改）

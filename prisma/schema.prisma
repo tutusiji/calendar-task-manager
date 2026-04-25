@@ -314,6 +314,8 @@ model ProjectMember {
   id        String   @id @default(cuid())
   userId    String
   projectId String
+  isArchived Boolean @default(false) // 当前成员是否归档此项目（个人标记）
+  archivedAt DateTime? // 当前成员归档时间
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -321,6 +323,7 @@ model ProjectMember {
   @@unique([userId, projectId])
   @@index([userId])
   @@index([projectId])
+  @@index([userId, isArchived])
 }
 
 // 站内消息通知模型

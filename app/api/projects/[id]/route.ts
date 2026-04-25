@@ -10,6 +10,24 @@ import {
 } from '@/lib/api-response'
 import { sanitizeString } from '@/lib/validation'
 
+async function getUserArchiveState(userId: string, projectId: string) {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ isArchived: boolean; archivedAt: Date | null }>>`
+      SELECT
+        pm."isArchived" AS "isArchived",
+        pm."archivedAt" AS "archivedAt"
+      FROM "ProjectMember" pm
+      WHERE pm."userId" = ${userId}
+        AND pm."projectId" = ${projectId}
+      LIMIT 1
+    `
+    return rows[0] || { isArchived: false, archivedAt: null }
+  } catch (error) {
+    console.warn('ProjectMember archive columns are unavailable, falling back to unarchived state:', error)
+    return { isArchived: false, archivedAt: null }
+  }
+}
+
 // GET /api/projects/[id] - 获取单个项目
 export async function GET(
   request: NextRequest,
@@ -54,7 +72,13 @@ export async function GET(
       return forbiddenResponse('无权查看此项目')
     }
 
-    return successResponse(project)
+    const archiveState = await getUserArchiveState(auth.userId, id)
+
+    return successResponse({
+      ...project,
+      isArchived: archiveState.isArchived,
+      archivedAt: archiveState.archivedAt,
+    })
   } catch (error) {
     console.error('Error fetching project:', error)
     return serverErrorResponse('获取项目失败')
