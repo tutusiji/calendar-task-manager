@@ -223,7 +223,7 @@ export function ProjectDialog({ project, viewOnly = false, onClose }: ProjectDia
                   <div className="flex flex-col">
                     <span className="text-sm">仅创建人</span>
                     <span className="text-xs text-muted-foreground">
-                      只有创建人可以给项目中所有成员创建、编辑和删除任务
+                      创建人可管理项目中所有成员的任务，普通成员只能管理指派给自己的任务
                     </span>
                   </div>
                 </Label>

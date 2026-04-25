@@ -14,8 +14,12 @@ import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { useToast } from "@/hooks/use-toast"
 import type { Task, TaskType } from "@/lib/types"
-import { formatDate } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
+import {
+  canDeleteTaskInProject,
+  canEditTaskInProject,
+  canManageTaskInProject,
+} from "@/lib/utils/permission-utils"
 
 import { UserMultiSelector } from "./user-multi-selector"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -119,25 +123,84 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
 
   // Get selected project
   const selectedProject = selectableProjects.find(p => p.id === projectId)
+  const selectedProjectPermissionContext = selectedProject
+    ? {
+        creatorId: selectedProject.creatorId,
+        taskPermission: selectedProject.taskPermission,
+        memberIds: selectedProject.memberIds,
+      }
+    : null
+  const sourceProject = isEditMode && task ? projects.find(p => p.id === task.projectId) : selectedProject
+  const sourceProjectPermissionContext = sourceProject
+    ? {
+        creatorId: sourceProject.creatorId,
+        taskPermission: sourceProject.taskPermission,
+        memberIds: sourceProject.memberIds,
+      }
+    : null
   
   // Check if it's a personal project
   const isPersonalProject = selectedProject?.name.includes('个人事务')
   
   // Check permissions
-  const isCreatorOnlyMode = selectedProject?.taskPermission === "CREATOR_ONLY"
-  const isTaskCreator = task ? currentUser?.id === task.creatorId : true
-  const isProjectCreator = currentUser?.id === selectedProject?.creatorId
-  
-  const canEditAssignees = !isCreatorOnlyMode || isProjectCreator || isTaskCreator
-  const canDeleteTask = !isCreatorOnlyMode || isProjectCreator || isTaskCreator
+  const currentTaskAssigneeIds = task?.assignees?.map((assignee) => assignee.userId) || []
+  const canManageAllTasksInSelectedProject =
+    !!currentUser &&
+    !!selectedProjectPermissionContext &&
+    canManageTaskInProject(
+      currentUser.id,
+      selectedProjectPermissionContext,
+      currentUser.isAdmin
+    )
+  const isSelectedProjectSelfOnlyMode =
+    !!currentUser &&
+    !!selectedProjectPermissionContext &&
+    selectedProjectPermissionContext.taskPermission === "CREATOR_ONLY" &&
+    !canManageAllTasksInSelectedProject
+  const canDeleteTask =
+    !isEditMode ||
+    !currentUser ||
+    !sourceProjectPermissionContext
+      ? true
+      : canDeleteTaskInProject(
+          currentUser.id,
+          sourceProjectPermissionContext,
+          currentTaskAssigneeIds,
+          currentUser.isAdmin
+        )
+  const canEditTaskContent =
+    !isEditMode ||
+    !currentUser ||
+    !sourceProjectPermissionContext
+      ? true
+      : canEditTaskInProject(
+          currentUser.id,
+          sourceProjectPermissionContext,
+          currentTaskAssigneeIds,
+          undefined,
+          currentUser.isAdmin
+        )
+  const isProjectOnlyEditMode = isEditMode && !!task && !canEditTaskContent
+  const canEditAssignees =
+    !isPersonalProject &&
+    !isProjectOnlyEditMode &&
+    !isSelectedProjectSelfOnlyMode
+  const shouldForceSelfAssignee =
+    !!currentUser &&
+    (isPersonalProject || isSelectedProjectSelfOnlyMode)
+  const canSubmitTask =
+    !!title.trim() &&
+    !!dateRange.from &&
+    !isSubmitting &&
+    !isDeleting &&
+    (!isProjectOnlyEditMode || projectId !== task?.projectId)
 
-  // Auto-set assignee to current user for personal projects
+  // 个人事务和“仅创建人”的普通成员模式下，负责人固定为自己
   useEffect(() => {
-    if (isPersonalProject && currentUser) {
-      // 无论是创建还是编辑模式，选择个人事务项目时都设置为当前用户
+    if (shouldForceSelfAssignee && currentUser) {
       setAssigneeIds([currentUser.id])
     }
-  }, [isPersonalProject, currentUser])
+  }, [shouldForceSelfAssignee, currentUser])
 
   // 默认项目如果已被当前用户归档，则回退到可用项目
   useEffect(() => {
@@ -194,13 +257,25 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
         userId: assigneeIds.length > 0 ? assigneeIds : undefined,
       }
 
+      const isRestrictedProjectReassignment =
+        isEditMode &&
+        !!task &&
+        task.projectId !== projectId &&
+        !canEditTaskContent
+
       if (isEditMode) {
         // Edit mode: update task
-        await updateTask(task.id, taskData as any)
+        const payload = isRestrictedProjectReassignment
+          ? { projectId }
+          : taskData
+        await updateTask(task.id, payload as any)
+        const successTaskTitle = isRestrictedProjectReassignment && task ? task.title : title
         toast({
           variant: 'success' as any,
           title: "保存成功",
-          description: `任务「${title}」已更新`,
+          description: isRestrictedProjectReassignment
+            ? `任务「${successTaskTitle}」已迁移到新项目`
+            : `任务「${successTaskTitle}」已更新`,
         })
       } else {
         // Create mode: add task
@@ -307,7 +382,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                 onClick={() => setShowDeleteConfirm(true)} 
                 className="text-red-500 hover:text-red-600"
                 disabled={isDeleting || isSubmitting || !canDeleteTask}
-                title={!canDeleteTask ? "仅任务创建者或项目创建者可以删除" : "删除任务"}
+                title={!canDeleteTask ? "仅项目创建者或任务负责人可以删除" : "删除任务"}
               >
                 <Trash2 className="h-5 w-5" />
               </Button>
@@ -348,9 +423,11 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                     <span className="ml-2 text-xs text-muted-foreground">
                       (个人事务只能指派给自己)
                     </span>
-                  ) : isCreatorOnlyMode && !canEditAssignees ? (
+                  ) : isSelectedProjectSelfOnlyMode && !canEditAssignees ? (
                     <span className="ml-2 text-xs text-muted-foreground">
-                      {isEditMode ? "(仅任务创建者或项目创建者可编辑)" : "(普通成员只能为自己创建任务)"}
+                      {isEditMode
+                        ? "(当前目标项目下只能指派给自己)"
+                        : "(普通成员只能为自己创建任务)"}
                     </span>
                   ) : null}
                 </Label>
@@ -400,6 +477,11 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                       <AlertCircle className="h-3.5 w-3.5" />
                       <p className="text-xs font-medium">请选择一个归属项目</p>
                     </div>
+                  )}
+                  {isProjectOnlyEditMode && (
+                    <p className="text-xs text-muted-foreground">
+                      当前事项来自“仅创建人”项目。你现在只能调整归属项目，其他字段不会保存。
+                    </p>
                   )}
                 </div>
 
@@ -608,7 +690,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
             <Button 
               type="submit" 
               className="min-w-28" 
-              disabled={!title.trim() || !dateRange.from || isSubmitting || isDeleting}
+              disabled={!canSubmitTask}
             >
               {isSubmitting ? (isEditMode ? '保存中...' : '创建中...') : (isEditMode ? '保存更改' : '创建事项')}
             </Button>

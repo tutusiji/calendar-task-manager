@@ -13,6 +13,12 @@ import {
   isValidTime,
   sanitizeString
 } from '@/lib/validation'
+import {
+  canCreateTaskInProject,
+  canDeleteTaskInProject,
+  canEditTaskInProject,
+  getPermissionDeniedMessage,
+} from '@/lib/utils/permission-utils'
 
 // GET /api/tasks/[id] - 获取单个任务
 export async function GET(
@@ -124,6 +130,11 @@ export async function PUT(
     const existingTask = await prisma.task.findUnique({
       where: { id },
       include: {
+        assignees: {
+          select: {
+            userId: true
+          }
+        },
         project: {
           include: {
             members: {
@@ -157,40 +168,50 @@ export async function PUT(
 
     const { title, description, startDate, endDate, startTime, endTime, type, color, progress, projectId, teamId, userId } = body
     const isProjectReassignment = projectId !== undefined && projectId !== existingTask.projectId
+    const currentAssigneeIds = existingTask.assignees.map(a => a.userId)
+    const nextAssigneeIds = userId !== undefined
+      ? (Array.isArray(userId) ? userId : [userId])
+      : undefined
+    const currentProjectPermissionContext = {
+      creatorId: existingTask.project.creatorId,
+      taskPermission: existingTask.project.taskPermission,
+      memberIds: existingTask.project.members.map(m => m.userId),
+    }
+
+    // 基线访问控制：至少要对当前任务有可见/可操作入口，才能发起项目迁移
+    const canAccessTask =
+      !!currentUser?.isAdmin ||
+      existingTask.creatorId === auth.userId ||
+      existingTask.assignees.some(a => a.userId === auth.userId) ||
+      existingTask.project.members.some(m => m.userId === auth.userId) ||
+      !!existingTask.team?.members.some(m => m.userId === auth.userId)
+
+    if (!canAccessTask) {
+      return forbiddenResponse('无权访问此任务')
+    }
 
     // 协同权限验证：检查是否有权限修改任务
-    let hasPermission = false
-    
-    // 1. 超级管理员拥有所有权限
-    if (currentUser?.isAdmin) {
-      hasPermission = true
-    }
-    // 2. 任务创建者始终有权限
-    else if (existingTask.creatorId === auth.userId) {
-      hasPermission = true
-    }
-    // 3. 检查项目的协同权限
-    else if (existingTask.project) {
-      const isMember = existingTask.project.members.some(m => m.userId === auth.userId)
-      if (isMember && existingTask.project.taskPermission === 'ALL_MEMBERS') {
-        hasPermission = true
-      } else if (isMember && existingTask.project.creatorId === auth.userId) {
-        hasPermission = true
-      }
-    }
-    // 4. 检查团队的协同权限
-    else if (existingTask.team) {
-      const isMember = existingTask.team.members.some(m => m.userId === auth.userId)
-      if (isMember && existingTask.team.taskPermission === 'ALL_MEMBERS') {
-        hasPermission = true
-      } else if (isMember && existingTask.team.creatorId === auth.userId) {
-        hasPermission = true
-      }
-    }
+    const canEditTaskContent = canEditTaskInProject(
+      auth.userId,
+      currentProjectPermissionContext,
+      currentAssigneeIds,
+      undefined,
+      !!currentUser?.isAdmin
+    )
+    const hasPermission = canEditTaskInProject(
+      auth.userId,
+      currentProjectPermissionContext,
+      currentAssigneeIds,
+      nextAssigneeIds,
+      !!currentUser?.isAdmin
+    )
 
     if (!hasPermission && !isProjectReassignment) {
-      return forbiddenResponse('无权修改此任务。根据协同权限设置，只有任务创建者或拥有协同权限的成员可以修改任务')
+      return forbiddenResponse(getPermissionDeniedMessage(existingTask.project.taskPermission))
     }
+
+    const canOnlyReassignProject = isProjectReassignment && !canEditTaskContent
+    let nextProject = existingTask.project
 
     // 特别验证项目ID（如果提供）
     if (projectId !== undefined && (!projectId || projectId.trim() === '')) {
@@ -198,7 +219,7 @@ export async function PUT(
     }
 
     // 验证日期范围（如果都提供）
-    if (startDate && endDate) {
+    if (!canOnlyReassignProject && startDate && endDate) {
       const dateValidation = validateDateRange(startDate, endDate)
       if (!dateValidation.valid) {
         return validationErrorResponse(dateValidation.message!)
@@ -206,16 +227,16 @@ export async function PUT(
     }
 
     // 验证时间格式（如果提供）
-    if (startTime !== undefined && startTime !== null && !isValidTime(startTime)) {
+    if (!canOnlyReassignProject && startTime !== undefined && startTime !== null && !isValidTime(startTime)) {
       return validationErrorResponse('开始时间格式无效，应为 HH:MM')
     }
 
-    if (endTime !== undefined && endTime !== null && !isValidTime(endTime)) {
+    if (!canOnlyReassignProject && endTime !== undefined && endTime !== null && !isValidTime(endTime)) {
       return validationErrorResponse('结束时间格式无效，应为 HH:MM')
     }
 
     // 验证任务类型（如果提供）
-    if (type) {
+    if (!canOnlyReassignProject && type) {
       const validTypes = ['daily', 'meeting', 'vacation']
       if (!validTypes.includes(type)) {
         return validationErrorResponse(`任务类型无效，必须是: ${validTypes.join(', ')}`)
@@ -223,7 +244,7 @@ export async function PUT(
     }
 
     // 验证颜色（仅 daily 类型）
-    if (color !== undefined) {
+    if (!canOnlyReassignProject && color !== undefined) {
       const validColors = ['blue', 'green', 'yellow', 'red', 'purple']
       const taskType = type || existingTask.type
       if (taskType === 'daily' && color && !validColors.includes(color)) {
@@ -257,16 +278,37 @@ export async function PUT(
 
       // 确定任务的负责人列表（可能正在被修改）
       let taskUserIds: string[] = []
-      if (userId !== undefined) {
+      if (!canOnlyReassignProject && userId !== undefined) {
         taskUserIds = Array.isArray(userId) ? userId : [userId]
       } else {
-        // 获取现有负责人
-        const existingAssignees = await prisma.taskAssignee.findMany({
-          where: { taskId: existingTask.id },
-          select: { userId: true }
-        })
-        taskUserIds = existingAssignees.map(a => a.userId)
+        taskUserIds = existingTask.assignees.map(a => a.userId)
       }
+
+      const isPersonalProject = project.name.includes('个人事务')
+      if (isPersonalProject && project.creatorId !== auth.userId) {
+        return forbiddenResponse('不能将事项迁移到他人的个人事务项目')
+      }
+
+      if (isPersonalProject && taskUserIds.some(taskUserId => taskUserId !== auth.userId)) {
+        return validationErrorResponse('个人事务项目只能指派给自己')
+      }
+
+      const canCreateInTargetProject = canCreateTaskInProject(
+        auth.userId,
+        {
+          creatorId: project.creatorId,
+          taskPermission: project.taskPermission,
+          memberIds: project.members.map(m => m.userId),
+        },
+        taskUserIds,
+        !!currentUser?.isAdmin
+      )
+
+      if (!canCreateInTargetProject) {
+        return forbiddenResponse(getPermissionDeniedMessage(project.taskPermission))
+      }
+
+      nextProject = project
       
       // 检查所有负责人是否在新项目中
       for (const taskUserId of taskUserIds) {
@@ -283,8 +325,23 @@ export async function PUT(
       }
     }
 
+    if (!canOnlyReassignProject) {
+      const nextAssigneeIds = userId !== undefined
+        ? (Array.isArray(userId) ? userId : [userId])
+        : currentAssigneeIds
+
+      const isPersonalProject = nextProject.name.includes('个人事务')
+      if (isPersonalProject && nextProject.creatorId !== auth.userId) {
+        return forbiddenResponse('不能在他人的个人事务项目中修改事项')
+      }
+
+      if (isPersonalProject && nextAssigneeIds.some(assigneeId => assigneeId !== auth.userId)) {
+        return validationErrorResponse('个人事务项目只能指派给自己')
+      }
+    }
+
     // 如果更改团队，自动添加任务负责人为团队成员
-    if (teamId !== undefined && teamId !== null && teamId !== existingTask.teamId) {
+    if (!canOnlyReassignProject && teamId !== undefined && teamId !== null && teamId !== existingTask.teamId) {
       const team = await prisma.team.findUnique({
         where: { id: teamId },
         include: {
@@ -298,12 +355,7 @@ export async function PUT(
         if (userId !== undefined) {
           taskUserIds = Array.isArray(userId) ? userId : [userId]
         } else {
-          // 获取现有负责人
-          const existingAssignees = await prisma.taskAssignee.findMany({
-            where: { taskId: existingTask.id },
-            select: { userId: true }
-          })
-          taskUserIds = existingAssignees.map(a => a.userId)
+          taskUserIds = existingTask.assignees.map(a => a.userId)
         }
         
         // 检查所有负责人是否在新团队中
@@ -324,25 +376,27 @@ export async function PUT(
 
     // 清理输入
     const updateData: any = {}
-    if (title !== undefined) updateData.title = sanitizeString(title, 200)
-    if (description !== undefined) updateData.description = description ? sanitizeString(description, 2000) : null
-    if (startDate !== undefined) updateData.startDate = new Date(startDate)
-    if (endDate !== undefined) updateData.endDate = new Date(endDate)
-    if (startTime !== undefined) updateData.startTime = startTime
-    if (endTime !== undefined) updateData.endTime = endTime
-    if (type !== undefined) updateData.type = type
-    if (color !== undefined) {
-      const taskType = type || existingTask.type
-      updateData.color = taskType === 'daily' ? (color || null) : null
-    }
-    if (progress !== undefined) {
-      updateData.progress = Math.max(0, Math.min(100, progress))
+    if (!canOnlyReassignProject) {
+      if (title !== undefined) updateData.title = sanitizeString(title, 200)
+      if (description !== undefined) updateData.description = description ? sanitizeString(description, 2000) : null
+      if (startDate !== undefined) updateData.startDate = new Date(startDate)
+      if (endDate !== undefined) updateData.endDate = new Date(endDate)
+      if (startTime !== undefined) updateData.startTime = startTime
+      if (endTime !== undefined) updateData.endTime = endTime
+      if (type !== undefined) updateData.type = type
+      if (color !== undefined) {
+        const taskType = type || existingTask.type
+        updateData.color = taskType === 'daily' ? (color || null) : null
+      }
+      if (progress !== undefined) {
+        updateData.progress = Math.max(0, Math.min(100, progress))
+      }
     }
     if (projectId !== undefined) updateData.projectId = projectId
-    if (teamId !== undefined) updateData.teamId = teamId || null // 支持更新teamId
+    if (!canOnlyReassignProject && teamId !== undefined) updateData.teamId = teamId || null // 支持更新teamId
 
     // 处理负责人更新
-    if (userId !== undefined) {
+    if (!canOnlyReassignProject && userId !== undefined) {
       const newAssigneeIds = Array.isArray(userId) ? userId : [userId]
       
       // 先删除现有的负责人关系
@@ -428,6 +482,13 @@ export async function DELETE(
       include: {
         assignees: {
           select: { userId: true }
+        },
+        project: {
+          include: {
+            members: {
+              select: { userId: true }
+            }
+          }
         }
       }
     })
@@ -436,11 +497,24 @@ export async function DELETE(
       return notFoundResponse('任务不存在')
     }
 
-    // 权限验证：只有任务负责人可以删除任务
-    const isAssignee = existingTask.assignees.some(a => a.userId === auth.userId)
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { isAdmin: true }
+    })
+
+    const hasPermission = canDeleteTaskInProject(
+      auth.userId,
+      {
+        creatorId: existingTask.project.creatorId,
+        taskPermission: existingTask.project.taskPermission,
+        memberIds: existingTask.project.members.map(m => m.userId),
+      },
+      existingTask.assignees.map(a => a.userId),
+      !!currentUser?.isAdmin
+    )
     
-    if (!isAssignee) {
-      return forbiddenResponse('无权删除此任务，只有任务负责人可以删除')
+    if (!hasPermission) {
+      return forbiddenResponse(getPermissionDeniedMessage(existingTask.project.taskPermission))
     }
 
     // 记录任务信息用于通知

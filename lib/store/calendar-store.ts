@@ -24,8 +24,9 @@ import {
 import { showToast } from "../toast";
 import { useLoadingDelay } from "../../hooks/use-loading-delay";
 import {
-  canManageTaskInProject,
-  canManageTaskInTeam,
+  canCreateTaskInProject,
+  canDeleteTaskInProject,
+  canEditTaskInProject,
   getPermissionDeniedMessage,
 } from "../utils/permission-utils";
 import { getWeekDays } from "../utils/date-utils";
@@ -113,8 +114,13 @@ interface CalendarStore {
   setCurrentUser: (user: User) => void;
 
   // Actions
-  addTask: (task: Omit<Task, "id">) => Promise<void>;
-  updateTask: (id: string, task: Partial<Task>) => Promise<void>;
+  addTask: (
+    task: Omit<Task, "id"> & { userId?: string | string[] }
+  ) => Promise<void>;
+  updateTask: (
+    id: string,
+    task: Partial<Task> & { userId?: string | string[] }
+  ) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
 
   addTeam: (
@@ -559,9 +565,15 @@ export const useCalendarStore = create<CalendarStore>()(
         if (currentUser) {
           const project = projects.find((p) => p.id === task.projectId);
           if (project) {
-            const hasPermission = canManageTaskInProject(
+            const assigneeIds = task.userId
+              ? Array.isArray(task.userId)
+                ? task.userId
+                : [task.userId]
+              : [currentUser.id];
+            const hasPermission = canCreateTaskInProject(
               currentUser.id,
               project,
+              assigneeIds,
               currentUser.isAdmin
             );
 
@@ -625,6 +637,14 @@ export const useCalendarStore = create<CalendarStore>()(
           const project = task
             ? projects.find((p) => p.id === task.projectId)
             : null;
+          const currentAssigneeIds =
+            task?.assignees?.map((assignee) => assignee.userId) || [];
+          const nextAssigneeIds =
+            updatedTask.userId !== undefined
+              ? Array.isArray(updatedTask.userId)
+                ? updatedTask.userId
+                : [updatedTask.userId]
+              : undefined;
           const isProjectReassignment =
             updatedTask.projectId !== undefined &&
             updatedTask.projectId !== task?.projectId;
@@ -640,16 +660,35 @@ export const useCalendarStore = create<CalendarStore>()(
               showToast.error("权限不足", errorMsg);
               throw new Error(errorMsg);
             }
-          }
 
-          if (project) {
-            const hasProjectPermission = canManageTaskInProject(
+            const effectiveAssigneeIds = nextAssigneeIds || currentAssigneeIds;
+            const canMoveIntoTargetProject = canCreateTaskInProject(
               currentUser.id,
-              project,
+              targetProject,
+              effectiveAssigneeIds,
               currentUser.isAdmin
             );
 
-            // 迁移项目归属是全开放操作，不受协同权限限制
+            if (!canMoveIntoTargetProject) {
+              const errorMsg = getPermissionDeniedMessage(
+                targetProject.taskPermission
+              );
+              set({ error: errorMsg });
+              showToast.error("权限不足", errorMsg);
+              throw new Error(errorMsg);
+            }
+          }
+
+          if (project) {
+            const hasProjectPermission = canEditTaskInProject(
+              currentUser.id,
+              project,
+              currentAssigneeIds,
+              nextAssigneeIds,
+              currentUser.isAdmin
+            );
+
+            // 迁移项目归属不受源项目协同权限限制，但仍然需要目标项目成员校验
             if (!hasProjectPermission && !isProjectReassignment) {
               const errorMsg = getPermissionDeniedMessage(
                 project.taskPermission
@@ -777,11 +816,14 @@ export const useCalendarStore = create<CalendarStore>()(
           const project = task
             ? projects.find((p) => p.id === task.projectId)
             : null;
+          const currentAssigneeIds =
+            task?.assignees?.map((assignee) => assignee.userId) || [];
 
           if (project) {
-            const hasPermission = canManageTaskInProject(
+            const hasPermission = canDeleteTaskInProject(
               currentUser.id,
               project,
+              currentAssigneeIds,
               currentUser.isAdmin
             );
 

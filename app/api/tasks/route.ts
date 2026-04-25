@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { authenticate } from '@/lib/middleware'
 import {
   successResponse,
+  forbiddenResponse,
   validationErrorResponse,
   serverErrorResponse
 } from '@/lib/api-response'
@@ -13,6 +14,7 @@ import {
   isValidTime,
   sanitizeString
 } from '@/lib/validation'
+import { canCreateTaskInProject, getPermissionDeniedMessage } from '@/lib/utils/permission-utils'
 import { addPointsForTaskCreation } from '@/lib/utils/points'
 
 // GET /api/tasks - 获取任务列表
@@ -349,6 +351,29 @@ export async function POST(request: NextRequest) {
 
     // 确定任务负责人列表(如果未指定则使用当前用户)
     const assigneeUserIds = userId ? (Array.isArray(userId) ? userId : [userId]) : [auth.userId]
+
+    const isPersonalProject = project.name.includes('个人事务')
+    if (isPersonalProject && project.creatorId !== auth.userId) {
+      return forbiddenResponse('不能在他人的个人事务项目中创建事项')
+    }
+
+    if (isPersonalProject && assigneeUserIds.some(assigneeId => assigneeId !== auth.userId)) {
+      return validationErrorResponse('个人事务项目只能指派给自己')
+    }
+
+    const canCreateForAssignees = canCreateTaskInProject(
+      auth.userId,
+      {
+        creatorId: project.creatorId,
+        taskPermission: project.taskPermission,
+        memberIds: project.members.map(m => m.userId),
+      },
+      assigneeUserIds
+    )
+
+    if (!canCreateForAssignees) {
+      return forbiddenResponse(getPermissionDeniedMessage(project.taskPermission))
+    }
 
     // 确保所有负责人都在项目中
     for (const assigneeId of assigneeUserIds) {
