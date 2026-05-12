@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { TaskBar } from "./task-bar"
+import { HolidayBar } from "./holiday-bar"
 import { cn } from "@/lib/utils"
 import { getMaxTrackForDate, type TaskWithTrack } from "@/lib/utils/task-layout"
 
@@ -149,7 +150,11 @@ export function CalendarDay({
         className="relative overflow-visible"
       >
         {visibleTasks.map((task) => (
-          <TaskBar key={task.id} task={task} date={date} track={task.track} showUserInfo={showUserInfo} />
+          task.isSystemHoliday ? (
+            <HolidayBar key={task.id} task={task} date={date} track={task.track} />
+          ) : (
+            <TaskBar key={task.id} task={task} date={date} track={task.track} showUserInfo={showUserInfo} />
+          )
         ))}
       </div>
 

@@ -20,6 +20,55 @@ import {
   getPermissionDeniedMessage,
 } from '@/lib/utils/permission-utils'
 
+const taskInclude = {
+  creator: {
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      email: true,
+      avatar: true
+    }
+  },
+  assignees: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          email: true,
+          avatar: true
+        }
+      }
+    }
+  },
+  project: {
+    select: {
+      id: true,
+      name: true,
+      color: true
+    }
+  },
+  team: {
+    select: {
+      id: true,
+      name: true,
+      color: true
+    }
+  },
+  recurringSeries: {
+    select: {
+      id: true,
+      startDate: true,
+      recurrenceType: true,
+      intervalDays: true,
+      stopsAfter: true,
+      generatedUntil: true,
+    }
+  }
+} as const
+
 // GET /api/tasks/[id] - 获取单个任务
 export async function GET(
   request: NextRequest,
@@ -34,44 +83,7 @@ export async function GET(
 
     const task = await prisma.task.findUnique({
       where: { id },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            email: true,
-            avatar: true
-          }
-        },
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        }
-      }
+      include: taskInclude
     })
 
     if (!task) {
@@ -417,44 +429,7 @@ export async function PUT(
     const task = await prisma.task.update({
       where: { id },
       data: updateData,
-      include: {
-        creator: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            email: true,
-            avatar: true
-          }
-        },
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        }
-      }
+      include: taskInclude
     })
 
     return successResponse(task, '任务更新成功')

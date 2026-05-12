@@ -5,6 +5,7 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getMonthDays, isSameDay } from "@/lib/utils/date-utils"
 import { CalendarDay } from "./calendar-day"
 import { assignTaskTracks, type TaskWithTrack } from "@/lib/utils/task-layout"
+import { toPublicHolidayTasks } from "@/lib/utils/public-holiday-utils"
 
 export function MonthView() {
   const { 
@@ -12,6 +13,7 @@ export function MonthView() {
     dragState, 
     dragMoveState, 
     tasks, 
+    publicHolidays,
     selectedProjectIds, 
     hideWeekends, 
     endDragMove,
@@ -34,6 +36,7 @@ export function MonthView() {
   const weekDays = hideWeekends 
     ? ["周一", "周二", "周三", "周四", "周五"]
     : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+  const holidayTasks = useMemo(() => toPublicHolidayTasks(publicHolidays), [publicHolidays])
 
   // 全局鼠标事件处理（用于拖拽移动任务）
   useEffect(() => {
@@ -128,16 +131,28 @@ export function MonthView() {
         // 任务与该周有重叠
         return taskStart <= weekEnd && taskEnd >= weekStart
       })
+
+      const weekHolidayTasks = holidayTasks.filter(task => {
+        const taskStart = new Date(task.startDate)
+        taskStart.setHours(0, 0, 0, 0)
+        const taskEnd = new Date(task.endDate)
+        taskEnd.setHours(23, 59, 59, 999)
+
+        return taskStart <= weekEnd && taskEnd >= weekStart
+      })
       
       // 为该周的任务独立分配轨道
-      const weekTasksWithTracks = assignTaskTracks(weekTasks)
+      const weekTasksWithTracks = assignTaskTracks([
+        ...weekHolidayTasks,
+        ...weekTasks,
+      ])
       
       return {
         days: week,
         tasks: weekTasksWithTracks
       }
     })
-  }, [weeks, filteredTasks])
+  }, [weeks, filteredTasks, holidayTasks])
 
   // 计算每周的最大轨道数（用于设置行高）
   const weekHeights = useMemo(() => {

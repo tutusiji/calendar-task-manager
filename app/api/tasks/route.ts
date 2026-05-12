@@ -15,7 +15,61 @@ import {
   sanitizeString
 } from '@/lib/validation'
 import { canCreateTaskInProject, getPermissionDeniedMessage } from '@/lib/utils/permission-utils'
+import {
+  ensureRecurringTasksGeneratedForOrganization,
+  ensureRecurringTasksGeneratedForSeries,
+  validateTaskRecurrenceConfig,
+} from '@/lib/recurring-task-service'
 import { addPointsForTaskCreation } from '@/lib/utils/points'
+
+const taskInclude = {
+  creator: {
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      email: true,
+      avatar: true
+    }
+  },
+  assignees: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          email: true,
+          avatar: true
+        }
+      }
+    }
+  },
+  project: {
+    select: {
+      id: true,
+      name: true,
+      color: true
+    }
+  },
+  team: {
+    select: {
+      id: true,
+      name: true,
+      color: true
+    }
+  },
+  recurringSeries: {
+    select: {
+      id: true,
+      startDate: true,
+      recurrenceType: true,
+      intervalDays: true,
+      stopsAfter: true,
+      generatedUntil: true,
+    }
+  }
+} as const
 
 // GET /api/tasks - 获取任务列表
 export async function GET(request: NextRequest) {
@@ -63,6 +117,16 @@ export async function GET(request: NextRequest) {
     if (!isMember) {
       return validationErrorResponse('无权访问该组织的数据')
     }
+
+    if (endDate && !isValidDate(endDate)) {
+      return validationErrorResponse('日期格式无效')
+    }
+
+    const recurringGenerationHorizon = endDate ? new Date(endDate) : undefined
+    await ensureRecurringTasksGeneratedForOrganization(
+      targetOrgId,
+      recurringGenerationHorizon
+    )
 
     // 构建查询条件
     const where: any = {
@@ -221,44 +285,7 @@ export async function GET(request: NextRequest) {
     // 查询任务
     const tasks = await prisma.task.findMany({
       where,
-      include: {
-        creator: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            email: true,
-            avatar: true
-          }
-        },
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        }
-      },
+      include: taskInclude,
       orderBy: {
         startDate: 'asc'
       }
@@ -282,7 +309,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error
 
     const body = await request.json()
-    const { title, description, startDate, endDate, startTime, endTime, type, color, progress, projectId, teamId, userId } = body
+    const { title, description, startDate, endDate, startTime, endTime, type, color, progress, projectId, teamId, userId, recurrence } = body
 
     // 验证必填字段
     const requiredValidation = validateRequiredFields(body, [
@@ -330,6 +357,10 @@ export async function POST(request: NextRequest) {
 
     // 验证进度
     const taskProgress = Math.max(0, Math.min(100, progress || 0))
+    const recurrenceValidation = validateTaskRecurrenceConfig(recurrence)
+    if (!recurrenceValidation.valid) {
+      return validationErrorResponse(recurrenceValidation.message!)
+    }
 
     // 验证项目访问权限
     const project = await prisma.project.findUnique({
@@ -418,66 +449,71 @@ export async function POST(request: NextRequest) {
     const cleanTitle = sanitizeString(title, 200)
     const cleanDescription = description ? sanitizeString(description, 2000) : null
 
-    // 创建任务（使用事务确保一致性）
-    const task = await prisma.task.create({
-      data: {
-        title: cleanTitle,
-        description: cleanDescription,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        startTime,
-        endTime,
-        type,
-        color: type === 'daily' ? (color || null) : null,
-        progress: taskProgress,
-        creatorId: auth.userId, // 创建人是当前用户
-        projectId,
-        teamId: teamId || null, // 保存团队ID
-        assignees: {
-          create: assigneeUserIds.map(assigneeId => ({
-            userId: assigneeId
-          }))
+    let task
+    if (recurrence) {
+      const recurringSeries = await prisma.recurringTaskSeries.create({
+        data: {
+          title: cleanTitle,
+          description: cleanDescription,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          startTime,
+          endTime,
+          type,
+          color: type === 'daily' ? (color || null) : null,
+          progress: taskProgress,
+          recurrenceType: recurrence.recurrenceType,
+          intervalDays:
+            recurrence.recurrenceType === 'INTERVAL_DAYS'
+              ? recurrence.intervalDays
+              : null,
+          assigneeIds: assigneeUserIds,
+          creatorId: auth.userId,
+          projectId,
+          teamId: teamId || null,
         }
-      },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            email: true,
-            avatar: true
+      })
+
+      await ensureRecurringTasksGeneratedForSeries(
+        recurringSeries.id,
+        new Date(startDate)
+      )
+
+      task = await prisma.task.findFirst({
+        where: {
+          recurringSeriesId: recurringSeries.id,
+          recurrenceDate: new Date(startDate),
+        },
+        include: taskInclude,
+      })
+    } else {
+      task = await prisma.task.create({
+        data: {
+          title: cleanTitle,
+          description: cleanDescription,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          startTime,
+          endTime,
+          type,
+          color: type === 'daily' ? (color || null) : null,
+          progress: taskProgress,
+          creatorId: auth.userId, // 创建人是当前用户
+          projectId,
+          teamId: teamId || null, // 保存团队ID
+          assignees: {
+            create: assigneeUserIds.map(assigneeId => ({
+              userId: assigneeId
+            }))
           }
         },
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        }
-      }
-    })
+        include: taskInclude
+      })
+    }
+
+    if (!task) {
+      return serverErrorResponse('创建定时任务失败')
+    }
 
     // 创建任务获得积分（异步执行，不影响响应）
     addPointsForTaskCreation(auth.userId).catch(error => {

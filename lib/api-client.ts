@@ -3,7 +3,12 @@
  * 封装所有后端 API 调用
  */
 
-import type { Task, Project, User, Team } from './types'
+import type { Task, TaskRecurrenceConfig, Project, PublicHoliday, User, Team } from './types'
+
+export interface TaskMutationPayload extends Partial<Task> {
+  userId?: string | string[]
+  recurrence?: TaskRecurrenceConfig | null
+}
 
 const API_BASE_URL = '/api'
 
@@ -140,7 +145,10 @@ export const taskAPI = {
   /**
    * 创建任务
    */
-  async create(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
+  async create(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> & {
+    userId?: string | string[]
+    recurrence?: TaskRecurrenceConfig | null
+  }): Promise<Task> {
     return fetchAPI<Task>('/tasks', {
       method: 'POST',
       body: JSON.stringify({
@@ -154,7 +162,7 @@ export const taskAPI = {
   /**
    * 更新任务
    */
-  async update(id: string, updates: Partial<Task>): Promise<Task> {
+  async update(id: string, updates: TaskMutationPayload): Promise<Task> {
     const body: any = { ...updates }
     
     // 转换日期为 ISO 字符串
@@ -178,6 +186,18 @@ export const taskAPI = {
     return fetchAPI<void>(`/tasks/${id}`, {
       method: 'DELETE',
     })
+  },
+
+  /**
+   * 终止某个定时任务的后续生成
+   */
+  async stopRecurring(id: string): Promise<{ recurringSeriesId: string; stopsAfter: string }> {
+    return fetchAPI<{ recurringSeriesId: string; stopsAfter: string }>(
+      `/tasks/${id}/recurrence/stop`,
+      {
+        method: 'POST',
+      }
+    )
   },
 }
 
@@ -468,6 +488,26 @@ export const teamAPI = {
       method: 'PUT',
       body: JSON.stringify({ teamIds }),
     })
+  },
+}
+
+// ==================== 法定节假日 API ====================
+
+export interface PublicHolidayFilters {
+  startDate?: string
+  endDate?: string
+}
+
+export const publicHolidayAPI = {
+  async getAll(filters?: PublicHolidayFilters): Promise<PublicHoliday[]> {
+    const params = new URLSearchParams()
+    if (filters?.startDate) params.append('startDate', filters.startDate)
+    if (filters?.endDate) params.append('endDate', filters.endDate)
+
+    const query = params.toString()
+    const endpoint = query ? `/public-holidays?${query}` : '/public-holidays'
+
+    return fetchAPI<PublicHoliday[]>(endpoint)
   },
 }
 

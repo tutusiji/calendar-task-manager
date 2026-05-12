@@ -5,10 +5,11 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
 import { TaskBar } from "./task-bar"
+import { HolidayWeekRow } from "./holiday-week-row"
 import { cn } from "@/lib/utils"
 
 export function PersonalWeekView() {
-  const { currentDate, currentUser, tasks, selectedProjectIds, hideWeekends, dragState, dragMoveState, cancelDragCreate, endDragMove, taskBarSize, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, updateDragMove, startDragMove } = useCalendarStore()
+  const { currentDate, currentUser, tasks, publicHolidays, selectedProjectIds, hideWeekends, dragState, dragMoveState, cancelDragCreate, endDragMove, taskBarSize, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, updateDragMove, startDragMove } = useCalendarStore()
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
@@ -167,6 +168,8 @@ export function PersonalWeekView() {
           )
         })}
       </div>
+
+      <HolidayWeekRow publicHolidays={publicHolidays} weekDays={weekDays} />
 
       {/* Single row for current user's tasks - 撑满剩余空间 */}
       <div className="flex flex-1 border-b border-border hover:bg-muted/30 transition-colors">

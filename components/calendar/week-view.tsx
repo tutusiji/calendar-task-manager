@@ -4,11 +4,13 @@ import { useEffect, useMemo } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { TeamMemberRow } from "./team-member-row"
+import { HolidayWeekRow } from "./holiday-week-row"
 import { cn } from "@/lib/utils"
 
 export function WeekView() {
   const { 
     currentDate, 
+    publicHolidays,
     users, 
     teams,
     projects,
@@ -99,6 +101,7 @@ export function WeekView() {
 
       {/* Team member rows */}
       <div className="flex-1 overflow-y-auto">
+        <HolidayWeekRow publicHolidays={publicHolidays} weekDays={weekDays} showLabel={true} />
         {displayUsers.map((user) => (
           <TeamMemberRow key={user.id} user={user} weekDays={weekDays} showPlaceholder={false} />
         ))}

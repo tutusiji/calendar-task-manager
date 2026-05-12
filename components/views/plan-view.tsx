@@ -12,6 +12,7 @@ import {
 import {
   Check,
   Edit3,
+  GripVertical,
   Layers3,
   Loader2,
   MoreVertical,
@@ -78,6 +79,9 @@ import { showToast } from "@/lib/toast"
 
 const BOARD_SELECTION_STORAGE_KEY = "planning-board-selection-v1"
 const PROGRESS_DISPLAY_STORAGE_KEY = "planning-progress-display-v1"
+const ITEM_HOVER_SUPPRESS_MIN_MS = 140
+const ITEM_HOVER_SUPPRESS_MAX_MS = 900
+const ITEM_HOVER_RELEASE_DISTANCE = 10
 
 type ProgressDisplayMode = "fraction" | "percentage"
 
@@ -215,6 +219,17 @@ type CardDropIndicatorState = {
   position: "before" | "after"
 }
 
+type DraggingItemState = {
+  itemId: string
+  cardId: string
+}
+
+type ItemDropIndicatorState = {
+  cardId: string
+  targetItemId: string
+  position: "before" | "after"
+}
+
 type DraggingBucketState = {
   bucketId: string
 }
@@ -315,6 +330,10 @@ export function PlanView() {
   const [bucketDropIndicator, setBucketDropIndicator] = useState<BucketDropIndicatorState | null>(null)
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null)
   const [cardDropIndicator, setCardDropIndicator] = useState<CardDropIndicatorState | null>(null)
+  const [draggingItem, setDraggingItem] = useState<DraggingItemState | null>(null)
+  const [itemDropIndicator, setItemDropIndicator] = useState<ItemDropIndicatorState | null>(null)
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null)
+  const [isItemHoverSuppressed, setIsItemHoverSuppressed] = useState(false)
   const [editingBucketId, setEditingBucketId] = useState<string | null>(null)
   const [editingBucketTitle, setEditingBucketTitle] = useState("")
   const [editingBucketWidth, setEditingBucketWidth] = useState(DEFAULT_PLANNING_BUCKET_WIDTH)
@@ -341,6 +360,11 @@ export function PlanView() {
     side: "right",
     startX: 0,
     startWidth: DEFAULT_PLANNING_BUCKET_WIDTH,
+  })
+  const itemHoverSuppressionRef = useRef({
+    clientX: 0,
+    clientY: 0,
+    startedAt: 0,
   })
 
   const selectedBoard = boards.find((board) => board.id === selectedBoardId) || null
@@ -389,6 +413,74 @@ export function PlanView() {
     loadBoards()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeContext.ready, scopeContext.scopeKey])
+
+  useEffect(() => {
+    if (!isItemHoverSuppressed) {
+      return
+    }
+
+    let isCleared = false
+
+    const clearItemHoverSuppression = () => {
+      if (isCleared) {
+        return
+      }
+
+      isCleared = true
+      setIsItemHoverSuppressed(false)
+    }
+
+    const resolveHoveredItemIdFromElement = (element: Element | null) => {
+      if (!(element instanceof HTMLElement)) {
+        return null
+      }
+
+      return element.closest<HTMLElement>("[data-plan-item-id]")?.dataset.planItemId || null
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const { clientX, clientY, startedAt } = itemHoverSuppressionRef.current
+      const elapsed = performance.now() - startedAt
+      const distance = Math.hypot(event.clientX - clientX, event.clientY - clientY)
+
+      if (elapsed < ITEM_HOVER_SUPPRESS_MIN_MS || distance < ITEM_HOVER_RELEASE_DISTANCE) {
+        return
+      }
+
+      setHoveredItemId(
+        resolveHoveredItemIdFromElement(document.elementFromPoint(event.clientX, event.clientY))
+      )
+      clearItemHoverSuppression()
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      setHoveredItemId(resolveHoveredItemIdFromElement(event.target as Element | null))
+      clearItemHoverSuppression()
+    }
+
+    const timeoutId = window.setTimeout(
+      clearItemHoverSuppression,
+      ITEM_HOVER_SUPPRESS_MAX_MS
+    )
+
+    window.addEventListener("pointermove", handlePointerMove)
+    window.addEventListener("pointerdown", handlePointerDown, { once: true })
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerdown", handlePointerDown)
+    }
+  }, [isItemHoverSuppressed])
+
+  const suppressItemHover = (clientX: number, clientY: number) => {
+    itemHoverSuppressionRef.current = {
+      clientX,
+      clientY,
+      startedAt: performance.now(),
+    }
+    setIsItemHoverSuppressed(true)
+  }
 
   const handleBoardSelection = (boardId: string) => {
     setSelectedBoardId(boardId)
@@ -997,6 +1089,196 @@ export function PlanView() {
     await reorderCardsInBucket(bucket, movingCardId, targetCardId, position)
   }
 
+  const reorderItemsInCard = async (
+    card: PlanningCard,
+    movingItemId: string,
+    targetItemId: string,
+    position: "before" | "after"
+  ) => {
+    const currentItems = [...card.items]
+    const movingItemIndex = currentItems.findIndex((item) => item.id === movingItemId)
+    const targetItemIndex = currentItems.findIndex((item) => item.id === targetItemId)
+
+    if (movingItemIndex === -1 || targetItemIndex === -1 || movingItemId === targetItemId) {
+      return
+    }
+
+    const [movingItem] = currentItems.splice(movingItemIndex, 1)
+    const nextTargetIndex = currentItems.findIndex((item) => item.id === targetItemId)
+    const insertIndex = position === "after" ? nextTargetIndex + 1 : nextTargetIndex
+
+    currentItems.splice(insertIndex, 0, movingItem)
+
+    if (currentItems.every((item, index) => item.id === card.items[index]?.id)) {
+      return
+    }
+
+    const reorderedItems = currentItems.map((item, index) => ({
+      ...item,
+      sortOrder: index,
+    }))
+
+    setBoards((currentBoards) =>
+      currentBoards.map((board) => ({
+        ...board,
+        buckets: board.buckets.map((bucket) => ({
+          ...bucket,
+          cards: bucket.cards.map((currentCard) =>
+            currentCard.id === card.id
+              ? {
+                  ...currentCard,
+                  items: reorderedItems,
+                }
+              : currentCard
+          ),
+        })),
+      }))
+    )
+
+    try {
+      setIsRefreshing(true)
+      await Promise.all(
+        reorderedItems.map((item, index) =>
+          planningAPI.updateItem(item.id, {
+            sortOrder: index,
+          })
+        )
+      )
+      await loadBoards(true)
+    } catch (error) {
+      console.error("Failed to reorder planning items:", error)
+      showToast.error(
+        "保存事项顺序失败",
+        error instanceof Error ? error.message : "请稍后重试"
+      )
+      await loadBoards(true)
+    }
+  }
+
+  const resolveItemDropTarget = (
+    card: PlanningCard,
+    targetItemId: string,
+    position: "before" | "after"
+  ) => {
+    const targetItemIndex = card.items.findIndex((item) => item.id === targetItemId)
+    if (targetItemIndex === -1) {
+      return null
+    }
+
+    if (position === "before") {
+      return {
+        targetItemId,
+        position: "before" as const,
+      }
+    }
+
+    const nextItem = card.items[targetItemIndex + 1]
+    if (nextItem) {
+      return {
+        targetItemId: nextItem.id,
+        position: "before" as const,
+      }
+    }
+
+    return {
+      targetItemId,
+      position: "after" as const,
+    }
+  }
+
+  const handleItemDragStart = (
+    event: ReactDragEvent<HTMLButtonElement>,
+    item: PlanningCardItem
+  ) => {
+    setHoveredItemId(null)
+    setDraggingItem({
+      itemId: item.id,
+      cardId: item.cardId,
+    })
+    setItemDropIndicator(null)
+    setPendingDeleteItemId(null)
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", item.id)
+  }
+
+  const handleItemDragEnd = (event: ReactDragEvent<HTMLButtonElement>) => {
+    event.currentTarget.blur()
+    suppressItemHover(event.clientX, event.clientY)
+    setDraggingItem(null)
+    setItemDropIndicator(null)
+  }
+
+  const handleItemDragOver = (
+    event: ReactDragEvent<HTMLDivElement>,
+    card: PlanningCard,
+    targetItemId: string
+  ) => {
+    if (!draggingItem || draggingItem.cardId !== card.id || draggingItem.itemId === targetItemId) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after"
+    const nextDropTarget = resolveItemDropTarget(card, targetItemId, position)
+
+    if (!nextDropTarget || nextDropTarget.targetItemId === draggingItem.itemId) {
+      setItemDropIndicator(null)
+      return
+    }
+
+    setItemDropIndicator((current) => {
+      if (
+        current?.cardId === card.id &&
+        current.targetItemId === nextDropTarget.targetItemId &&
+        current.position === nextDropTarget.position
+      ) {
+        return current
+      }
+
+      return {
+        cardId: card.id,
+        targetItemId: nextDropTarget.targetItemId,
+        position: nextDropTarget.position,
+      }
+    })
+  }
+
+  const handleItemDrop = async (
+    event: ReactDragEvent<HTMLDivElement>,
+    card: PlanningCard,
+    targetItemId: string
+  ) => {
+    if (!draggingItem || draggingItem.cardId !== card.id || draggingItem.itemId === targetItemId) {
+      return
+    }
+
+    event.preventDefault()
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after"
+    const nextDropTarget = resolveItemDropTarget(card, targetItemId, position)
+    if (!nextDropTarget || nextDropTarget.targetItemId === draggingItem.itemId) {
+      suppressItemHover(event.clientX, event.clientY)
+      setDraggingItem(null)
+      setItemDropIndicator(null)
+      return
+    }
+
+    const movingItemId = draggingItem.itemId
+    suppressItemHover(event.clientX, event.clientY)
+    setDraggingItem(null)
+    setItemDropIndicator(null)
+    await reorderItemsInCard(
+      card,
+      movingItemId,
+      nextDropTarget.targetItemId,
+      nextDropTarget.position
+    )
+  }
+
   const handleAddItem = async (cardId: string, content: string) => {
     const normalizedContent = content.trim()
     if (!normalizedContent) return
@@ -1226,8 +1508,8 @@ export function PlanView() {
       ) : (
         <div className="relative flex-1 min-w-0 overflow-hidden">
           {isRefreshing && (
-            <div className="pointer-events-none fixed left-1/2 top-1/2 z-50 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border bg-white/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <div className="pointer-events-none fixed bottom-5 right-6 z-50 inline-flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/96 px-3 py-2 text-xs text-muted-foreground shadow-[0_12px_28px_rgba(15,23,42,0.12)] backdrop-blur">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-600" />
               正在同步计划板...
             </div>
           )}
@@ -1449,7 +1731,7 @@ export function PlanView() {
 
                             <div className="px-2 py-3">
                               {card.description && (
-                                <p className="mb-2.5 text-sm leading-5 text-muted-foreground">
+                                <p className="mb-2.5 break-all text-sm leading-5 text-muted-foreground">
                                   {card.description}
                                 </p>
                               )}
@@ -1466,6 +1748,7 @@ export function PlanView() {
                                         key={item.id}
                                         className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50/70 px-2 py-1.5"
                                       >
+                                        <div className="w-3.5 shrink-0" />
                                         <div className="h-[18px] w-[18px] shrink-0 rounded-full border border-sky-200 bg-white" />
                                         <Input
                                           value={editingItemContent}
@@ -1512,25 +1795,79 @@ export function PlanView() {
                                     ) : (
                                       <div
                                         key={item.id}
-                                        className="group flex items-start gap-2.5 rounded-xl px-2 py-0.5 transition-colors hover:bg-slate-50"
+                                        data-plan-item-id={item.id}
+                                        onPointerEnter={() => {
+                                          if (!isItemHoverSuppressed) {
+                                            setHoveredItemId(item.id)
+                                          }
+                                        }}
+                                        onPointerMove={() => {
+                                          if (!isItemHoverSuppressed && hoveredItemId !== item.id) {
+                                            setHoveredItemId(item.id)
+                                          }
+                                        }}
+                                        onPointerLeave={() => {
+                                          setHoveredItemId((current) =>
+                                            current === item.id ? null : current
+                                          )
+                                        }}
+                                        onDragOver={(event) => handleItemDragOver(event, card, item.id)}
+                                        onDrop={(event) => void handleItemDrop(event, card, item.id)}
+                                        className={cn(
+                                          "group relative flex items-center gap-1 rounded-xl pl-1 pr-2 py-0.5",
+                                          "transition-colors",
+                                          hoveredItemId === item.id && "bg-slate-50",
+                                          draggingItem?.itemId === item.id && "opacity-55"
+                                        )}
                                       >
+                                        {itemDropIndicator?.cardId === card.id &&
+                                          itemDropIndicator.targetItemId === item.id && (
+                                            <div
+                                              className={cn(
+                                                "pointer-events-none absolute left-2 right-2 z-20 h-0.5 rounded-full bg-linear-to-r from-cyan-400 via-sky-500 to-fuchsia-500 shadow-[0_0_10px_rgba(56,189,248,0.45)]",
+                                                itemDropIndicator.position === "before"
+                                                  ? "top-0"
+                                                  : "bottom-0"
+                                              )}
+                                            />
+                                          )}
+                                        <div className="flex w-3.5 shrink-0 self-center justify-center">
+                                          <button
+                                            type="button"
+                                            draggable
+                                            onDragStart={(event) => handleItemDragStart(event, item)}
+                                            onDragEnd={handleItemDragEnd}
+                                            className={cn(
+                                              "inline-flex h-4 w-4 items-center justify-center cursor-grab rounded-sm p-0 text-slate-300 opacity-60 transition-all focus-visible:opacity-100 focus-visible:text-slate-500 md:opacity-0 active:cursor-grabbing",
+                                              hoveredItemId === item.id && "md:opacity-100",
+                                              !isItemHoverSuppressed && "hover:text-slate-500"
+                                            )}
+                                            aria-label="拖拽排序事项"
+                                            title="拖拽调整顺序"
+                                          >
+                                            <GripVertical className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
                                         <button
                                           type="button"
                                           onClick={() => handleToggleItem(item)}
                                           className={cn(
-                                            "mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors",
+                                            "mr-1 flex h-[18px] w-[18px] shrink-0 items-center justify-center self-center rounded-full border transition-colors",
                                             item.isCompleted
                                               ? "border-slate-300 bg-slate-300 text-white"
-                                              : "border-slate-300 bg-white text-transparent hover:border-sky-500"
+                                              : cn(
+                                                  "border-slate-300 bg-white text-transparent",
+                                                  !isItemHoverSuppressed && "hover:border-sky-500"
+                                                )
                                           )}
                                         >
                                           <Check className="h-3.5 w-3.5" />
                                         </button>
-                                      <div className="min-w-0 flex-1">
+                                      <div className="min-w-0 flex-1 self-center">
                                         <div
                                           onDoubleClick={() => handleStartItemEdit(item)}
                                           className={cn(
-                                            "cursor-text text-sm leading-5 transition-colors",
+                                            "cursor-text break-all text-sm leading-5 transition-colors",
                                               item.isCompleted
                                                 ? "text-slate-400 line-through"
                                                 : "text-slate-700"
@@ -1539,7 +1876,7 @@ export function PlanView() {
                                             {item.content}
                                           </div>
                                         </div>
-                                        <div className="relative flex w-[52px] items-center justify-end">
+                                        <div className="relative flex w-[52px] shrink-0 items-center justify-end self-center">
                                           <button
                                             type="button"
                                             onClick={() => handleStartDeleteItem(item.id)}
@@ -1547,7 +1884,10 @@ export function PlanView() {
                                               "transition-opacity",
                                               pendingDeleteItemId === item.id
                                                 ? "pointer-events-none absolute opacity-0"
-                                                : "opacity-0 group-hover:opacity-100"
+                                                : cn(
+                                                    "opacity-0",
+                                                    hoveredItemId === item.id && "opacity-100"
+                                                  )
                                             )}
                                             aria-label="删除事项"
                                           >
@@ -1591,6 +1931,7 @@ export function PlanView() {
 
                                 {itemComposerCardId === card.id && (
                                   <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50/70 px-2 py-1.5">
+                                    <div className="w-3.5 shrink-0" />
                                     <div className="h-[18px] w-[18px] shrink-0 rounded-full border border-sky-200 bg-white" />
                                     <Input
                                       value={itemDrafts[card.id] || ""}

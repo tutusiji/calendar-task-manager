@@ -77,6 +77,7 @@ model User {
   defaultTeamId           String? // 默认团队ID
   points                  Int                       @default(0) // 用户积分，用于段位系统
   createdTasks            Task[]                    @relation("TaskCreator") // 创建的任务
+  createdRecurringTaskSeries RecurringTaskSeries[]  @relation("RecurringTaskSeriesCreator")
   assignedTasks           TaskAssignee[]            @relation("TaskAssignee") // 被分配的任务
   teamMembers             TeamMember[]
   projectMembers          ProjectMember[]
@@ -111,6 +112,7 @@ model Team {
   creator        User           @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members        TeamMember[]
   tasks          Task[] // 团队可以有多个任务
+  recurringTaskSeries RecurringTaskSeries[]
   planningBoards PlanningBoard[]
   taskPermission TaskPermission @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
   sortOrder      Int            @default(0) // 侧边栏排序
@@ -134,6 +136,7 @@ model Project {
   creator        User            @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members        ProjectMember[]
   tasks          Task[]
+  recurringTaskSeries RecurringTaskSeries[]
   planningBoards PlanningBoard[]
   taskPermission TaskPermission  @default(ALL_MEMBERS) // 任务权限：所有成员 | 仅创建者
   isArchived     Boolean         @default(false) // 是否已归档
@@ -167,6 +170,9 @@ model Task {
   project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   teamId      String? // 任务可以选择性地关联到团队
   team        Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  recurringSeriesId String?
+  recurringSeries RecurringTaskSeries? @relation(fields: [recurringSeriesId], references: [id], onDelete: SetNull)
+  recurrenceDate DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -174,6 +180,55 @@ model Task {
   @@index([creatorId])
   @@index([projectId])
   @@index([teamId])
+  @@index([recurringSeriesId])
+  @@unique([recurringSeriesId, recurrenceDate])
+}
+
+model RecurringTaskSeries {
+  id              String             @id @default(cuid())
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime
+  startTime       String?
+  endTime         String?
+  type            TaskType
+  color           String?
+  progress        Int                @default(0)
+  recurrenceType  TaskRecurrenceType
+  intervalDays    Int?
+  assigneeIds     String[]
+  creatorId       String
+  creator         User               @relation("RecurringTaskSeriesCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  projectId       String
+  project         Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  teamId          String?
+  team            Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  generatedUntil  DateTime?
+  stopsAfter      DateTime?
+  tasks           Task[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([creatorId])
+  @@index([projectId])
+  @@index([teamId])
+  @@index([generatedUntil])
+  @@index([stopsAfter])
+}
+
+model PublicHoliday {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  year      Int
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year])
+  @@index([startDate, endDate])
 }
 
 // 任务负责人关系表
@@ -281,6 +336,12 @@ enum TaskType {
   daily
   meeting
   vacation
+}
+
+enum TaskRecurrenceType {
+  WEEKLY
+  MONTHLY
+  INTERVAL_DAYS
 }
 
 enum PlanningScopeType {

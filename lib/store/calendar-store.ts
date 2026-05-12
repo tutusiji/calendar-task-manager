@@ -3,7 +3,9 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type {
+  PublicHoliday,
   Task,
+  TaskRecurrenceConfig,
   Project,
   User,
   CalendarSettings,
@@ -17,6 +19,7 @@ import type {
 import {
   taskAPI,
   projectAPI,
+  publicHolidayAPI,
   userAPI,
   teamAPI,
   handleAPIError,
@@ -34,6 +37,7 @@ import { getWeekDays } from "../utils/date-utils";
 interface CalendarStore {
   // Data
   tasks: Task[];
+  publicHolidays: PublicHoliday[];
   projects: Project[];
   users: User[];
   teams: Team[];
@@ -107,6 +111,7 @@ interface CalendarStore {
     endDate?: Date;
   }) => Promise<void>;
   fetchProjects: () => Promise<void>;
+  fetchPublicHolidays: () => Promise<void>;
   fetchUsers: () => Promise<void>;
   fetchTeams: () => Promise<void>;
   fetchAllData: () => Promise<void>;
@@ -115,12 +120,19 @@ interface CalendarStore {
 
   // Actions
   addTask: (
-    task: Omit<Task, "id"> & { userId?: string | string[] }
+    task: Omit<Task, "id"> & {
+      userId?: string | string[]
+      recurrence?: TaskRecurrenceConfig | null
+    }
   ) => Promise<void>;
   updateTask: (
     id: string,
-    task: Partial<Task> & { userId?: string | string[] }
+    task: Partial<Task> & {
+      userId?: string | string[]
+      recurrence?: TaskRecurrenceConfig | null
+    }
   ) => Promise<void>;
+  stopRecurringTask: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
 
   addTeam: (
@@ -210,6 +222,7 @@ export const useCalendarStore = create<CalendarStore>()(
     (set, get) => ({
       // Initial data
       tasks: [],
+      publicHolidays: [],
       projects: [],
       users: [],
       teams: [],
@@ -317,6 +330,23 @@ export const useCalendarStore = create<CalendarStore>()(
             ...task,
             startDate: new Date(task.startDate),
             endDate: new Date(task.endDate),
+            recurrenceDate: task.recurrenceDate
+              ? new Date(task.recurrenceDate)
+              : undefined,
+            recurringSeries: task.recurringSeries
+              ? {
+                  ...task.recurringSeries,
+                  startDate: task.recurringSeries.startDate
+                    ? new Date(task.recurringSeries.startDate)
+                    : undefined,
+                  stopsAfter: task.recurringSeries.stopsAfter
+                    ? new Date(task.recurringSeries.stopsAfter)
+                    : undefined,
+                  generatedUntil: task.recurringSeries.generatedUntil
+                    ? new Date(task.recurringSeries.generatedUntil)
+                    : undefined,
+                }
+              : null,
           }));
 
           // 先更新数据
@@ -392,6 +422,23 @@ export const useCalendarStore = create<CalendarStore>()(
 
           set({ isLoadingProjects: false });
           showToast.error("获取项目失败", errorMsg);
+        }
+      },
+
+      fetchPublicHolidays: async () => {
+        try {
+          const holidaysData = await publicHolidayAPI.getAll();
+          const publicHolidays = holidaysData.map((holiday: any) => ({
+            ...holiday,
+            startDate: new Date(holiday.startDate),
+            endDate: new Date(holiday.endDate),
+          }));
+
+          set({ publicHolidays });
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          console.error("Fetch public holidays error:", errorMsg, error);
+          set({ publicHolidays: [] });
         }
       },
 
@@ -484,6 +531,7 @@ export const useCalendarStore = create<CalendarStore>()(
           store.fetchUsers(),
           store.fetchTeams(),
           store.fetchProjects(),
+          store.fetchPublicHolidays(),
         ]);
 
         // 获取加载后的数据状态
@@ -800,6 +848,33 @@ export const useCalendarStore = create<CalendarStore>()(
           });
 
           // API 调用成功后立即返回,不等待数据刷新
+        } catch (error) {
+          const errorMsg = handleAPIError(error);
+          set({ error: errorMsg });
+          throw error;
+        }
+      },
+
+      stopRecurringTask: async (id) => {
+        try {
+          await taskAPI.stopRecurring(id);
+
+          const {
+            navigationMode,
+            selectedTeamId,
+            selectedProjectId,
+            currentUser,
+          } = get();
+
+          if (navigationMode === "team" && selectedTeamId) {
+            await get().fetchTasks({ teamId: selectedTeamId });
+          } else if (navigationMode === "project" && selectedProjectId) {
+            await get().fetchTasks({ projectId: selectedProjectId });
+          } else if (currentUser) {
+            await get().fetchTasks({ userId: currentUser.id });
+          } else {
+            await get().fetchTasks();
+          }
         } catch (error) {
           const errorMsg = handleAPIError(error);
           set({ error: errorMsg });
@@ -1450,13 +1525,16 @@ export const useCalendarStore = create<CalendarStore>()(
           },
         }),
 
-      openTaskEdit: (task) =>
+      openTaskEdit: (task) => {
+        if (task.isSystemHoliday) return;
+
         set({
           taskEdit: {
             isOpen: true,
             task,
           },
-        }),
+        });
+      },
 
       closeTaskEdit: () =>
         set({

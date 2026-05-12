@@ -11,9 +11,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { Switch } from "@/components/ui/switch"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { useToast } from "@/hooks/use-toast"
-import type { Task, TaskType } from "@/lib/types"
+import type { Task, TaskRecurrenceType, TaskType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import {
   canDeleteTaskInProject,
@@ -56,6 +57,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
   const { 
     addTask, 
     updateTask, 
+    stopRecurringTask,
     deleteTask, 
     projects, 
     teams, 
@@ -94,11 +96,17 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
     (taskCreation.userId ? [taskCreation.userId] : (currentUser?.id ? [currentUser.id] : []))
   )
   const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
+  const [isRecurringEnabled, setIsRecurringEnabled] = useState(false)
+  const [recurrenceType, setRecurrenceType] = useState<TaskRecurrenceType>("WEEKLY")
+  const [intervalDays, setIntervalDays] = useState(7)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isStoppingRecurring, setIsStoppingRecurring] = useState(false)
   const [projectError, setProjectError] = useState(false)
   const [teamError, setTeamError] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showStopRecurringConfirm, setShowStopRecurringConfirm] = useState(false)
+  const isRecurringTask = !!task?.recurringSeriesId
 
   // Get creator info (edit mode only)
   const creator = task ? (task.creator || getUserById(task.creatorId)) : null
@@ -181,6 +189,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
           currentUser.isAdmin
         )
   const isProjectOnlyEditMode = isEditMode && !!task && !canEditTaskContent
+  const canStopRecurringTask = isRecurringTask && !isProjectOnlyEditMode && canEditTaskContent
   const canEditAssignees =
     !isPersonalProject &&
     !isProjectOnlyEditMode &&
@@ -193,7 +202,39 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
     !!dateRange.from &&
     !isSubmitting &&
     !isDeleting &&
+    !isStoppingRecurring &&
     (!isProjectOnlyEditMode || projectId !== task?.projectId)
+
+  const getWeekdayLabel = (date: Date) =>
+    date.toLocaleDateString("zh-CN", { weekday: "long" })
+
+  const getRecurrenceDescription = () => {
+    if (isEditMode && task?.recurringSeries) {
+      const occurrenceDate = task.recurrenceDate || task.startDate
+      const seriesAnchorDate = task.recurringSeries.startDate || occurrenceDate
+      switch (task.recurringSeries.recurrenceType) {
+        case "WEEKLY":
+          return `每周 ${getWeekdayLabel(occurrenceDate)} 创建一次`
+        case "MONTHLY":
+          return `每月 ${seriesAnchorDate.getDate()} 日创建一次，超出当月则取最后一天`
+        case "INTERVAL_DAYS":
+          return `每隔 ${task.recurringSeries.intervalDays || 1} 天创建一次`
+        default:
+          return "定时任务"
+      }
+    }
+
+    switch (recurrenceType) {
+      case "WEEKLY":
+        return `每周 ${getWeekdayLabel(dateRange.from)} 创建一次`
+      case "MONTHLY":
+        return `每月 ${dateRange.from.getDate()} 日创建一次，超出当月则取最后一天`
+      case "INTERVAL_DAYS":
+        return `每隔 ${intervalDays} 天创建一次`
+      default:
+        return "定时任务"
+    }
+  }
 
   // 个人事务和“仅创建人”的普通成员模式下，负责人固定为自己
   useEffect(() => {
@@ -229,6 +270,17 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
     setProjectError(false)
     setTeamError(false)
 
+    if (!isEditMode && isRecurringEnabled) {
+      if (recurrenceType === "INTERVAL_DAYS" && (!Number.isInteger(intervalDays) || intervalDays <= 0)) {
+        toast({
+          title: "请填写重复天数",
+          description: "指定天数提醒需要填写大于 0 的整数天数",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     // Validate assignees
     if (assigneeIds.length === 0) {
       toast({
@@ -255,6 +307,14 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
         projectId,
         teamId: teamId === "none" ? null : teamId,
         userId: assigneeIds.length > 0 ? assigneeIds : undefined,
+        recurrence:
+          !isEditMode && isRecurringEnabled
+            ? {
+                recurrenceType,
+                intervalDays:
+                  recurrenceType === "INTERVAL_DAYS" ? intervalDays : undefined,
+              }
+            : undefined,
       }
 
       const isRestrictedProjectReassignment =
@@ -322,18 +382,49 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
       toast({
         variant: 'success' as any,
         title: "删除成功",
-        description: `任务「${task.title}」已删除`,
+        description: isRecurringTask
+          ? `事项「${task.title}」已删除，后续定时任务保持不变`
+          : `任务「${task.title}」已删除`,
       })
       onClose()
     } catch (error) {
       console.error('Failed to delete task:', error)
-      const errorMessage = error instanceof Error ? error.message : '删除任务失败，请重试'
+      const errorMessage = error instanceof Error
+        ? error.message
+        : '删除任务失败，请重试'
       toast({
         title: "删除失败",
         description: errorMessage,
         variant: "destructive",
       })
       setIsDeleting(false)
+    }
+  }
+
+  const handleStopRecurring = async () => {
+    if (!task || !isRecurringTask) return
+
+    setIsStoppingRecurring(true)
+    setShowStopRecurringConfirm(false)
+
+    try {
+      await stopRecurringTask(task.id)
+      toast({
+        variant: 'success' as any,
+        title: "终止成功",
+        description: `任务「${task.title}」的后续定时任务已终止，当前事项会保留`,
+      })
+      onClose()
+    } catch (error) {
+      console.error('Failed to stop recurring task:', error)
+      const errorMessage =
+        error instanceof Error ? error.message : '终止定时任务失败，请重试'
+      toast({
+        title: "终止失败",
+        description: errorMessage,
+        variant: "destructive",
+      })
+      setIsStoppingRecurring(false)
     }
   }
 
@@ -381,13 +472,24 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                 size="icon" 
                 onClick={() => setShowDeleteConfirm(true)} 
                 className="text-red-500 hover:text-red-600"
-                disabled={isDeleting || isSubmitting || !canDeleteTask}
-                title={!canDeleteTask ? "仅项目创建者或任务负责人可以删除" : "删除任务"}
+                disabled={isDeleting || isSubmitting || isStoppingRecurring || !canDeleteTask}
+                title={
+                  !canDeleteTask
+                    ? "仅项目创建者或任务负责人可以删除"
+                    : isRecurringTask
+                      ? "删除当前事项"
+                      : "删除任务"
+                }
               >
                 <Trash2 className="h-5 w-5" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose} disabled={isDeleting || isSubmitting}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              disabled={isDeleting || isSubmitting || isStoppingRecurring}
+            >
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -632,6 +734,114 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                 </div>
               </div>
 
+              {isEditMode ? (
+                isRecurringTask ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="recurring-task-active" className="text-sm font-medium">
+                        定时任务
+                      </Label>
+                      <Switch
+                        id="recurring-task-active"
+                        checked
+                        disabled={!canStopRecurringTask || isStoppingRecurring || isDeleting || isSubmitting}
+                        onCheckedChange={(checked) => {
+                          if (!checked && canStopRecurringTask) {
+                            setShowStopRecurringConfirm(true)
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="rounded-md border border-input bg-muted/20 px-3 py-3">
+                      <div className="flex items-center gap-1 text-sm font-medium text-foreground">
+                        {getRecurrenceDescription()}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">
+                                修改当前事项不会影响后续定时任务；关闭后只会清理这一天之后的未来事项，当前事项和历史事项会保留。
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      {!canStopRecurringTask && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          当前权限下不能终止这个定时任务。
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : null
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="recurring-task" className="text-sm font-medium">
+                      定时任务
+                    </Label>
+                    <Switch
+                      id="recurring-task"
+                      checked={isRecurringEnabled}
+                      onCheckedChange={setIsRecurringEnabled}
+                    />
+                  </div>
+
+                  {isRecurringEnabled && (
+                    <div className="space-y-3 rounded-md border border-input bg-muted/20 p-3">
+                      <div
+                        className={cn(
+                          "grid gap-3",
+                          recurrenceType === "INTERVAL_DAYS"
+                            ? "grid-cols-[minmax(0,1fr)_120px]"
+                            : "grid-cols-1"
+                        )}
+                      >
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">重复方式</Label>
+                          <Select
+                            value={recurrenceType}
+                            onValueChange={(value) => setRecurrenceType(value as TaskRecurrenceType)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="WEEKLY">按周提醒</SelectItem>
+                              <SelectItem value="MONTHLY">按月提醒</SelectItem>
+                              <SelectItem value="INTERVAL_DAYS">指定天数提醒</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {recurrenceType === "INTERVAL_DAYS" && (
+                          <div className="space-y-2">
+                            <Label htmlFor="interval-days" className="text-sm font-medium">
+                              间隔天数
+                            </Label>
+                            <Input
+                              id="interval-days"
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={intervalDays}
+                              onChange={(e) => setIntervalDays(Math.max(1, Number(e.target.value) || 1))}
+                              className="text-center"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        {getRecurrenceDescription()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Creator - Show in edit mode or current user in create mode */}
               {(isEditMode && creator) || (!isEditMode && currentUser) ? (
                 <div className="space-y-2">
@@ -683,7 +893,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
               variant="outline" 
               onClick={onClose} 
               className="bg-transparent min-w-24"
-              disabled={isSubmitting || isDeleting}
+              disabled={isSubmitting || isDeleting || isStoppingRecurring}
             >
               取消
             </Button>
@@ -703,9 +913,13 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>确认删除任务</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isRecurringTask ? "确认删除当前事项" : "确认删除任务"}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                确定要删除任务「{task.title}」吗？此操作无法撤销。
+                {isRecurringTask
+                  ? `确定要删除当前事项「${task.title}」吗？这不会终止后续定时任务。`
+                  : `确定要删除任务「${task.title}」吗？此操作无法撤销。`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -716,6 +930,29 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                 className="bg-red-600 hover:bg-red-700"
               >
                 {isDeleting ? '删除中...' : '确认删除'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {isEditMode && task && isRecurringTask && (
+        <AlertDialog open={showStopRecurringConfirm} onOpenChange={setShowStopRecurringConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>终止后续定时任务</AlertDialogTitle>
+              <AlertDialogDescription>
+                确定要关闭任务「{task.title}」的定时任务吗？这一天之后的未来事项会被清理，当前事项和历史事项会保留。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isStoppingRecurring}>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleStopRecurring}
+                disabled={isStoppingRecurring}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isStoppingRecurring ? '终止中...' : '确认终止'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

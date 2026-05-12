@@ -1,4 +1,5 @@
 export type TaskType = "daily" | "meeting" | "vacation"
+export type TaskRecurrenceType = "WEEKLY" | "MONTHLY" | "INTERVAL_DAYS"
 
 export type TaskPermission = "ALL_MEMBERS" | "CREATOR_ONLY"
 
@@ -79,6 +80,32 @@ export interface Task {
     taskId: string
     user?: User
   }>
+  recurringSeriesId?: string
+  recurrenceDate?: Date
+  recurringSeries?: {
+    id: string
+    startDate?: Date
+    recurrenceType: TaskRecurrenceType
+    intervalDays?: number
+    stopsAfter?: Date
+    generatedUntil?: Date
+  } | null
+  isSystemHoliday?: boolean
+  holidayId?: string
+}
+
+export interface PublicHoliday {
+  id: string
+  code: string
+  year: number
+  name: string
+  startDate: Date
+  endDate: Date
+}
+
+export interface TaskRecurrenceConfig {
+  recurrenceType: TaskRecurrenceType
+  intervalDays?: number
 }
 
 export interface Team {
