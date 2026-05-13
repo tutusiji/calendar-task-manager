@@ -64,10 +64,7 @@ export async function PUT(
     // 获取事项数量
     const taskCount = await prisma.task.count({
       where: {
-        OR: [
-          { project: { organizationId: id } },
-          { team: { organizationId: id } }
-        ]
+        project: { organizationId: id }
       }
     })
 

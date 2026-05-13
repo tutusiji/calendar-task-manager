@@ -28,6 +28,14 @@ export interface PlanningCardItem {
   updatedAt: string
 }
 
+export interface PlanningItemReorderResult {
+  item: PlanningCardItem | null
+  affectedItems: Array<{
+    id: string
+    sortOrder: number
+  }>
+}
+
 export interface PlanningCard {
   id: string
   bucketId: string
@@ -167,6 +175,16 @@ export const planningAPI = {
     }
   ) {
     return patch<PlanningCardItem>(`/plans/items/${id}`, payload)
+  },
+
+  async reorderItem(
+    id: string,
+    payload: {
+      targetItemId: string
+      position: "before" | "after"
+    }
+  ) {
+    return patch<PlanningItemReorderResult>(`/plans/items/${id}`, payload)
   },
 
   async deleteItem(id: string) {

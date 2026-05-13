@@ -1,6 +1,41 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
+const taskInclude = {
+  creator: {
+    select: {
+      id: true,
+      name: true,
+      avatar: true
+    }
+  },
+  assignees: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          avatar: true
+        }
+      }
+    }
+  },
+  project: {
+    select: {
+      id: true,
+      name: true,
+      color: true
+    }
+  },
+  team: {
+    select: {
+      id: true,
+      name: true,
+      color: true
+    }
+  }
+} as const
+
 // GET /api/admin/panorama/tasks - 获取事项列表
 export async function GET(request: NextRequest) {
   try {
@@ -21,45 +56,9 @@ export async function GET(request: NextRequest) {
       case 'org':
         tasks = await prisma.task.findMany({
           where: {
-            OR: [
-              { project: { organizationId: id } },
-              { team: { organizationId: id } }
-            ]
+            project: { organizationId: id }
           },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
-              }
-            },
-            assignees: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true
-                  }
-                }
-              }
-            },
-            project: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            },
-            team: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            }
-          },
+          include: taskInclude,
           orderBy: {
             startDate: 'desc'
           }
@@ -67,48 +66,55 @@ export async function GET(request: NextRequest) {
         break
 
       case 'team':
-        tasks = await prisma.task.findMany({
-          where: {
-            teamId: id
-          },
-          include: {
-            creator: {
+        const team = await prisma.team.findUnique({
+          where: { id },
+          select: {
+            organizationId: true,
+            members: {
               select: {
-                id: true,
-                name: true,
-                avatar: true
-              }
-            },
-            assignees: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true
-                  }
-                }
-              }
-            },
-            project: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            },
-            team: {
-              select: {
-                id: true,
-                name: true,
-                color: true
+                userId: true
               }
             }
-          },
-          orderBy: {
-            startDate: 'desc'
           }
         })
+
+        if (!team) {
+          return NextResponse.json(
+            { success: false, error: "团队不存在" },
+            { status: 404 }
+          )
+        }
+
+        const teamMemberIds = team.members.map(member => member.userId)
+        tasks = teamMemberIds.length === 0
+          ? []
+          : await prisma.task.findMany({
+              where: {
+                project: {
+                  organizationId: team.organizationId
+                },
+                OR: [
+                  {
+                    assignees: {
+                      some: {
+                        userId: {
+                          in: teamMemberIds
+                        }
+                      }
+                    }
+                  },
+                  {
+                    creatorId: {
+                      in: teamMemberIds
+                    }
+                  }
+                ]
+              },
+              include: taskInclude,
+              orderBy: {
+                startDate: 'desc'
+              }
+            })
         break
 
       case 'project':
@@ -116,40 +122,7 @@ export async function GET(request: NextRequest) {
           where: {
             projectId: id
           },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
-              }
-            },
-            assignees: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true
-                  }
-                }
-              }
-            },
-            project: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            },
-            team: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            }
-          },
+          include: taskInclude,
           orderBy: {
             startDate: 'desc'
           }
@@ -168,47 +141,11 @@ export async function GET(request: NextRequest) {
                 ]
               },
               ...(orgId ? [{
-                OR: [
-                  { project: { organizationId: orgId } },
-                  { team: { organizationId: orgId } }
-                ]
+                project: { organizationId: orgId }
               }] : [])
             ]
           },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
-              }
-            },
-            assignees: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true
-                  }
-                }
-              }
-            },
-            project: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            },
-            team: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            }
-          },
+          include: taskInclude,
           orderBy: {
             startDate: 'desc'
           }

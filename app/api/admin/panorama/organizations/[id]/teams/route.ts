@@ -32,11 +32,6 @@ export async function GET(
               }
             }
           }
-        },
-        _count: {
-          select: {
-            tasks: true
-          }
         }
       },
       orderBy: {
@@ -44,9 +39,48 @@ export async function GET(
       }
     })
 
+    const teamsWithTaskCount = await Promise.all(
+      teams.map(async (team) => {
+        const memberIds = Array.from(
+          new Set(team.members.map(member => member.userId))
+        )
+
+        const taskCount = memberIds.length === 0
+          ? 0
+          : await prisma.task.count({
+              where: {
+                project: { organizationId: id },
+                OR: [
+                  {
+                    assignees: {
+                      some: {
+                        userId: {
+                          in: memberIds
+                        }
+                      }
+                    }
+                  },
+                  {
+                    creatorId: {
+                      in: memberIds
+                    }
+                  }
+                ]
+              }
+            })
+
+        return {
+          ...team,
+          _count: {
+            tasks: taskCount
+          }
+        }
+      })
+    )
+
     return NextResponse.json({
       success: true,
-      data: teams
+      data: teamsWithTaskCount
     })
   } catch (error) {
     console.error("Error fetching teams:", error)

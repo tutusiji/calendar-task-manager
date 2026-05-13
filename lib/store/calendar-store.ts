@@ -32,8 +32,6 @@ import {
   canEditTaskInProject,
   getPermissionDeniedMessage,
 } from "../utils/permission-utils";
-import { getWeekDays } from "../utils/date-utils";
-
 interface CalendarStore {
   // Data
   tasks: Task[];
@@ -1119,36 +1117,13 @@ export const useCalendarStore = create<CalendarStore>()(
         if (currentId === id) return;
 
         set({ selectedTeamId: id, selectedProjectIds: [] }); // 切换团队时重置项目筛选，默认显示所有
-        // 切换团队时，先刷新团队数据(可能有新成员),再获取任务
+        // 切换团队时，先刷新团队数据(可能有新成员),再获取该团队成员的任务
         if (id) {
           try {
             // 刷新团队列表以获取最新成员信息
             await get().fetchTeams();
 
-            // 根据当前视图模式确定日期范围
-            const { viewMode, currentDate } = get();
-            let startDate: Date;
-            let endDate: Date;
-
-            if (viewMode === "week") {
-              // 周视图：获取当前周的开始和结束日期
-              const weekDays = getWeekDays(currentDate, false);
-              startDate = weekDays[0];
-              endDate = weekDays[weekDays.length - 1];
-            } else {
-              // 月视图：获取当前月的开始和结束日期
-              const year = currentDate.getFullYear();
-              const month = currentDate.getMonth();
-              startDate = new Date(year, month, 1);
-              endDate = new Date(year, month + 1, 0);
-            }
-
-            // 获取团队成员在指定日期范围内的所有任务
-            await get().fetchTasks({
-              teamId: id,
-              startDate,
-              endDate,
-            });
+            await get().fetchTasks({ teamId: id });
           } catch (error) {
             console.error("Failed to load team data:", error);
           }
@@ -1471,13 +1446,13 @@ export const useCalendarStore = create<CalendarStore>()(
           },
         }),
 
-      openTaskCreation: (startDate, endDate, userId, projectId, teamId) => {
+      openTaskCreation: (startDate, endDate, userId, projectId, _teamId) => {
         const {
           navigationMode,
           selectedProjectId,
-          selectedTeamId,
           projects,
           currentUser,
+          settings,
         } = get();
 
         // 确定默认项目ID
@@ -1486,16 +1461,28 @@ export const useCalendarStore = create<CalendarStore>()(
           if (navigationMode === "project") {
             defaultProjectId = selectedProjectId;
           } else if (navigationMode === "my-days") {
-            // My Days 模式下,默认选中个人事务项目
-            const personalProject = currentUser
-              ? projects.find(
-                  (p) =>
-                    !p.isArchived &&
-                    p.name.includes("个人事务") &&
-                    p.memberIds.includes(currentUser.id)
+            const availableProjects = currentUser
+              ? projects.filter(
+                  (p) => !p.isArchived && p.memberIds.includes(currentUser.id)
                 )
-              : null;
-            defaultProjectId = personalProject?.id || null;
+              : [];
+
+            const rememberedProject =
+              settings.rememberLastProject && settings.lastSelectedProjectId
+                ? availableProjects.find(
+                    (p) => p.id === settings.lastSelectedProjectId
+                  )
+                : null;
+
+            const personalProject = availableProjects.find((p) =>
+              p.name.includes("个人事务")
+            );
+
+            defaultProjectId =
+              rememberedProject?.id ||
+              personalProject?.id ||
+              availableProjects[0]?.id ||
+              null;
           }
         }
 
@@ -1505,10 +1492,9 @@ export const useCalendarStore = create<CalendarStore>()(
             startDate,
             endDate,
             userId: userId || null,
-            // 根据当前导航模式设置默认项目和团队
+            // 根据当前导航模式设置默认项目
             projectId: defaultProjectId,
-            teamId:
-              teamId || (navigationMode === "team" ? selectedTeamId : null),
+            teamId: null,
           },
         });
       },

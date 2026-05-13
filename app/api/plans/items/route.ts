@@ -12,6 +12,7 @@ import {
   canUserAccessPlanningBoard,
   sanitizePlanningText,
 } from "@/lib/planning-server"
+import { PLANNING_SORT_GAP } from "@/lib/planning"
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       data: {
         cardId,
         content,
-        sortOrder: (aggregate._max.sortOrder ?? -1) + 1,
+        sortOrder: (aggregate._max.sortOrder ?? -PLANNING_SORT_GAP) + PLANNING_SORT_GAP,
       },
     })
 

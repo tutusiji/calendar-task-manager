@@ -7,7 +7,7 @@ import { zhCN } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Clock, Copy, Check } from "lucide-react"
+import { Calendar, Clock, Copy, Check, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Task } from "@/lib/types"
 import { copyToClipboard } from "@/lib/utils/clipboard"
@@ -18,6 +18,8 @@ interface GroupedTasks {
   color?: string
   tasks: Task[]
 }
+
+type CopyMode = "full" | "titles"
 
 export function ListView() {
   const {
@@ -36,7 +38,7 @@ export function ListView() {
     listLayoutColumns,
   } = useCalendarStore()
 
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [copiedState, setCopiedState] = useState<{ groupId: string; mode: CopyMode } | null>(null)
 
   // 计算日期范围
   const dateRange = useMemo(() => {
@@ -218,10 +220,20 @@ export function ListView() {
     const success = await copyToClipboard(content)
     
     if (success) {
-      setCopiedId(group.id)
-      setTimeout(() => setCopiedId(null), 2000)
+      setCopiedState({ groupId: group.id, mode: "full" })
+      setTimeout(() => setCopiedState(null), 2000)
     }
     // 静默失败，不影响用户体验
+  }
+
+  const handleCopyTitlesOnly = async (group: GroupedTasks) => {
+    const content = group.tasks.map((task) => `• ${task.title}`).join("\n")
+    const success = await copyToClipboard(content)
+
+    if (success) {
+      setCopiedState({ groupId: group.id, mode: "titles" })
+      setTimeout(() => setCopiedState(null), 2000)
+    }
   }
 
   const getTaskTypeLabel = (type: string) => {
@@ -271,23 +283,40 @@ export function ListView() {
                 <CardHeader className="pb-2 pt-3 px-4" style={{ borderLeftWidth: '3px', borderLeftColor: group.color || '#3b82f6' }}>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold truncate">{group.title}</CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopy(group)}
-                      className="h-7 px-2 gap-1 shrink-0"
-                    >
-                      {copiedId === group.id ? (
-                        <>
-                          <Check className="h-3 w-3" />
-                          <span className="text-xs">已复制</span>
-                        </>
-                      ) : (
-                        <>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopy(group)}
+                        className="h-7 px-2 gap-1"
+                        title="复制完整内容"
+                        aria-label="复制完整内容"
+                      >
+                        {copiedState?.groupId === group.id && copiedState.mode === "full" ? (
+                          <>
+                            <Check className="h-3 w-3" />
+                            <span className="text-xs">已复制</span>
+                          </>
+                        ) : (
                           <Copy className="h-3 w-3" />
-                        </>
-                      )}
-                    </Button>
+                        )}
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCopyTitlesOnly(group)}
+                        className="h-7 w-7 shrink-0"
+                        title="只复制事项名"
+                        aria-label="只复制事项名"
+                      >
+                        {copiedState?.groupId === group.id && copiedState.mode === "titles" ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <List className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground">共 {group.tasks.length} 项</p>
                 </CardHeader>

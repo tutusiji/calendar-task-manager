@@ -138,31 +138,54 @@ export async function GET(request: NextRequest) {
 
     // 权限验证和查询逻辑
     if (teamId) {
-      // 验证用户是否是团队成员
-      const teamMember = await prisma.teamMember.findFirst({
-        where: {
-          teamId,
-          userId: auth.userId
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        select: {
+          organizationId: true,
+          members: {
+            select: {
+              userId: true
+            }
+          }
         }
       })
 
-      if (!teamMember) {
-        // 如果用户不是团队成员，返回空数组而不是错误
-        return successResponse([])
+      if (!team) {
+        return validationErrorResponse('团队不存在')
       }
 
-      // 验证团队是否属于该组织
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
-        select: { organizationId: true }
-      })
-
-      if (team?.organizationId !== targetOrgId) {
+      if (team.organizationId !== targetOrgId) {
         return validationErrorResponse('团队不属于当前组织')
       }
 
-      // 查询该团队的任务
-      where.teamId = teamId
+      const teamMemberIds = team.members.map(member => member.userId)
+      const isCurrentUserInTeam = teamMemberIds.includes(auth.userId)
+
+      if (!isCurrentUserInTeam) {
+        // 如果用户不是团队成员，返回空数组而不是错误
+        return successResponse({
+          tasks: [],
+          count: 0
+        })
+      }
+
+      // 团队视图展示“该团队成员的任务”，而不是仅展示显式绑定了 teamId 的任务
+      where.OR = [
+        {
+          assignees: {
+            some: {
+              userId: {
+                in: teamMemberIds
+              }
+            }
+          }
+        },
+        {
+          creatorId: {
+            in: teamMemberIds
+          }
+        }
+      ]
     } else if (projectId) {
       // 验证用户是否是项目成员
       const projectMember = await prisma.projectMember.findFirst({
@@ -417,31 +440,6 @@ export async function POST(request: NextRequest) {
             userId: assigneeId
           }
         })
-      }
-    }
-
-    // 如果指定了团队,确保所有负责人都在团队中
-    if (teamId) {
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
-        include: {
-          members: true
-        }
-      })
-
-      if (team) {
-        for (const assigneeId of assigneeUserIds) {
-          const userInTeam = team.members.some(m => m.userId === assigneeId)
-          if (!userInTeam) {
-            // 自动将负责人添加到团队中
-            await prisma.teamMember.create({
-              data: {
-                teamId,
-                userId: assigneeId
-              }
-            })
-          }
-        }
       }
     }
 

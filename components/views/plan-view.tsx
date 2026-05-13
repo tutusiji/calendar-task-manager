@@ -1113,10 +1113,7 @@ export function PlanView() {
       return
     }
 
-    const reorderedItems = currentItems.map((item, index) => ({
-      ...item,
-      sortOrder: index,
-    }))
+    const reorderedItems = [...currentItems]
 
     setBoards((currentBoards) =>
       currentBoards.map((board) => ({
@@ -1136,15 +1133,38 @@ export function PlanView() {
     )
 
     try {
-      setIsRefreshing(true)
-      await Promise.all(
-        reorderedItems.map((item, index) =>
-          planningAPI.updateItem(item.id, {
-            sortOrder: index,
-          })
-        )
+      const reorderResult = await planningAPI.reorderItem(movingItemId, {
+        targetItemId,
+        position,
+      })
+
+      const affectedSortOrders = new Map(
+        reorderResult.affectedItems.map((item) => [item.id, item.sortOrder])
       )
-      await loadBoards(true)
+
+      setBoards((currentBoards) =>
+        currentBoards.map((board) => ({
+          ...board,
+          buckets: board.buckets.map((bucket) => ({
+            ...bucket,
+            cards: bucket.cards.map((currentCard) =>
+              currentCard.id === card.id
+                ? {
+                    ...currentCard,
+                    items: currentCard.items.map((item) =>
+                      affectedSortOrders.has(item.id)
+                        ? {
+                            ...item,
+                            sortOrder: affectedSortOrders.get(item.id) ?? item.sortOrder,
+                          }
+                        : item
+                    ),
+                  }
+                : currentCard
+            ),
+          })),
+        }))
+      )
     } catch (error) {
       console.error("Failed to reorder planning items:", error)
       showToast.error(

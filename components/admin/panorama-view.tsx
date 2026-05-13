@@ -563,7 +563,7 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
                                   ))}
                                 </div>
                                 <button
-                                  onClick={() => fetchTasks('team', team.id, `${team.name} 的事项`)}
+                                  onClick={() => fetchTasks('team', team.id, `${team.name} 团队成员的事项`)}
                                   className="mt-2 text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                 >
                                   {team._count.tasks} 个事项

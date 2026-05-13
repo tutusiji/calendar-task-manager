@@ -45,10 +45,7 @@ export async function GET(
                 ]
               },
               {
-                OR: [
-                  { project: { organizationId: id } },
-                  { team: { organizationId: id } }
-                ]
+                project: { organizationId: id }
               }
             ]
           }

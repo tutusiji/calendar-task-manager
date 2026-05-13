@@ -8,6 +8,7 @@ export const DEFAULT_PLANNING_BUCKET_TITLE = "未分类"
 export const DEFAULT_PLANNING_BUCKET_WIDTH = 296
 export const MIN_PLANNING_BUCKET_WIDTH = 260
 export const MAX_PLANNING_BUCKET_WIDTH = 520
+export const PLANNING_SORT_GAP = 1024
 
 export const PLANNING_COLOR_PRESETS = [
   "#38bdf8",

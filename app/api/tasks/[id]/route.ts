@@ -95,26 +95,46 @@ export async function GET(
     const isCreator = task.creatorId === auth.userId
     
     if (!isAssignee && !isCreator) {
-      // 检查是否是同一团队/项目成员
-      const accessChecks = await Promise.all([
-        prisma.projectMember.findFirst({
-          where: {
-            projectId: task.projectId,
-            userId: auth.userId
-          }
-        }),
-        task.teamId
-          ? prisma.teamMember.findFirst({
-              where: {
-                teamId: task.teamId,
-                userId: auth.userId
-              }
-            })
-          : Promise.resolve(null)
-      ])
+      const projectMember = await prisma.projectMember.findFirst({
+        where: {
+          projectId: task.projectId,
+          userId: auth.userId
+        }
+      })
 
-      if (!accessChecks.some(Boolean)) {
-        return forbiddenResponse('无权查看此任务')
+      if (!projectMember) {
+        const project = await prisma.project.findUnique({
+          where: { id: task.projectId },
+          select: { organizationId: true }
+        })
+
+        if (!project) {
+          return forbiddenResponse('无权查看此任务')
+        }
+
+        const collaboratorIds = Array.from(
+          new Set([task.creatorId, ...task.assignees.map(a => a.userId)])
+        )
+
+        const sharedTeamMember = await prisma.teamMember.findFirst({
+          where: {
+            userId: auth.userId,
+            team: {
+              organizationId: project.organizationId,
+              members: {
+                some: {
+                  userId: {
+                    in: collaboratorIds
+                  }
+                }
+              }
+            }
+          }
+        })
+
+        if (!sharedTeamMember) {
+          return forbiddenResponse('无权查看此任务')
+        }
       }
     }
 
@@ -349,40 +369,6 @@ export async function PUT(
 
       if (isPersonalProject && nextAssigneeIds.some(assigneeId => assigneeId !== auth.userId)) {
         return validationErrorResponse('个人事务项目只能指派给自己')
-      }
-    }
-
-    // 如果更改团队，自动添加任务负责人为团队成员
-    if (!canOnlyReassignProject && teamId !== undefined && teamId !== null && teamId !== existingTask.teamId) {
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
-        include: {
-          members: true
-        }
-      })
-
-      if (team) {
-        // 确定任务的负责人列表（可能正在被修改）
-        let taskUserIds: string[] = []
-        if (userId !== undefined) {
-          taskUserIds = Array.isArray(userId) ? userId : [userId]
-        } else {
-          taskUserIds = existingTask.assignees.map(a => a.userId)
-        }
-        
-        // 检查所有负责人是否在新团队中
-        for (const taskUserId of taskUserIds) {
-          const userInTeam = team.members.some(m => m.userId === taskUserId)
-          if (!userInTeam) {
-            // 自动将任务负责人添加到新团队中
-            await prisma.teamMember.create({
-              data: {
-                teamId,
-                userId: taskUserId
-              }
-            })
-          }
-        }
       }
     }
 

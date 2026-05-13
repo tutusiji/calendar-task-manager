@@ -28,10 +28,7 @@ export async function GET(request: NextRequest) {
       organizations.map(async (org) => {
         const taskCount = await prisma.task.count({
           where: {
-            OR: [
-              { project: { organizationId: org.id } },
-              { team: { organizationId: org.id } }
-            ]
+            project: { organizationId: org.id }
           }
         })
         return {

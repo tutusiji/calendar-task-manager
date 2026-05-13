@@ -60,7 +60,6 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
     stopRecurringTask,
     deleteTask, 
     projects, 
-    teams, 
     currentUser, 
     settings, 
     updateSettings, 
@@ -80,11 +79,6 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
   const [taskType, setTaskType] = useState<TaskType>(task?.type || "daily")
   const [color, setColor] = useState<string>(task?.color || 'blue')
   const [progress, setProgress] = useState<number>(task?.progress || 0)
-  const [teamId, setTeamId] = useState<string>(
-    task
-      ? (task.teamId || "none")
-      : (taskCreation.teamId || currentUser?.defaultTeamId || "none")
-  )
   const [projectId, setProjectId] = useState(
     task?.projectId || 
     taskCreation.projectId || 
@@ -103,7 +97,6 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
   const [isDeleting, setIsDeleting] = useState(false)
   const [isStoppingRecurring, setIsStoppingRecurring] = useState(false)
   const [projectError, setProjectError] = useState(false)
-  const [teamError, setTeamError] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showStopRecurringConfirm, setShowStopRecurringConfirm] = useState(false)
   const isRecurringTask = !!task?.recurringSeriesId
@@ -268,7 +261,6 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
       return
     }
     setProjectError(false)
-    setTeamError(false)
 
     if (!isEditMode && isRecurringEnabled) {
       if (recurrenceType === "INTERVAL_DAYS" && (!Number.isInteger(intervalDays) || intervalDays <= 0)) {
@@ -305,7 +297,6 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
         color: taskType === 'daily' ? color : undefined,
         progress,
         projectId,
-        teamId: teamId === "none" ? null : teamId,
         userId: assigneeIds.length > 0 ? assigneeIds : undefined,
         recurrence:
           !isEditMode && isRecurringEnabled
@@ -541,99 +532,42 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
                 />
               </div>
 
-              {/* Project and Team */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Project */}
-                <div className="space-y-2">
-                  <Label htmlFor="project" className="text-sm font-medium">
-                    归属项目 <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={projectId || ''} onValueChange={(value) => {
-                    setProjectId(value)
-                    setProjectError(false)
-                    
-                    // Clear team if personal project selected
-                    const project = selectableProjects.find(p => p.id === value)
-                    if (project?.name.includes('个人事务')) {
-                      setTeamId("none")
-                    }
-                  }}>
-                    <SelectTrigger className={cn(
-                      projectError && "border-red-500 text-red-600 ring-1 ring-red-500 focus:ring-red-500 bg-red-50"
-                    )}>
-                      <SelectValue placeholder="请选择项目" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectableProjects.map((project) => (
-                        <SelectItem key={project.id} value={project.id} title={project.name}>
-                          <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
-                            <span className="truncate max-w-[130px]">{project.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {projectError && (
-                    <div className="flex items-center gap-1 mt-1.5 text-red-600 animate-in slide-in-from-top-1 fade-in-0">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      <p className="text-xs font-medium">请选择一个归属项目</p>
-                    </div>
-                  )}
-                  {isProjectOnlyEditMode && (
-                    <p className="text-xs text-muted-foreground">
-                      当前事项来自“仅创建人”项目。你现在只能调整归属项目，其他字段不会保存。
-                    </p>
-                  )}
-                </div>
-
-                {/* Team */}
-                <div className="space-y-2">
-                  <Label htmlFor="team" className="text-sm font-medium">
-                    所属团队 <span className="text-xs text-muted-foreground">(可选)</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="inline-block ml-1 h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">如果没有团队,可以去个人中心加入团队或者自己先创建团队</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                  <Select 
-                    value={teamId} 
-                    onValueChange={(value) => {
-                      setTeamId(value)
-                      setTeamError(false)
-                    }}
-                    disabled={selectedProject?.name.includes('个人事务')}
-                  >
-                    <SelectTrigger className={cn(teamError && "border-red-500 ring-1 ring-red-500")}>
-                      <SelectValue placeholder="请选择团队" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <span className="text-muted-foreground">不设置</span>
+              {/* Project */}
+              <div className="space-y-2">
+                <Label htmlFor="project" className="text-sm font-medium">
+                  归属项目 <span className="text-red-500">*</span>
+                </Label>
+                <Select value={projectId || ''} onValueChange={(value) => {
+                  setProjectId(value)
+                  setProjectError(false)
+                }}>
+                  <SelectTrigger className={cn(
+                    projectError && "border-red-500 text-red-600 ring-1 ring-red-500 focus:ring-red-500 bg-red-50"
+                  )}>
+                    <SelectValue placeholder="请选择项目" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectableProjects.map((project) => (
+                      <SelectItem key={project.id} value={project.id} title={project.name}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
+                          <span className="truncate max-w-[240px]">{project.name}</span>
+                        </div>
                       </SelectItem>
-                      {teams
-                        .filter(t => currentUser && t.memberIds.includes(currentUser.id))
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((team) => (
-                        <SelectItem key={team.id} value={team.id} title={team.name}>
-                          <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: team.color }} />
-                            <span className="truncate max-w-[130px]">{team.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {teamError && (
-                    <p className="text-sm text-red-500">请选择一个团队</p>
-                  )}
-                </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {projectError && (
+                  <div className="flex items-center gap-1 mt-1.5 text-red-600 animate-in slide-in-from-top-1 fade-in-0">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    <p className="text-xs font-medium">请选择一个归属项目</p>
+                  </div>
+                )}
+                {isProjectOnlyEditMode && (
+                  <p className="text-xs text-muted-foreground">
+                    当前事项来自“仅创建人”项目。你现在只能调整归属项目，其他字段不会保存。
+                  </p>
+                )}
               </div>
 
               {/* Task Type */}
