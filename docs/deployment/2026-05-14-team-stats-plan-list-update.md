@@ -176,7 +176,31 @@ docker build --build-arg ENV_TYPE=company -t calendar-task-manager:company-2026-
 docker build --build-arg ENV_TYPE=personal -t calendar-task-manager:personal-2026-05-14 .
 ```
 
-### 第 5 步：重启应用
+### 第 5 步：导出镜像 tar
+
+如果你后面需要把镜像交给内网环境、测试环境，或者拷到别的机器导入，请在构建成功后执行导出：
+
+公司版：
+
+```bash
+docker save -o ./calendar-task-manager_company-2026-05-14.tar calendar-task-manager:company-2026-05-14
+```
+
+个人版：
+
+```bash
+docker save -o ./calendar-task-manager_personal-2026-05-14.tar calendar-task-manager:personal-2026-05-14
+```
+
+导出后可简单确认文件存在：
+
+```bash
+ls -lh ./calendar-task-manager_*2026-05-14.tar
+```
+
+在 Windows PowerShell 下，也可以直接使用同样的 `docker save -o ...` 命令。
+
+### 第 6 步：重启应用
 
 ```bash
 docker compose stop app
@@ -189,7 +213,7 @@ docker compose up -d app
 docker compose up -d
 ```
 
-### 第 6 步：看日志确认启动成功
+### 第 7 步：看日志确认启动成功
 
 ```bash
 docker compose ps
