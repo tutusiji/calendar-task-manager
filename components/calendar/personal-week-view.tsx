@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
+import { getPublicHolidayLabelForDate } from "@/lib/utils/public-holiday-utils"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
 import { TaskBar } from "./task-bar"
-import { HolidayWeekRow } from "./holiday-week-row"
 import { cn } from "@/lib/utils"
 
 export function PersonalWeekView() {
@@ -13,6 +13,10 @@ export function PersonalWeekView() {
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
+  const holidayLabels = useMemo(
+    () => weekDays.map((day) => getPublicHolidayLabelForDate(publicHolidays, day)),
+    [publicHolidays, weekDays]
+  )
 
   // 全局 mouseup 事件处理
   useEffect(() => {
@@ -154,6 +158,7 @@ export function PersonalWeekView() {
           const dayDate = new Date(day)
           dayDate.setHours(0, 0, 0, 0)
           const isToday = dayDate.getTime() === today.getTime()
+          const holidayLabel = holidayLabels[index]
           
           return (
             <div key={`day-${index}-${hideWeekends ? '5' : '7'}`} className="flex-1 border-r border-border px-4 py-3 text-center last:border-r-0">
@@ -164,12 +169,16 @@ export function PersonalWeekView() {
               )}>
                 {day.getDate()}
               </div>
+              <div
+                className="mt-1 h-5 truncate text-[11px] leading-5 text-red-600"
+                title={holidayLabel || undefined}
+              >
+                {holidayLabel || ""}
+              </div>
             </div>
           )
         })}
       </div>
-
-      <HolidayWeekRow publicHolidays={publicHolidays} weekDays={weekDays} />
 
       {/* Single row for current user's tasks - 撑满剩余空间 */}
       <div className="flex flex-1 border-b border-border hover:bg-muted/30 transition-colors">

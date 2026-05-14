@@ -3,6 +3,7 @@
 import type { Task } from "@/lib/types"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { cn } from "@/lib/utils"
+import { getCalendarBarMetrics } from "@/lib/utils/calendar-bar-layout"
 
 interface HolidayBarProps {
   task: Task
@@ -95,6 +96,10 @@ export function HolidayBar({
   const spanDays = calculateDisplayDays()
   const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30
   const TASK_GAP = 4
+  const barMetrics = getCalendarBarMetrics(
+    spanDays,
+    isWeekRow ? "padded-day" : "content-box"
+  )
 
   return (
     <div
@@ -103,14 +108,11 @@ export function HolidayBar({
         "shadow-sm",
         getRoundedClass()
       )}
+      title={`法定节假日：${task.title}（系统只读）`}
+      aria-label={`法定节假日：${task.title}（系统只读）`}
       style={{
-        width: isWeekRow
-          ? spanDays > 1
-            ? `calc(100% * ${spanDays} - 7px * ${spanDays - 1})`
-            : "calc(100% - 15px)"
-          : spanDays > 1
-            ? `calc(100% * ${spanDays} + 18px * ${spanDays - 1})`
-            : "100%",
+        left: barMetrics.left,
+        width: barMetrics.width,
         top: `${track * (TASK_HEIGHT + TASK_GAP) + (isWeekRow ? 4 : 0)}px`,
         height: `${TASK_HEIGHT}px`,
         zIndex: 5,

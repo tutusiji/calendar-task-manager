@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProgressCircle } from "../task/progress-circle";
 import { TASK_COLORS } from "@/lib/types";
+import { getCalendarBarMetrics } from "@/lib/utils/calendar-bar-layout";
 
 interface TaskBarProps {
   task: Task;
@@ -458,6 +459,10 @@ export function TaskBar({
   };
 
   const showHandle = shouldShowHandle();
+  const barMetrics = getCalendarBarMetrics(
+    spanDays,
+    isPersonalWeekView ? "padded-day" : "content-box"
+  );
 
   return (
     <div
@@ -481,13 +486,8 @@ export function TaskBar({
         !isBeingDragged && dragMoveState.isMoving && "pointer-events-none"
       )}
       style={{
-        width: isPersonalWeekView
-          ? spanDays > 1
-            ? `calc(100% * ${spanDays} - 7px * ${spanDays - 1})`
-            : "calc(100% - 15px)"
-          : spanDays > 1
-          ? `calc(100% * ${spanDays} + 18px * ${spanDays - 1})`
-          : "100%",
+        left: barMetrics.left,
+        width: barMetrics.width,
         top: `${
           track * (TASK_HEIGHT + TASK_GAP) + (isPersonalWeekView ? 4 : 0)
         }px`,

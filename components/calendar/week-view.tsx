@@ -3,8 +3,8 @@
 import { useEffect, useMemo } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
+import { getPublicHolidayLabelForDate } from "@/lib/utils/public-holiday-utils"
 import { TeamMemberRow } from "./team-member-row"
-import { HolidayWeekRow } from "./holiday-week-row"
 import { cn } from "@/lib/utils"
 
 export function WeekView() {
@@ -27,6 +27,10 @@ export function WeekView() {
   } = useCalendarStore()
 
   const weekDays = getWeekDays(currentDate, hideWeekends)
+  const holidayLabels = useMemo(
+    () => weekDays.map((day) => getPublicHolidayLabelForDate(publicHolidays, day)),
+    [publicHolidays, weekDays]
+  )
 
   // 根据当前导航模式过滤要显示的用户
   const displayUsers = useMemo(() => {
@@ -83,6 +87,7 @@ export function WeekView() {
             const dayDate = new Date(day)
             dayDate.setHours(0, 0, 0, 0)
             const isToday = dayDate.getTime() === today.getTime()
+            const holidayLabel = holidayLabels[index]
             
             return (
               <div key={index} className="flex-1 border-r border-border px-4 py-3 text-center last:border-r-0">
@@ -93,6 +98,12 @@ export function WeekView() {
                 )}>
                   {day.getDate()}
                 </div>
+                <div
+                  className="mt-1 h-5 truncate text-[11px] leading-5 text-red-600"
+                  title={holidayLabel || undefined}
+                >
+                  {holidayLabel || ""}
+                </div>
               </div>
             )
           })}
@@ -101,7 +112,6 @@ export function WeekView() {
 
       {/* Team member rows */}
       <div className="flex-1 overflow-y-auto">
-        <HolidayWeekRow publicHolidays={publicHolidays} weekDays={weekDays} showLabel={true} />
         {displayUsers.map((user) => (
           <TeamMemberRow key={user.id} user={user} weekDays={weekDays} showPlaceholder={false} />
         ))}
