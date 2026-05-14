@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { getPublicHolidayLabelForDate } from "@/lib/utils/public-holiday-utils"
+import { Badge } from "@/components/ui/badge"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
 import { TaskBar } from "./task-bar"
 import { cn } from "@/lib/utils"
@@ -169,12 +170,17 @@ export function PersonalWeekView() {
               )}>
                 {day.getDate()}
               </div>
-              <div
-                className="mt-1 h-5 truncate text-[11px] leading-5 text-red-600"
-                title={holidayLabel || undefined}
-              >
-                {holidayLabel || ""}
-              </div>
+              {holidayLabel ? (
+                <div className="mt-1 flex items-center justify-center">
+                  <Badge
+                    variant="outline"
+                    className="max-w-full border-red-200 bg-red-50 px-2 py-0 text-[11px] font-medium leading-4 text-red-700"
+                    title={holidayLabel}
+                  >
+                    <span className="truncate">{holidayLabel}</span>
+                  </Badge>
+                </div>
+              ) : null}
             </div>
           )
         })}
