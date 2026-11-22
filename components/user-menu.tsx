@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,7 @@ import { getRank } from "@/lib/utils/rank"
 
 export function UserMenu() {
   const router = useRouter()
-  const { currentUser, teams } = useCalendarStore()
+  const { currentUser, teams } = useCalendarState("currentUser", "teams")
   const [profileOpen, setProfileOpen] = useState(false)
   const [organizationOpen, setOrganizationOpen] = useState(false)
 

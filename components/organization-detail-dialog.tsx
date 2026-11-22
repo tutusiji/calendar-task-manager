@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Users, Briefcase, FolderKanban, Trash2, Plus } from "lucide-react"
 import { organizationAPI } from "@/lib/api/organization"
 import { useToast } from "@/hooks/use-toast"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { UserSelectorDialog } from "@/components/user-selector-dialog"
 import { TeamDialog } from "@/components/sidebar/team-dialog"
 import { ProjectDialog } from "@/components/sidebar/project-dialog"
@@ -61,7 +61,7 @@ export function OrganizationDetailDialog({
   onOpenChange,
 }: OrganizationDetailDialogProps) {
   const { toast } = useToast()
-  const { currentUser } = useCalendarStore()
+  const { currentUser } = useCalendarState("currentUser")
   const [orgDetails, setOrgDetails] = useState<OrgDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState<{

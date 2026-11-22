@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo } from "react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { getPublicHolidayLabelForDate } from "@/lib/utils/public-holiday-utils"
 import { Badge } from "@/components/ui/badge"
@@ -9,25 +9,44 @@ import { TeamMemberRow } from "./team-member-row"
 import { cn } from "@/lib/utils"
 
 export function WeekView() {
-  const { 
-    currentDate, 
+  const {
+    currentDate,
     publicHolidays,
-    users, 
+    users,
     teams,
     projects,
-    dragState, 
-    cancelDragCreate, 
-    hideWeekends, 
-    dragMoveState, 
+    dragState,
+    cancelDragCreate,
+    hideWeekends,
+    dragMoveState,
     endDragMove,
     navigationMode,
     selectedTeamId,
     selectedProjectId,
     getTeamById,
     getProjectById,
-  } = useCalendarStore()
+  } = useCalendarState(
+    "currentDate",
+    "publicHolidays",
+    "users",
+    "teams",
+    "projects",
+    "dragState",
+    "cancelDragCreate",
+    "hideWeekends",
+    "dragMoveState",
+    "endDragMove",
+    "navigationMode",
+    "selectedTeamId",
+    "selectedProjectId",
+    "getTeamById",
+    "getProjectById"
+  )
 
-  const weekDays = getWeekDays(currentDate, hideWeekends)
+  const weekDays = useMemo(
+    () => getWeekDays(currentDate, hideWeekends),
+    [currentDate, hideWeekends]
+  )
   const holidayLabels = useMemo(
     () => weekDays.map((day) => getPublicHolidayLabelForDate(publicHolidays, day)),
     [publicHolidays, weekDays]

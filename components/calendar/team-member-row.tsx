@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import type { User } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
@@ -16,7 +16,33 @@ interface TeamMemberRowProps {
 }
 
 export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRowProps) {
-  const { tasks, openTaskEdit, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, dragState, selectedProjectIds, dragMoveState, updateDragMove, startDragMove, taskBarSize } = useCalendarStore()
+  const {
+    tasks,
+    openTaskEdit,
+    startDragCreate,
+    updateDragCreate,
+    endDragCreate,
+    openTaskCreation,
+    dragState,
+    selectedProjectIds,
+    dragMoveState,
+    updateDragMove,
+    startDragMove,
+    taskBarSize,
+  } = useCalendarState(
+    "tasks",
+    "openTaskEdit",
+    "startDragCreate",
+    "updateDragCreate",
+    "endDragCreate",
+    "openTaskCreation",
+    "dragState",
+    "selectedProjectIds",
+    "dragMoveState",
+    "updateDragMove",
+    "startDragMove",
+    "taskBarSize"
+  )
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
   // 根据选中的项目过滤任务

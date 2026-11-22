@@ -12,15 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { Switch } from "@/components/ui/switch"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { useToast } from "@/hooks/use-toast"
+import { useTaskFormPermissions } from "@/hooks/use-task-form-permissions"
 import type { Task, TaskRecurrenceType, TaskType } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import {
-  canDeleteTaskInProject,
-  canEditTaskInProject,
-  canManageTaskInProject,
-} from "@/lib/utils/permission-utils"
 
 import { UserMultiSelector } from "./user-multi-selector"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -54,18 +50,29 @@ interface TaskFormPanelProps {
 export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPanelProps) {
   const isEditMode = !!task
   
-  const { 
-    addTask, 
-    updateTask, 
+  const {
+    addTask,
+    updateTask,
     stopRecurringTask,
-    deleteTask, 
-    projects, 
-    currentUser, 
-    settings, 
-    updateSettings, 
-    taskCreation, 
-    getUserById 
-  } = useCalendarStore()
+    deleteTask,
+    projects,
+    currentUser,
+    settings,
+    updateSettings,
+    taskCreation,
+    getUserById,
+  } = useCalendarState(
+    "addTask",
+    "updateTask",
+    "stopRecurringTask",
+    "deleteTask",
+    "projects",
+    "currentUser",
+    "settings",
+    "updateSettings",
+    "taskCreation",
+    "getUserById"
+  )
   const { toast } = useToast()
 
   const [title, setTitle] = useState(task?.title || "")
@@ -122,74 +129,30 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
       return a.name.localeCompare(b.name)
     })
 
-  // Get selected project
-  const selectedProject = selectableProjects.find(p => p.id === projectId)
-  const selectedProjectPermissionContext = selectedProject
-    ? {
-        creatorId: selectedProject.creatorId,
-        taskPermission: selectedProject.taskPermission,
-        memberIds: selectedProject.memberIds,
-      }
-    : null
-  const sourceProject = isEditMode && task ? projects.find(p => p.id === task.projectId) : selectedProject
-  const sourceProjectPermissionContext = sourceProject
-    ? {
-        creatorId: sourceProject.creatorId,
-        taskPermission: sourceProject.taskPermission,
-        memberIds: sourceProject.memberIds,
-      }
-    : null
-  
-  // Check if it's a personal project
-  const isPersonalProject = selectedProject?.name.includes('个人事务')
-  
-  // Check permissions
-  const currentTaskAssigneeIds = task?.assignees?.map((assignee) => assignee.userId) || []
-  const canManageAllTasksInSelectedProject =
-    !!currentUser &&
-    !!selectedProjectPermissionContext &&
-    canManageTaskInProject(
-      currentUser.id,
-      selectedProjectPermissionContext,
-      currentUser.isAdmin
-    )
-  const isSelectedProjectSelfOnlyMode =
-    !!currentUser &&
-    !!selectedProjectPermissionContext &&
-    selectedProjectPermissionContext.taskPermission === "CREATOR_ONLY" &&
-    !canManageAllTasksInSelectedProject
-  const canDeleteTask =
-    !isEditMode ||
-    !currentUser ||
-    !sourceProjectPermissionContext
-      ? true
-      : canDeleteTaskInProject(
-          currentUser.id,
-          sourceProjectPermissionContext,
-          currentTaskAssigneeIds,
-          currentUser.isAdmin
-        )
-  const canEditTaskContent =
-    !isEditMode ||
-    !currentUser ||
-    !sourceProjectPermissionContext
-      ? true
-      : canEditTaskInProject(
-          currentUser.id,
-          sourceProjectPermissionContext,
-          currentTaskAssigneeIds,
-          undefined,
-          currentUser.isAdmin
-        )
-  const isProjectOnlyEditMode = isEditMode && !!task && !canEditTaskContent
-  const canStopRecurringTask = isRecurringTask && !isProjectOnlyEditMode && canEditTaskContent
-  const canEditAssignees =
-    !isPersonalProject &&
-    !isProjectOnlyEditMode &&
-    !isSelectedProjectSelfOnlyMode
-  const shouldForceSelfAssignee =
-    !!currentUser &&
-    (isPersonalProject || isSelectedProjectSelfOnlyMode)
+  const {
+    selectedProject,
+    selectedProjectPermissionContext,
+    sourceProject,
+    sourceProjectPermissionContext,
+    isPersonalProject,
+    canManageAllTasksInSelectedProject,
+    isSelectedProjectSelfOnlyMode,
+    currentTaskAssigneeIds,
+    canDeleteTask,
+    canEditTaskContent,
+    isProjectOnlyEditMode,
+    canStopRecurringTask,
+    canEditAssignees,
+    shouldForceSelfAssignee,
+  } = useTaskFormPermissions({
+    isEditMode,
+    task,
+    currentUser,
+    selectableProjects,
+    projects,
+    projectId,
+  })
+
   const canSubmitTask =
     !!title.trim() &&
     !!dateRange.from &&

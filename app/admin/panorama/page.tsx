@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react"
 import PanoramaLogin from "@/components/admin/panorama-login"
 import PanoramaView from "@/components/admin/panorama-view"
+import { clearPanoramaToken, hasPanoramaToken } from "@/lib/api/panorama"
 
 export default function PanoramaPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    const authenticated = sessionStorage.getItem("panorama_auth") === "true"
-    setIsAuthenticated(authenticated)
+    setIsAuthenticated(hasPanoramaToken())
   }, [])
 
   const handleLoginSuccess = () => {
@@ -17,7 +17,7 @@ export default function PanoramaPage() {
   }
 
   const handleLogout = () => {
-    sessionStorage.removeItem("panorama_auth")
+    clearPanoramaToken()
     setIsAuthenticated(false)
   }
 

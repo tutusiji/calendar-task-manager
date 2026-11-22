@@ -8,6 +8,16 @@ import {
   serverErrorResponse,
 } from "@/lib/api-response";
 import { validateRequiredFields } from "@/lib/validation";
+import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitExceededResponse,
+  resetRateLimit,
+} from "@/lib/server/security/rate-limit";
+
+const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_IP_MAX_ATTEMPTS = 30;
+const LOGIN_ACCOUNT_MAX_ATTEMPTS = 10;
 
 // POST /api/auth/login - 用户登录
 export async function POST(request: NextRequest) {
@@ -24,9 +34,35 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(requiredValidation.message!);
     }
 
+    if (typeof username !== "string" || typeof password !== "string") {
+      return validationErrorResponse("用户名或密码格式错误");
+    }
+
+    const normalizedUsername = username.trim().toLowerCase();
+    const clientIp = getClientIp(request);
+
+    const ipRateLimit = checkRateLimit(
+      `login:ip:${clientIp}`,
+      LOGIN_IP_MAX_ATTEMPTS,
+      LOGIN_RATE_LIMIT_WINDOW_MS
+    );
+    if (!ipRateLimit.allowed) {
+      return rateLimitExceededResponse(ipRateLimit.retryAfterSeconds);
+    }
+
+    const accountRateLimitKey = `login:account:${clientIp}:${normalizedUsername}`;
+    const accountRateLimit = checkRateLimit(
+      accountRateLimitKey,
+      LOGIN_ACCOUNT_MAX_ATTEMPTS,
+      LOGIN_RATE_LIMIT_WINDOW_MS
+    );
+    if (!accountRateLimit.allowed) {
+      return rateLimitExceededResponse(accountRateLimit.retryAfterSeconds);
+    }
+
     // 查找用户（使用小写用户名）
     const user = await prisma.user.findUnique({
-      where: { username: username.toLowerCase() },
+      where: { username: normalizedUsername },
       select: {
         id: true,
         username: true,
@@ -53,6 +89,8 @@ export async function POST(request: NextRequest) {
     if (!isPasswordValid) {
       return errorResponse("用户名或密码错误", 401);
     }
+
+    resetRateLimit(accountRateLimitKey);
 
     // 生成 JWT Token
     const token = generateToken({ userId: user.id });

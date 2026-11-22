@@ -41,3 +41,7 @@ calendar-offline-deploy.zip
 /uploads_data/
 # release/
 *.zip
+
+# OS / local agent artifacts
+NUL
+.zcode/

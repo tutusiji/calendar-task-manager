@@ -1,21 +1,22 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { getMonthDays, isSameDay } from "@/lib/utils/date-utils"
 import { CalendarDay } from "./calendar-day"
 import { assignTaskTracks, type TaskWithTrack } from "@/lib/utils/task-layout"
 import { toPublicHolidayTasks } from "@/lib/utils/public-holiday-utils"
+import { filterTasksByNavigationMode } from "@/lib/store/task-filters"
 
 export function MonthView() {
-  const { 
-    currentDate, 
-    dragState, 
-    dragMoveState, 
-    tasks, 
+  const {
+    currentDate,
+    dragState,
+    dragMoveState,
+    tasks,
     publicHolidays,
-    selectedProjectIds, 
-    hideWeekends, 
+    selectedProjectIds,
+    hideWeekends,
     endDragMove,
     navigationMode,
     selectedTeamId,
@@ -24,13 +25,32 @@ export function MonthView() {
     getTeamById,
     getProjectById,
     taskBarSize,
-  } = useCalendarStore()
+  } = useCalendarState(
+    "currentDate",
+    "dragState",
+    "dragMoveState",
+    "tasks",
+    "publicHolidays",
+    "selectedProjectIds",
+    "hideWeekends",
+    "endDragMove",
+    "navigationMode",
+    "selectedTeamId",
+    "selectedProjectId",
+    "currentUser",
+    "getTeamById",
+    "getProjectById",
+    "taskBarSize"
+  )
   const [expandedDate, setExpandedDate] = useState<Date | null>(null)
   const expandedRef = useRef<HTMLDivElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const hasScrolledRef = useRef(false)
 
-  const monthDays = getMonthDays(currentDate.getFullYear(), currentDate.getMonth(), hideWeekends)
+  const monthDays = useMemo(
+    () => getMonthDays(currentDate.getFullYear(), currentDate.getMonth(), hideWeekends),
+    [currentDate, hideWeekends]
+  )
   const today = new Date()
 
   const weekDays = hideWeekends 
@@ -51,57 +71,28 @@ export function MonthView() {
   }, [dragMoveState.isMoving, endDragMove])
 
   // 根据导航模式过滤任务
-  const filteredTasks = useMemo(() => {
-    // My Days 模式：只显示当前用户在选中项目中的任务
-    if (navigationMode === "my-days" && currentUser) {
-      if (selectedProjectIds.length === 0) {
-        return []
-      }
-      return tasks.filter(task => 
-        selectedProjectIds.includes(task.projectId) && 
-        task.assignees?.some(a => a.userId === currentUser.id) ||
-        task.creatorId === currentUser.id
-      )
-    }
-    
-    // 团队模式：显示团队所有成员的任务
-    if (navigationMode === "team" && selectedTeamId) {
-      const team = getTeamById(selectedTeamId)
-      if (team) {
-        return tasks.filter(task => 
-          task.assignees?.some(a => team.memberIds.includes(a.userId)) ||
-          team.memberIds.includes(task.creatorId)
-        )
-      }
-    }
-    
-    // 项目模式：显示项目所有成员的任务
-    if (navigationMode === "project" && selectedProjectId) {
-      const project = getProjectById(selectedProjectId)
-      if (project) {
-        return tasks.filter(task => 
-          task.projectId === selectedProjectId &&
-          (task.assignees?.some(a => project.memberIds.includes(a.userId)) ||
-          project.memberIds.includes(task.creatorId))
-        )
-      }
-    }
-    
-    // 默认：根据选中的项目过滤（向后兼容）
-    if (selectedProjectIds.length === 0) {
-      return []
-    }
-    return tasks.filter(task => selectedProjectIds.includes(task.projectId))
-  }, [
-    tasks, 
-    navigationMode, 
-    selectedTeamId, 
-    selectedProjectId, 
-    selectedProjectIds, 
-    currentUser?.id,
-    getTeamById,
-    getProjectById
-  ])
+  const filteredTasks = useMemo(
+    () =>
+      filterTasksByNavigationMode(tasks, {
+        navigationMode,
+        currentUserId: currentUser?.id,
+        selectedTeamId,
+        selectedProjectId,
+        selectedProjectIds,
+        getTeamById,
+        getProjectById,
+      }),
+    [
+      tasks,
+      navigationMode,
+      selectedTeamId,
+      selectedProjectId,
+      selectedProjectIds,
+      currentUser?.id,
+      getTeamById,
+      getProjectById,
+    ]
+  )
 
   // 将日期按周分组
   const weeks = useMemo(() => {

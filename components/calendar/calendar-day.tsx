@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { TaskBar } from "./task-bar"
 import { HolidayBar } from "./holiday-bar"
 import { cn } from "@/lib/utils"
@@ -32,8 +33,21 @@ export function CalendarDay({
   tasksWithTracks: allTasksWithTracks,
   showUserInfo = false,
 }: CalendarDayProps) {
-  const { startDragCreate, updateDragCreate, endDragCreate, dragState, openTaskCreation, dragMoveState, updateDragMove } =
-    useCalendarStore()
+  const {
+    startDragCreate,
+    updateDragCreate,
+    endDragCreate,
+    openTaskCreation,
+    updateDragMove,
+  } = useCalendarState(
+    "startDragCreate",
+    "updateDragCreate",
+    "endDragCreate",
+    "openTaskCreation",
+    "updateDragMove"
+  )
+  const isCreating = useCalendarStore((state) => state.dragState.isCreating)
+  const isMoving = useCalendarStore((state) => state.dragMoveState.isMoving)
   const [isHovering, setIsHovering] = useState(false)
 
   // 过滤出与当前日期相关的任务
@@ -97,17 +111,17 @@ export function CalendarDay({
 
   const handleMouseEnter = () => {
     setIsHovering(true)
-    if (dragState.isCreating) {
+    if (isCreating) {
       updateDragCreate(date)
     }
     // 处理拖拽移动任务时的鼠标移动
-    if (dragMoveState.isMoving) {
+    if (isMoving) {
       updateDragMove(date)
     }
   }
 
   const handleMouseUp = () => {
-    if (dragState.isCreating) {
+    if (isCreating) {
       const result = endDragCreate()
       if (result) {
         openTaskCreation(result.startDate, result.endDate)

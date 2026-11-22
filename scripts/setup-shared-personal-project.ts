@@ -9,17 +9,26 @@ async function setupSharedPersonalProject() {
     // 1. 查找或创建共享的"个人事务"项目
     let sharedProject = await prisma.project.findFirst({
       where: {
-        name: '个人事务',
-        teamId: null // 不属于任何团队的项目
+        name: '个人事务'
       }
     })
 
     if (!sharedProject) {
       // 获取第一个用户作为创建者
-      const firstUser = await prisma.user.findFirst()
+      const firstUser = await prisma.user.findFirst({
+        select: {
+          id: true,
+          currentOrganizationId: true,
+        },
+      })
       
       if (!firstUser) {
         console.log('❌ 没有找到用户，请先创建用户')
+        return
+      }
+
+      if (!firstUser.currentOrganizationId) {
+        console.log('❌ 第一个用户没有当前组织，无法创建项目')
         return
       }
 
@@ -28,6 +37,7 @@ async function setupSharedPersonalProject() {
           name: '个人事务',
           color: '#3b82f6',
           description: '所有人共享的个人日常任务和事项',
+          organizationId: firstUser.currentOrganizationId,
           creatorId: firstUser.id
         }
       })

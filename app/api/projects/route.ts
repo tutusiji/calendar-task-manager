@@ -170,24 +170,18 @@ export async function GET(request: NextRequest) {
 // POST /api/projects - 创建项目
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authenticate(request)
+    if (auth.error) return auth.error
+
     const body = await request.json()
-    const { name, color, description, memberIds, creatorId, taskPermission } = body
+    const { name, color, description, memberIds, taskPermission } = body
+    const creatorId = auth.userId
 
     if (!name || !color) {
       return NextResponse.json(
         {
           success: false,
           error: 'Name and color are required'
-        },
-        { status: 400 }
-      )
-    }
-
-    if (!creatorId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Creator ID is required'
         },
         { status: 400 }
       )
@@ -209,10 +203,77 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const organizationId = user.currentOrganizationId
+
+    const membership = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: creatorId,
+          organizationId,
+        },
+      },
+      select: { id: true },
+    })
+
+    if (!membership) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: '您不是当前组织成员'
+        },
+        { status: 403 }
+      )
+    }
+
+    const normalizedMemberIds: string[] = Array.isArray(memberIds)
+      ? Array.from(
+          new Set(
+            memberIds.filter(
+              (userId: unknown): userId is string =>
+                typeof userId === 'string' && userId.length > 0
+            )
+          )
+        )
+      : []
+
+    if (normalizedMemberIds.length > 0) {
+      const validMembers = await prisma.organizationMember.findMany({
+        where: {
+          organizationId,
+          userId: { in: normalizedMemberIds },
+        },
+        select: { userId: true },
+      })
+
+      if (validMembers.length !== normalizedMemberIds.length) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: '项目成员必须属于当前组织'
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (
+      taskPermission !== undefined &&
+      taskPermission !== 'ALL_MEMBERS' &&
+      taskPermission !== 'CREATOR_ONLY'
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: '无效的任务权限'
+        },
+        { status: 400 }
+      )
+    }
+
     // 检查同组织内是否已存在同名项目
     const existingProject = await prisma.project.findFirst({
       where: {
-        organizationId: user.currentOrganizationId,
+        organizationId,
         name: name
       }
     })
@@ -231,13 +292,13 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         color,
-        organizationId: user.currentOrganizationId,
+        organizationId,
         description,
-        creatorId, // 设置创建者
+        creatorId, // 创建者始终来自认证上下文
         taskPermission: taskPermission || 'ALL_MEMBERS', // 设置任务权限，默认为所有成员
-        members: memberIds
+        members: normalizedMemberIds.length
           ? {
-              create: memberIds.map((userId: string) => ({
+              create: normalizedMemberIds.map((userId: string) => ({
                 userId
               }))
             }
@@ -265,7 +326,7 @@ export async function POST(request: NextRequest) {
         SET "sortOrder" = (
           SELECT COALESCE(MAX("sortOrder"), -1) + 1
           FROM "Project"
-          WHERE "organizationId" = ${user.currentOrganizationId}
+          WHERE "organizationId" = ${organizationId}
             AND id <> ${project.id}
         )
         WHERE id = ${project.id}

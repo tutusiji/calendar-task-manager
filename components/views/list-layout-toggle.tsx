@@ -1,12 +1,12 @@
 "use client"
 
 import { LayoutGrid, Square, Grid2x2, Grid3x3 } from "lucide-react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { cn } from "@/lib/utils"
 import type { ListLayoutColumns } from "@/lib/types"
 
 export function ListLayoutToggle() {
-  const { listLayoutColumns, setListLayoutColumns } = useCalendarStore()
+  const { listLayoutColumns, setListLayoutColumns } = useCalendarState("listLayoutColumns", "setListLayoutColumns")
 
   const layouts: { columns: ListLayoutColumns; icon: React.ReactNode; label: string }[] = [
     { columns: 1, icon: <Square className="h-4 w-4" />, label: "单列" },

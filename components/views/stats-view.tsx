@@ -1,17 +1,17 @@
 "use client"
 
 import { useMemo } from "react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import {
   differenceInDays,
   endOfMonth,
   endOfWeek,
   format,
-  isWithinInterval,
   startOfMonth,
   startOfWeek,
 } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { filterTasksByDateRange, filterTasksByNavigationMode } from "@/lib/store/task-filters"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Bar,
@@ -106,7 +106,20 @@ export function StatsView() {
     getProjectById,
     getUserById,
     projects,
-  } = useCalendarStore()
+  } = useCalendarState(
+    "tasks",
+    "currentDate",
+    "viewMode",
+    "selectedProjectIds",
+    "navigationMode",
+    "selectedTeamId",
+    "selectedProjectId",
+    "currentUser",
+    "getTeamById",
+    "getProjectById",
+    "getUserById",
+    "projects"
+  )
 
   // 计算日期范围
   const dateRange = useMemo(() => {
@@ -132,66 +145,23 @@ export function StatsView() {
   const filteredTasks = useMemo(() => {
     // 如果 currentUser 为空，返回空数组
     if (!currentUser) return []
-    
-    let filtered = tasks
 
-    // 根据导航模式过滤
-    if (navigationMode === "my-days") {
-      if (selectedProjectIds.length === 0) {
-        filtered = []
-      } else {
-        filtered = filtered.filter(
-          (task) => selectedProjectIds.includes(task.projectId) && 
-            (task.assignees?.some(a => a.userId === currentUser.id) || task.creatorId === currentUser.id)
-        )
-      }
-    } else if (navigationMode === "team" && selectedTeamId) {
-      const team = getTeamById(selectedTeamId)
-      if (team) {
-        filtered = filtered.filter(
-          (task) => {
-            const project = getProjectById(task.projectId)
-            if (isPersonalProjectName(project?.name)) {
-              return false
-            }
-
-            return (
-              task.assignees?.some(a => team.memberIds.includes(a.userId)) ||
-              team.memberIds.includes(task.creatorId)
-            )
-          }
-        )
-      }
-    } else if (navigationMode === "project" && selectedProjectId) {
-      const project = getProjectById(selectedProjectId)
-      if (project) {
-        filtered = filtered.filter(
-          (task) => task.projectId === selectedProjectId && 
-            (task.assignees?.some(a => project.memberIds.includes(a.userId)) ||
-            project.memberIds.includes(task.creatorId))
-        )
-      }
-    } else {
-      if (selectedProjectIds.length === 0) {
-        filtered = []
-      } else {
-        filtered = filtered.filter((task) => selectedProjectIds.includes(task.projectId))
-      }
-    }
-
-    // 根据日期范围过滤
-    return filtered.filter((task) => {
-      const taskStart = new Date(task.startDate)
-      const taskEnd = new Date(task.endDate)
-      taskStart.setHours(0, 0, 0, 0)
-      taskEnd.setHours(23, 59, 59, 999)
-
-      return (
-        isWithinInterval(taskStart, { start: dateRange.start, end: dateRange.end }) ||
-        isWithinInterval(taskEnd, { start: dateRange.start, end: dateRange.end }) ||
-        (taskStart <= dateRange.start && taskEnd >= dateRange.end)
-      )
+    const navigationFiltered = filterTasksByNavigationMode(tasks, {
+      navigationMode,
+      currentUserId: currentUser.id,
+      selectedTeamId,
+      selectedProjectId,
+      selectedProjectIds,
+      getTeamById,
+      getProjectById,
+      teamModeIncludesPersonalProjects: false,
     })
+
+    return filterTasksByDateRange(
+      navigationFiltered,
+      dateRange.start,
+      dateRange.end
+    )
   }, [
     tasks,
     navigationMode,

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requirePanoramaAccess } from "@/lib/server/auth/require"
 
 // PUT /api/admin/panorama/organizations/[id] - 更新组织信息
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requirePanoramaAccess(request)
+  if ("error" in access) return access.error
+
   try {
     const { name, isVerified } = await request.json()
     const { id } = await params
@@ -92,6 +96,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requirePanoramaAccess(request)
+  if ("error" in access) return access.error
+
   try {
     const { id } = await params
 

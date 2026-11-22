@@ -1,19 +1,63 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
 import { getPublicHolidayLabelForDate } from "@/lib/utils/public-holiday-utils"
 import { Badge } from "@/components/ui/badge"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
 import { TaskBar } from "./task-bar"
 import { cn } from "@/lib/utils"
+import { filterTasksByNavigationMode } from "@/lib/store/task-filters"
 
 export function PersonalWeekView() {
-  const { currentDate, currentUser, tasks, publicHolidays, selectedProjectIds, hideWeekends, dragState, dragMoveState, cancelDragCreate, endDragMove, taskBarSize, startDragCreate, updateDragCreate, endDragCreate, openTaskCreation, updateDragMove, startDragMove } = useCalendarStore()
+  const {
+    currentDate,
+    currentUser,
+    tasks,
+    publicHolidays,
+    selectedProjectIds,
+    hideWeekends,
+    dragState,
+    dragMoveState,
+    cancelDragCreate,
+    endDragMove,
+    taskBarSize,
+    startDragCreate,
+    updateDragCreate,
+    endDragCreate,
+    openTaskCreation,
+    updateDragMove,
+    startDragMove,
+    getTeamById,
+    getProjectById,
+  } = useCalendarState(
+    "currentDate",
+    "currentUser",
+    "tasks",
+    "publicHolidays",
+    "selectedProjectIds",
+    "hideWeekends",
+    "dragState",
+    "dragMoveState",
+    "cancelDragCreate",
+    "endDragMove",
+    "taskBarSize",
+    "startDragCreate",
+    "updateDragCreate",
+    "endDragCreate",
+    "openTaskCreation",
+    "updateDragMove",
+    "startDragMove",
+    "getTeamById",
+    "getProjectById"
+  )
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
-  const weekDays = getWeekDays(currentDate, hideWeekends)
+  const weekDays = useMemo(
+    () => getWeekDays(currentDate, hideWeekends),
+    [currentDate, hideWeekends]
+  )
   const holidayLabels = useMemo(
     () => weekDays.map((day) => getPublicHolidayLabelForDate(publicHolidays, day)),
     [publicHolidays, weekDays]
@@ -35,19 +79,23 @@ export function PersonalWeekView() {
   }, [dragState.isCreating, dragMoveState.isMoving, cancelDragCreate, endDragMove])
 
   // 过滤当前用户的任务
-  const userTasks = useMemo(() => {
-    // 如果 currentUser 为空，返回空数组
-    if (!currentUser) return []
-    
-    const filtered = selectedProjectIds.length === 0 
-      ? tasks 
-      : tasks.filter(task => selectedProjectIds.includes(task.projectId))
-    
-    return filtered.filter(task => 
-      task.assignees?.some(a => a.userId === currentUser.id) || 
-      task.creatorId === currentUser.id
-    )
-  }, [tasks, selectedProjectIds, currentUser])
+  const userTasks = useMemo(
+    () =>
+      filterTasksByNavigationMode(tasks, {
+        navigationMode: "my-days",
+        currentUserId: currentUser?.id,
+        selectedProjectIds,
+        getTeamById,
+        getProjectById,
+      }),
+    [
+      tasks,
+      selectedProjectIds,
+      currentUser?.id,
+      getTeamById,
+      getProjectById,
+    ]
+  )
 
   // 为任务分配轨道
   const tasksWithTracks = useMemo(() => assignTaskTracks(userTasks), [userTasks])

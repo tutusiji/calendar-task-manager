@@ -74,14 +74,13 @@ async function diagnoseDatabaseIssues() {
 
     // 4. 检查孤立的成员关系(用户或团队已删除但关系仍存在)
     console.log('\n🔍 检查孤立的团队成员关系:')
-    const orphanedTeamMembers = await prisma.teamMember.findMany({
-      where: {
-        OR: [
-          { user: null },
-          { team: null }
-        ]
-      }
-    })
+    const orphanedTeamMembers = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT tm.id
+      FROM "TeamMember" tm
+      LEFT JOIN "User" u ON u.id = tm."userId"
+      LEFT JOIN "Team" t ON t.id = tm."teamId"
+      WHERE u.id IS NULL OR t.id IS NULL
+    `
 
     if (orphanedTeamMembers.length > 0) {
       console.log(`  ⚠️ 发现 ${orphanedTeamMembers.length} 个孤立的团队成员关系`)

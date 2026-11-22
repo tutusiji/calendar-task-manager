@@ -1,9 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
-import { format, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay } from "date-fns"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { filterTasksByDateRange, filterTasksByNavigationMode } from "@/lib/store/task-filters"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -36,7 +37,21 @@ export function ListView() {
     getUserById,
     listGroupMode,
     listLayoutColumns,
-  } = useCalendarStore()
+  } = useCalendarState(
+    "tasks",
+    "currentDate",
+    "viewMode",
+    "selectedProjectIds",
+    "navigationMode",
+    "selectedTeamId",
+    "selectedProjectId",
+    "currentUser",
+    "getTeamById",
+    "getProjectById",
+    "getUserById",
+    "listGroupMode",
+    "listLayoutColumns"
+  )
 
   const [copiedState, setCopiedState] = useState<{ groupId: string; mode: CopyMode } | null>(null)
 
@@ -59,50 +74,22 @@ export function ListView() {
   const filteredTasks = useMemo(() => {
     // 如果 currentUser 为空，返回空数组
     if (!currentUser) return []
-    
-    let filtered = tasks
 
-    if (navigationMode === "my-days") {
-      // My Days 模式：如果没有选中项目，返回空数组
-      if (selectedProjectIds.length === 0) return []
-      filtered = filtered.filter(
-        (task) => selectedProjectIds.includes(task.projectId) && 
-          (task.assignees?.some(a => a.userId === currentUser.id) || task.creatorId === currentUser.id)
-      )
-    } else if (navigationMode === "team" && selectedTeamId) {
-      const team = getTeamById(selectedTeamId)
-      if (team) {
-        filtered = filtered.filter((task) => 
-          task.assignees?.some(a => team.memberIds.includes(a.userId)) ||
-          team.memberIds.includes(task.creatorId)
-        )
-      }
-    } else if (navigationMode === "project" && selectedProjectId) {
-      const project = getProjectById(selectedProjectId)
-      if (project) {
-        filtered = filtered.filter(
-          (task) => task.projectId === selectedProjectId && 
-            (task.assignees?.some(a => project.memberIds.includes(a.userId)) ||
-            project.memberIds.includes(task.creatorId))
-        )
-      }
-    } else {
-      if (selectedProjectIds.length === 0) return []
-      filtered = filtered.filter((task) => selectedProjectIds.includes(task.projectId))
-    }
-
-    return filtered.filter((task) => {
-      const taskStart = new Date(task.startDate)
-      const taskEnd = new Date(task.endDate)
-      taskStart.setHours(0, 0, 0, 0)
-      taskEnd.setHours(23, 59, 59, 999)
-
-      return (
-        isWithinInterval(taskStart, { start: dateRange.start, end: dateRange.end }) ||
-        isWithinInterval(taskEnd, { start: dateRange.start, end: dateRange.end }) ||
-        (taskStart <= dateRange.start && taskEnd >= dateRange.end)
-      )
+    const navigationFiltered = filterTasksByNavigationMode(tasks, {
+      navigationMode,
+      currentUserId: currentUser.id,
+      selectedTeamId,
+      selectedProjectId,
+      selectedProjectIds,
+      getTeamById,
+      getProjectById,
     })
+
+    return filterTasksByDateRange(
+      navigationFiltered,
+      dateRange.start,
+      dateRange.end
+    )
   }, [
     tasks,
     navigationMode,

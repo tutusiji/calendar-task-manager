@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +24,7 @@ interface UserMultiSelectorProps {
 }
 
 export function UserMultiSelector({ selectedUserIds, onUserChange, lockedUserIds = [], creatorId, disabled = false }: UserMultiSelectorProps) {
-  const { users, teams, getUserById, currentUser } = useCalendarStore()
+  const { users, teams, getUserById, currentUser } = useCalendarState("users", "teams", "getUserById", "currentUser")
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFilterTeamId, setSelectedFilterTeamId] = useState<string | null>(null)

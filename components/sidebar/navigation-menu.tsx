@@ -4,6 +4,8 @@ import { useState, type DragEvent } from "react"
 import { Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut, Pin, Archive, ArchiveRestore, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
+import { useSidebarData } from "@/hooks/use-sidebar-data"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -30,10 +32,10 @@ import { Badge } from "@/components/ui/badge"
 import { showToast } from "@/lib/toast"
 
 export function NavigationMenu() {
-  const { 
-    navigationMode, 
-    setNavigationMode, 
-    selectedTeamId, 
+  const {
+    navigationMode,
+    setNavigationMode,
+    selectedTeamId,
     setSelectedTeamId,
     selectedProjectId,
     setSelectedProjectId,
@@ -47,7 +49,24 @@ export function NavigationMenu() {
     reorderTeams,
     reorderProjects,
     setCurrentUser,
-  } = useCalendarStore()
+  } = useCalendarState(
+    "navigationMode",
+    "setNavigationMode",
+    "selectedTeamId",
+    "setSelectedTeamId",
+    "selectedProjectId",
+    "setSelectedProjectId",
+    "teams",
+    "projects",
+    "currentUser",
+    "deleteTeam",
+    "deleteProject",
+    "leaveTeam",
+    "leaveProject",
+    "reorderTeams",
+    "reorderProjects",
+    "setCurrentUser"
+  )
   
   const [teamsExpanded, setTeamsExpanded] = useState(true)
   const [projectsExpanded, setProjectsExpanded] = useState(true)
@@ -81,14 +100,22 @@ export function NavigationMenu() {
     event.preventDefault()
     if (!draggedTeamId || draggedTeamId === targetId) return
 
-    void reorderTeams(moveItem(myTeams.map(team => team.id), draggedTeamId, targetId), { persist: false })
+    const currentIds = myTeams.map((team) => team.id)
+    const nextIds = moveItem(currentIds, draggedTeamId, targetId)
+    if (nextIds === currentIds) return
+
+    void reorderTeams(nextIds, { persist: false })
   }
 
   const handleProjectDragOver = (event: DragEvent<HTMLDivElement>, targetId: string) => {
     event.preventDefault()
     if (!draggedProjectId || draggedProjectId === targetId) return
 
-    void reorderProjects(moveItem(myProjects.map(project => project.id), draggedProjectId, targetId), { persist: false })
+    const currentIds = myProjects.map((project) => project.id)
+    const nextIds = moveItem(currentIds, draggedProjectId, targetId)
+    if (nextIds === currentIds) return
+
+    void reorderProjects(nextIds, { persist: false })
   }
 
   const persistTeamOrder = () => {
@@ -103,46 +130,15 @@ export function NavigationMenu() {
     setDraggedProjectId(null)
   }
 
-  // 过滤当前用户的团队
-  const myTeams = currentUser
-    ? teams.filter(t => t.memberIds.includes(currentUser.id))
-    : []
-  
-  // 过滤当前用户的项目，个人事务项目置顶，排除已归档项目
-  const myProjects = currentUser 
-    ? projects
-        .filter(p => p.memberIds.includes(currentUser.id) && !p.isArchived)
-    : []
-  
-  // 过滤已归档的项目
-  const archivedProjects = currentUser
-    ? projects
-        .filter(p => p.memberIds.includes(currentUser.id) && p.isArchived)
-        .sort((a, b) => {
-          // 按归档时间倒序排列
-          if (a.archivedAt && b.archivedAt) {
-            return new Date(b.archivedAt).getTime() - new Date(a.archivedAt).getTime()
-          }
-          return 0
-        })
-    : []
-  
+  const { myTeams, myProjects, archivedProjects, canManageTeam, canManageProject } =
+    useSidebarData({ teams, projects, currentUser })
+
   // 删除确认对话框状态
   const [deleteTeamConfirm, setDeleteTeamConfirm] = useState<Team | null>(null)
   const [deleteProjectConfirm, setDeleteProjectConfirm] = useState<Project | null>(null)
   // 退出确认对话框状态
   const [leaveTeamConfirm, setLeaveTeamConfirm] = useState<Team | null>(null)
   const [leaveProjectConfirm, setLeaveProjectConfirm] = useState<Project | null>(null)
-
-  // 检查是否可以管理团队（创建者或超管）
-  const canManageTeam = (team: Team) => {
-    return team.creatorId === currentUser?.id || currentUser?.isAdmin
-  }
-
-  // 检查是否可以管理项目（创建者或超管）
-  const canManageProject = (project: Project) => {
-    return project.creatorId === currentUser?.id || currentUser?.isAdmin
-  }
 
   const handleCreateTeam = () => {
     setEditingTeam(undefined)

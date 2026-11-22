@@ -1,7 +1,7 @@
 "use client"
 
 import type { Task } from "@/lib/types"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { cn } from "@/lib/utils"
 import { getCalendarBarMetrics } from "@/lib/utils/calendar-bar-layout"
 
@@ -18,7 +18,7 @@ export function HolidayBar({
   track,
   isWeekRow = false,
 }: HolidayBarProps) {
-  const { hideWeekends, taskBarSize } = useCalendarStore()
+  const { hideWeekends, taskBarSize } = useCalendarState("hideWeekends", "taskBarSize")
 
   const countDays = (startDate: Date, endDate: Date): number => {
     let count = 0

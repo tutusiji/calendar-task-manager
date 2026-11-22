@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requirePanoramaAccess } from "@/lib/server/auth/require"
 
 const taskInclude = {
   creator: {
@@ -38,6 +39,9 @@ const taskInclude = {
 
 // GET /api/admin/panorama/tasks - 获取事项列表
 export async function GET(request: NextRequest) {
+  const access = await requirePanoramaAccess(request)
+  if ("error" in access) return access.error
+
   try {
     const searchParams = request.nextUrl.searchParams
     const type = searchParams.get('type') // 'org' | 'team' | 'project' | 'member'

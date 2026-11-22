@@ -41,6 +41,23 @@ Thumbs.db
 
 # Testing
 coverage/
+tests/
+
+# Repository-only content (not needed in build context)
+.git/
+.qoder/
+docs/
+release/
+specs/
+deploy/
+scripts/
+oldDes/
+
+# Large local artifacts
+*.tar
+/banner1.png
+/banner01.png
+/image.png
 
 # Docker
 .dockerignore

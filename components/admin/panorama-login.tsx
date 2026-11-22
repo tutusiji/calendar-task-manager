@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { authenticatePanorama } from "@/lib/api/panorama"
 
 interface PanoramaLoginProps {
   onLoginSuccess: () => void
@@ -33,7 +34,7 @@ export default function PanoramaLogin({ onLoginSuccess }: PanoramaLoginProps) {
     setCaptchaAnswer((num1 + num2).toString())
   }
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
@@ -47,19 +48,19 @@ export default function PanoramaLogin({ onLoginSuccess }: PanoramaLoginProps) {
       return
     }
 
-    // 验证密码
-    if (password !== "admin123456") {
-      setError("超级管理员密码错误")
+    try {
+      await authenticatePanorama(password)
+      setPassword("")
+      onLoginSuccess()
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error ? loginError.message : "超管认证失败，请重试"
+      )
       setCaptchaInput("")
       generateCaptcha()
+    } finally {
       setIsLoading(false)
-      return
     }
-
-    // 认证成功
-    sessionStorage.setItem("panorama_auth", "true")
-    setIsLoading(false)
-    onLoginSuccess()
   }
 
   return (

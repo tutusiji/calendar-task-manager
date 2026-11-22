@@ -1,9 +1,23 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
-// JWT 密钥（生产环境应从环境变量读取）
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production'
+const DEV_FALLBACK_SECRET = 'dev-only-secret-do-not-use-in-production'
 const JWT_EXPIRES_IN = '90d' // Token 有效期 90 天
+
+/**
+ * 获取 JWT 签名密钥。
+ * 生产环境必须显式配置 JWT_SECRET，缺失时直接失败，避免使用可预测的默认密钥。
+ */
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (secret) return secret
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production')
+  }
+
+  return DEV_FALLBACK_SECRET
+}
 
 /**
  * 密码哈希
@@ -34,7 +48,7 @@ export async function verifyPassword(
  * @returns JWT Token 字符串
  */
 export function generateToken(payload: { userId: string }): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN })
 }
 
 /**
@@ -44,15 +58,19 @@ export function generateToken(payload: { userId: string }): string {
  */
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
-    return decoded
-  } catch (error) {
-    // 添加详细的错误日志
-    console.error('Token 验证失败:', {
-      error: error instanceof Error ? error.message : error,
-      tokenLength: token?.length,
-      tokenPrefix: token?.substring(0, 20) + '...'
-    })
+    const decoded = jwt.verify(token, getJwtSecret())
+
+    if (
+      typeof decoded !== 'object' ||
+      decoded === null ||
+      typeof (decoded as { userId?: unknown }).userId !== 'string' ||
+      !(decoded as { userId: string }).userId
+    ) {
+      return null
+    }
+
+    return { userId: (decoded as { userId: string }).userId }
+  } catch {
     return null
   }
 }

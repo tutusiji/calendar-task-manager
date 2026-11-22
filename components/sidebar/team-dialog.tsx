@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import type { Team, TaskPermission } from "@/lib/types"
 import { UserMultiSelector } from "../task/user-multi-selector"
 import { UserSelector } from "../task/user-selector"
@@ -36,7 +36,7 @@ const PRESET_COLORS = [
 ]
 
 export function TeamDialog({ team, viewOnly = false, onClose }: TeamDialogProps) {
-  const { addTeam, updateTeam, currentUser, users } = useCalendarStore()
+  const { addTeam, updateTeam, currentUser, users } = useCalendarState("addTeam", "updateTeam", "currentUser", "users")
   
   const [name, setName] = useState(team?.name || "")
   const [description, setDescription] = useState(team?.description || "")

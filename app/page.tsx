@@ -23,6 +23,7 @@ import { getToken } from "@/lib/api-client"
 import { showToast } from "@/lib/toast"
 import { LoadingLogo } from "@/components/loading-logo"
 import { siteConfig } from "@/lib/site-config"
+import { Loader2, Check } from "lucide-react"
 
 export default function Home() {
   const router = useRouter()
@@ -34,6 +35,9 @@ export default function Home() {
   const isLoadingProjects = useCalendarStore(state => state.isLoadingProjects)
   const isLoadingUsers = useCalendarStore(state => state.isLoadingUsers)
   const isLoadingTeams = useCalendarStore(state => state.isLoadingTeams)
+  const hasLoadedTasks = useCalendarStore(state => state.hasLoadedTasks)
+  const pendingTaskCount = useCalendarStore(state => state.pendingTaskIds.length)
+  const saveNoticeVisible = useCalendarStore(state => state.saveNoticeVisible)
   const error = useCalendarStore(state => state.error)
   const viewMode = useCalendarStore(state => state.viewMode)
   const navigationMode = useCalendarStore(state => state.navigationMode)
@@ -67,10 +71,13 @@ export default function Home() {
 
   // 显示加载状态
   const isLoading = isLoadingTasks || isLoadingProjects || isLoadingUsers || isLoadingTeams
+  // 首次加载显示全屏 Logo；之后只显示不遮挡操作的顶部进度条
+  const isInitialLoading = !hasLoadedTasks && isLoading
+  const isRefreshing = hasLoadedTasks && isLoading
 
-  // 处理 loading 的淡入淡出效果
+  // 处理 loading 的淡入淡出效果（仅首次加载使用）
   useEffect(() => {
-    if (isLoading) {
+    if (isInitialLoading) {
       // 立即显示 loading（淡入）
       setShowLoading(true)
     } else {
@@ -80,7 +87,7 @@ export default function Home() {
       }, 300) // 与 CSS transition 时间一致
       return () => clearTimeout(timer)
     }
-  }, [isLoading])
+  }, [isInitialLoading])
 
   // 显示错误提示
   useEffect(() => {
@@ -226,10 +233,15 @@ export default function Home() {
           {showLoading && (
             <div 
               className={`absolute inset-0 bg-background/50 z-40 flex items-center justify-center transition-opacity duration-300 ${
-                isLoading ? 'opacity-100' : 'opacity-0'
+                isInitialLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
               <LoadingLogo />
+            </div>
+          )}
+          {isRefreshing && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-40 h-0.5 overflow-hidden">
+              <div className="h-full w-1/3 animate-[loading-bar_1.1s_ease-in-out_infinite] rounded-full bg-primary" />
             </div>
           )}
           {renderMainContent()}
@@ -249,6 +261,17 @@ export default function Home() {
           task={taskEdit.task}
           onClose={closeTaskEdit}
         />
+      )}
+
+      {saveNoticeVisible && !taskCreation.isOpen && !taskEdit.isOpen && (
+        <div className="pointer-events-none fixed bottom-5 right-6 z-50 flex items-center gap-2 rounded-full border border-border bg-background/95 px-3 py-1.5 text-xs text-muted-foreground shadow-lg backdrop-blur">
+          {pendingTaskCount > 0 ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          ) : (
+            <Check className="h-3.5 w-3.5 text-emerald-600" />
+          )}
+          {pendingTaskCount > 0 ? "正在保存…" : "已保存"}
+        </div>
       )}
     </div>
   )

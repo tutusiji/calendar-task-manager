@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requirePanoramaAccess } from "@/lib/server/auth/require"
 
 // GET /api/admin/panorama/organizations/[id]/members - 获取组织的所有成员
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requirePanoramaAccess(request)
+  if ("error" in access) return access.error
+
   try {
     const { id } = await params
 

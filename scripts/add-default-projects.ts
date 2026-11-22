@@ -11,13 +11,19 @@ async function addDefaultProjects() {
       select: {
         id: true,
         name: true,
-        username: true
+        username: true,
+        currentOrganizationId: true,
       }
     })
 
     console.log(`找到 ${users.length} 个用户`)
 
     for (const user of users) {
+      if (!user.currentOrganizationId) {
+        console.log(`⚠️ 跳过 ${user.name} (${user.username})：用户没有当前组织`)
+        continue
+      }
+
       // 检查用户是否已经有自己创建的个人事务项目
       const existingPersonalProject = await prisma.project.findFirst({
         where: {
@@ -40,6 +46,7 @@ async function addDefaultProjects() {
           name: `${user.name}的个人事务`,
           color: '#3b82f6',
           description: '个人日常任务和事项',
+          organizationId: user.currentOrganizationId,
           creatorId: user.id,
           members: {
             create: {

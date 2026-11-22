@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import {
   Dialog,
   DialogContent,
@@ -60,7 +60,7 @@ interface UserProfileDialogProps {
 }
 
 export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps) {
-  const { currentUser, teams, projects, setCurrentUser, fetchAllData } = useCalendarStore()
+  const { currentUser, teams, projects, setCurrentUser, fetchAllData } = useCalendarState("currentUser", "teams", "projects", "setCurrentUser", "fetchAllData")
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [confirmLeaveTeam, setConfirmLeaveTeam] = useState<string | null>(null)
@@ -365,7 +365,6 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
                       <span>
                         {(() => {
                           const defaultTeam = allTeams.find(t => t.id === currentUser.defaultTeamId)
-                          // @ts-ignore - organization is included in API response but not in type definition yet
                           const orgName = defaultTeam?.organization?.name || '组织'
                           return defaultTeam ? `${orgName} - ${defaultTeam.name}` : '未知团队'
                         })()}

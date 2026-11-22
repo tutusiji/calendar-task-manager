@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
     const organizationId = searchParams.get("organizationId")
     const asApplicant = searchParams.get("asApplicant") === "true"
 
-    let whereClause: any = {}
+    const whereClause: any = {}
 
     if (asApplicant) {
       // 作为申请人，查看自己的申请

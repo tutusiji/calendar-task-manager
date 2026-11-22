@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requirePanoramaAccess } from "@/lib/server/auth/require"
 
 // GET /api/admin/panorama/organizations - 获取所有组织列表
 export async function GET(request: NextRequest) {
+  const access = await requirePanoramaAccess(request)
+  if ("error" in access) return access.error
+
   try {
     const organizations = await prisma.organization.findMany({
       select: {

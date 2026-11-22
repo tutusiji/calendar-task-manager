@@ -1,11 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { cn } from "@/lib/utils"
 
 export function ViewToggle() {
-  const { viewMode, setViewMode } = useCalendarStore()
+  const { viewMode, setViewMode } = useCalendarState("viewMode", "setViewMode")
 
   return (
     <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">

@@ -1,12 +1,12 @@
 "use client"
 
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { Button } from "@/components/ui/button"
 import { AlignJustify, AlignCenter } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function TaskSizeToggle() {
-  const { taskBarSize, setTaskBarSize } = useCalendarStore()
+  const { taskBarSize, setTaskBarSize } = useCalendarState("taskBarSize", "setTaskBarSize")
 
   return (
     <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">

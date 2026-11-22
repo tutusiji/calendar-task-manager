@@ -3,9 +3,11 @@
 import React, { useState } from "react";
 
 import { useCalendarStore } from "@/lib/store/calendar-store";
+import { useCalendarState } from "@/lib/store/use-calendar-state";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2 } from "lucide-react";
 import { ProgressCircle } from "../task/progress-circle";
 import { TASK_COLORS } from "@/lib/types";
 import { getCalendarBarMetrics } from "@/lib/utils/calendar-bar-layout";
@@ -30,14 +32,31 @@ export function TaskBar({
     openTaskEdit,
     hideWeekends,
     startDragMove,
-    dragMoveState,
     getUserById,
     taskBarSize,
     updateTask,
     hoveredTaskId,
     setHoveredTaskId,
     currentUser,
-  } = useCalendarStore();
+  } = useCalendarState(
+    "getProjectById",
+    "openTaskEdit",
+    "hideWeekends",
+    "startDragMove",
+    "getUserById",
+    "taskBarSize",
+    "updateTask",
+    "hoveredTaskId",
+    "setHoveredTaskId",
+    "currentUser"
+  );
+  const isDragMoving = useCalendarStore((state) => state.dragMoveState.isMoving);
+  const movingTaskId = useCalendarStore(
+    (state) => state.dragMoveState.task?.id
+  );
+  const isTaskPending = useCalendarStore((state) =>
+    state.pendingTaskIds.includes(task.id)
+  );
   const [isProgressDragging, setIsProgressDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(task.progress || 0);
   const [optimisticProgress, setOptimisticProgress] = useState<number | null>(
@@ -96,13 +115,13 @@ export function TaskBar({
   const fallbackUser = assigneeCount === 0 ? getUserById(task.creatorId) : null;
 
   // 判断当前任务是否正在被拖拽
-  const isBeingDragged =
-    dragMoveState.isMoving && dragMoveState.task?.id === task.id;
+  const isBeingDragged = isDragMoving && movingTaskId === task.id;
 
   // 处理拖拽开始
   const handleMouseDown = (e: React.MouseEvent) => {
     // 只响应左键点击
     if (e.button !== 0) return;
+    if (isTaskPending) return;
 
     e.stopPropagation();
     e.preventDefault();
@@ -272,14 +291,16 @@ export function TaskBar({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering calendar day's drag creation
+    if (isTaskPending) return;
     // 只有在不是拖拽状态时才打开编辑面板
-    if (!isBeingDragged && !dragMoveState.isMoving && !isProgressDragging) {
+    if (!isBeingDragged && !isDragMoving && !isProgressDragging) {
       openTaskEdit(task);
     }
   };
 
   // 处理进度条拖拽
   const handleProgressMouseDown = (e: React.MouseEvent) => {
+    if (isTaskPending) return;
     e.stopPropagation();
     e.preventDefault();
 
@@ -316,23 +337,6 @@ export function TaskBar({
       }
     };
 
-    const handleMouseUp = () => {
-      setIsProgressDragging(false);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-
-      // 提交更新
-      if (taskBarRef.current) {
-        // 使用最新的 dragProgress 值，这里需要通过 ref 或者重新计算，
-        // 但由于闭包问题，直接使用 setDragProgress 的回调或者 ref 更安全。
-        // 简单起见，我们在 mouseUp 时再计算一次或者利用 state 更新机制。
-        // 这里为了确保准确，我们重新计算一次最终值
-        // 实际上，由于闭包，这里的 dragProgress 可能不是最新的。
-        // 更好的方式是使用 ref 存储当前的 dragProgress
-      }
-    };
-
-    // 重新定义 mouseUp 以获取正确的 progress
     const handleMouseUpWithSave = async (upEvent: MouseEvent) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUpWithSave);
@@ -471,6 +475,7 @@ export function TaskBar({
       onClick={handleClick}
       onMouseEnter={() => setHoveredTaskId(task.id)}
       onMouseLeave={() => setHoveredTaskId(null)}
+      aria-busy={isTaskPending}
       className={cn(
         "task-bar group absolute px-1 font-medium text-white transition-all overflow-visible",
         textSizeClass,
@@ -480,10 +485,14 @@ export function TaskBar({
         isBeingDragged
           ? "shadow-[0_8px_30px_rgb(0,0,0,0.4)] cursor-move"
           : "cursor-move",
+        // 进度拖拽时高亮整个任务条
+        isProgressDragging && "ring-2 ring-white/90 shadow-lg cursor-ew-resize",
+        // 保存中样式
+        isTaskPending && "opacity-80 cursor-wait",
         // Hover样式 - 使用全局hover状态,实现跨段高亮
         !isBeingDragged && isHovered && "opacity-90 shadow-md",
         // 其他任务在拖拽时禁用交互
-        !isBeingDragged && dragMoveState.isMoving && "pointer-events-none"
+        !isBeingDragged && isDragMoving && "pointer-events-none"
       )}
       style={{
         left: barMetrics.left,
@@ -498,7 +507,8 @@ export function TaskBar({
       {/* 进度背景填充 - 拖拽时禁用过渡效果以提高响应速度 */}
       <div
         className={cn(
-          "absolute left-0 top-0 h-full opacity-30",
+          "absolute left-0 top-0 h-full",
+          isProgressDragging ? "opacity-50" : "opacity-30",
           !isProgressDragging && "transition-all duration-300",
           // 左边只在任务开始段时圆角，右边只在接近100%时圆角
           segmentProgress >= 99 
@@ -529,17 +539,8 @@ export function TaskBar({
         onMouseDown={handleProgressMouseDown}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 视觉标记：两条竖线 */}
-        <div className="flex w-[5px] border-l border-r border-black h-4/5 opacity-80 group-hover/handle:opacity-100">
-          {/* <div className="w-px h-full bg-black shadow-sm" />
-          <div className="w-px h-full bg-black shadow-sm" /> */}
-        </div>
-        {/* 显示当前进度百分比提示 */}
-        {isProgressDragging && (
-          <div className="absolute bottom-full mb-1 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
-            {dragProgress}%
-          </div>
-        )}
+        {/* 视觉标记：两根黑色竖线 */}
+        <div className="flex h-4/5 w-[5px] border-l border-r border-black opacity-80 group-hover/handle:opacity-100" />
       </div>
       )}
 
@@ -682,8 +683,12 @@ export function TaskBar({
           {task.title}
         </span>
 
-        {/* Progress Circle - Only for daily tasks */}
-        {task.type === "daily" && (
+        {/* 保存中：在进度圆的位置显示 spinner */}
+        {isTaskPending ? (
+          <div className="shrink-0 ml-auto flex items-center">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          </div>
+        ) : task.type === "daily" ? (
           <div className="shrink-0 ml-auto flex items-center">
             <ProgressCircle
               progress={displayProgress}
@@ -692,7 +697,7 @@ export function TaskBar({
               showNumber={isHovered || isProgressDragging}
             />
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { addDays, addWeeks, differenceInCalendarDays } from "date-fns"
+import { addDays, addWeeks, differenceInCalendarDays, startOfDay } from "date-fns"
 
 import { prisma } from "@/lib/prisma"
 import type { TaskRecurrenceType } from "@/lib/types"
@@ -29,12 +29,19 @@ type RecurringTaskSeriesRecord = {
 export function getRecurringGenerationHorizon(
   ...dates: Array<Date | null | undefined>
 ): Date {
-  const defaultHorizon = addDays(new Date(), DEFAULT_RECURRING_TASK_HORIZON_DAYS)
+  // 按天取整，保证同一 organization/series 当天只生成一次，
+  // 避免每次 GET 因 horizon 前进几秒而重复执行生成事务
+  const defaultHorizon = startOfDay(
+    addDays(new Date(), DEFAULT_RECURRING_TASK_HORIZON_DAYS)
+  )
   let latest = defaultHorizon
 
   for (const date of dates) {
-    if (date && date > latest) {
-      latest = date
+    if (date) {
+      const candidate = startOfDay(date)
+      if (candidate > latest) {
+        latest = candidate
+      }
     }
   }
 

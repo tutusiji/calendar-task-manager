@@ -1,12 +1,12 @@
 "use client"
 
 import { Calendar, ListTodo, BarChart3, KanbanSquare } from "lucide-react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { cn } from "@/lib/utils"
 import type { MainViewMode } from "@/lib/types"
 
 export function MainNavigation() {
-  const { mainViewMode, setMainViewMode } = useCalendarStore()
+  const { mainViewMode, setMainViewMode } = useCalendarState("mainViewMode", "setMainViewMode")
 
   const navItems: { mode: MainViewMode; label: string; icon: React.ReactNode }[] = [
     { mode: "calendar", label: "日历", icon: <Calendar className="h-5 w-5" /> },

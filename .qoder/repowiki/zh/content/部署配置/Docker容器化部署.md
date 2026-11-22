@@ -248,7 +248,7 @@ E --> I[头像API地址]
 
 | 变量名 | 默认值 | 用途 |
 |--------|--------|------|
-| POSTGRES_PASSWORD | @huangkun123 | PostgreSQL数据库密码 |
+| POSTGRES_PASSWORD | your_database_password | PostgreSQL数据库密码 |
 | DATABASE_URL | postgresql://... | 数据库连接字符串 |
 | NODE_ENV | production | Node.js运行环境 |
 | AVATAR_API_URL | https://api.dicebear.com | 头像API服务地址 |

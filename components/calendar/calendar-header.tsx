@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Calendar,CalendarMinus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { getMonthName } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
 import { TaskSizeToggle } from "./task-size-toggle"
@@ -10,7 +10,7 @@ import { ListGroupToggle } from "@/components/views/list-group-toggle"
 import { ListLayoutToggle } from "@/components/views/list-layout-toggle"
 
 export function CalendarHeader() {
-  const { currentDate, setCurrentDate, viewMode, hideWeekends, toggleWeekends, mainViewMode } = useCalendarStore()
+  const { currentDate, setCurrentDate, viewMode, hideWeekends, toggleWeekends, mainViewMode } = useCalendarState("currentDate", "setCurrentDate", "viewMode", "hideWeekends", "toggleWeekends", "mainViewMode")
 
   const goToPreviousMonth = () => {
     const newDate = new Date(currentDate)

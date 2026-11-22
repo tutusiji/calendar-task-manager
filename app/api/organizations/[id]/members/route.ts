@@ -91,12 +91,16 @@ export async function POST(
 
     const { id: organizationId } = await params
     const body = await req.json()
-    const { userId, role = "MEMBER" } = body
+    const { userId, role = "MEMBER", inviteCode } = body
 
     console.log("加入组织请求:", { organizationId, userId, currentUserId: auth.userId })
 
     // 情况1: 如果没有提供 userId，表示当前用户想要自己加入组织
     if (!userId) {
+      if (typeof inviteCode !== "string" || !inviteCode.trim()) {
+        return errorResponse("加入组织需要提供邀请码", 400)
+      }
+
       // 验证组织是否存在
       const organization = await prisma.organization.findUnique({
         where: { id: organizationId },
@@ -104,6 +108,21 @@ export async function POST(
 
       if (!organization) {
         return errorResponse("组织不存在", 404)
+      }
+
+      // 邀请码必须属于该组织内的成员
+      const inviterMembership = await prisma.organizationMember.findFirst({
+        where: {
+          organizationId,
+          inviteCode: inviteCode.trim(),
+        },
+        select: {
+          userId: true,
+        },
+      })
+
+      if (!inviterMembership) {
+        return errorResponse("邀请码无效或不属于该组织", 400)
       }
 
       // 检查用户是否已经是该组织的成员
@@ -118,6 +137,65 @@ export async function POST(
 
       if (existingMember) {
         return errorResponse("您已经是该组织的成员")
+      }
+
+      // 需要审批时创建加入申请，不直接写入成员关系
+      if (organization.joinRequiresApproval) {
+        const existingRequest = await prisma.organizationJoinRequest.findFirst({
+          where: {
+            organizationId,
+            applicantId: auth.userId,
+            status: "PENDING",
+          },
+          select: { id: true },
+        })
+
+        if (existingRequest) {
+          return errorResponse("您已提交过申请，请等待审核")
+        }
+
+        const joinRequest = await prisma.organizationJoinRequest.create({
+          data: {
+            organizationId,
+            applicantId: auth.userId,
+            inviterId: inviterMembership.userId,
+            status: "PENDING",
+          },
+          include: {
+            applicant: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+              },
+            },
+            organization: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        })
+
+        await prisma.notification.create({
+          data: {
+            userId: organization.creatorId,
+            type: "ORG_JOIN_REQUEST",
+            title: "新的加入申请",
+            content: `${joinRequest.applicant.name} 申请加入 ${organization.name}`,
+            metadata: {
+              requestId: joinRequest.id,
+              organizationId: organization.id,
+              organizationName: organization.name,
+              applicantId: joinRequest.applicant.id,
+              applicantName: joinRequest.applicant.name,
+            },
+          },
+        })
+
+        return successResponse(joinRequest, "加入申请已提交，等待审核")
       }
 
       // 生成邀请码
@@ -148,6 +226,7 @@ export async function POST(
           organizationId,
           role: "MEMBER",
           inviteCode: memberInviteCode,
+          inviterId: inviterMembership.userId,
         },
         include: {
           user: {
@@ -191,6 +270,10 @@ export async function POST(
 
     if (!currentMember || (currentMember.role !== "OWNER" && currentMember.role !== "ADMIN")) {
       return errorResponse("无权添加成员", 403)
+    }
+
+    if (role !== "MEMBER" && role !== "ADMIN") {
+      return errorResponse("只能添加 MEMBER 或 ADMIN 角色", 400)
     }
 
     // 检查目标用户是否存在

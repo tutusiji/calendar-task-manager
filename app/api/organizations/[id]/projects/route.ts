@@ -77,7 +77,6 @@ export async function GET(
         name: m.user.name,
         email: m.user.email,
         avatar: m.user.avatar,
-        role: m.role,
       })),
       creator: project.creator,
       createdAt: project.createdAt,

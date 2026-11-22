@@ -29,6 +29,7 @@ export async function POST(
         id: true,
         name: true,
         creatorId: true,
+        organizationId: true,
         creator: {
           select: {
             id: true,
@@ -56,14 +57,35 @@ export async function POST(
       return errorResponse("您已经是该项目的成员", 400)
     }
 
-    // 获取当前用户信息
+    // 获取当前用户信息，并校验组织归属
     const currentUser = await prisma.user.findUnique({
       where: { id: auth.userId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, currentOrganizationId: true },
     })
 
     if (!currentUser) {
       return errorResponse("用户不存在", 404)
+    }
+
+    if (
+      !currentUser.currentOrganizationId ||
+      project.organizationId !== currentUser.currentOrganizationId
+    ) {
+      return errorResponse("只能加入当前组织内的项目", 403)
+    }
+
+    const organizationMembership = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: auth.userId,
+          organizationId: project.organizationId,
+        },
+      },
+      select: { id: true },
+    })
+
+    if (!organizationMembership) {
+      return errorResponse("您不是该项目所属组织的成员", 403)
     }
 
     // 加入项目

@@ -1,12 +1,12 @@
 "use client"
 
 import { FolderKanban, Calendar as CalendarIcon, Users } from "lucide-react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { cn } from "@/lib/utils"
 import type { ListGroupMode } from "@/lib/types"
 
 export function ListGroupToggle() {
-  const { listGroupMode, setListGroupMode } = useCalendarStore()
+  const { listGroupMode, setListGroupMode } = useCalendarState("listGroupMode", "setListGroupMode")
 
   const groupModes: { mode: ListGroupMode; label: string; icon: React.ReactNode }[] = [
     { mode: "project", label: "按项目", icon: <FolderKanban className="h-4 w-4" /> },

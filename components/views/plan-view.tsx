@@ -21,7 +21,7 @@ import {
   Users,
   X,
 } from "lucide-react"
-import { useCalendarStore } from "@/lib/store/calendar-store"
+import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -251,7 +251,14 @@ export function PlanView() {
     currentUser,
     teams,
     projects,
-  } = useCalendarStore()
+  } = useCalendarState(
+    "navigationMode",
+    "selectedTeamId",
+    "selectedProjectId",
+    "currentUser",
+    "teams",
+    "projects"
+  )
 
   const scopeContext = useMemo<ScopeContext>(() => {
     if (!currentUser) {
