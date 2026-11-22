@@ -1,10 +1,8 @@
 name: Deploy to Aliyun Server
 
 on:
-  push:
-    branches:
-      - main
-      - master
+  # 自动部署暂时关闭：生产服务器需要先准备新镜像、环境变量和 compose 配置。
+  # 准备完成后在 GitHub Actions 页面手动触发本 workflow。
   workflow_dispatch:
 
 jobs:
