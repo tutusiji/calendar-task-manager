@@ -15,6 +15,10 @@ jobs:
   quality:
     name: Typecheck, lint, test, build
     runs-on: ubuntu-latest
+    env:
+      # prisma.config.ts 在加载阶段要求 DATABASE_URL；generate/typecheck/test
+      # 不会真正连接数据库，这里提供占位连接串即可。
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calendar_tasks?schema=public
 
     steps:
       - name: Checkout
