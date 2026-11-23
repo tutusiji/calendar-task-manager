@@ -4,13 +4,10 @@ import { useMemo } from "react"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
 import {
   differenceInDays,
-  endOfMonth,
-  endOfWeek,
   format,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns"
+  } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { getTaskViewDateRange } from "@/lib/store/api-filters"
 import { filterTasksByDateRange, filterTasksByNavigationMode } from "@/lib/store/task-filters"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -122,19 +119,10 @@ export function StatsView() {
   )
 
   // 计算日期范围
-  const dateRange = useMemo(() => {
-    if (viewMode === "personal" || viewMode === "week") {
-      return {
-        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-        end: endOfWeek(currentDate, { weekStartsOn: 1 }),
-      }
-    } else {
-      return {
-        start: startOfMonth(currentDate),
-        end: endOfMonth(currentDate),
-      }
-    }
-  }, [currentDate, viewMode])
+  const dateRange = useMemo(
+    () => getTaskViewDateRange(currentDate, viewMode),
+    [currentDate, viewMode]
+  )
 
   const selectedProjects = useMemo(
     () => projects.filter((project) => selectedProjectIds.includes(project.id)),

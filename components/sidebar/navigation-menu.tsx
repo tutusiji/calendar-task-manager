@@ -1,34 +1,28 @@
 "use client"
 
-import { useState, type DragEvent } from "react"
-import { Plus, ChevronDown, ChevronRight, MoreVertical, Pencil, Trash2, Crown, Eye, LogOut, Pin, Archive, ArchiveRestore, GripVertical } from "lucide-react"
+import { NavigationArchivedProjectsSection } from "@/components/sidebar/navigation-archived-projects-section"
+import { NavigationProjectsSection } from "@/components/sidebar/navigation-projects-section"
+import { NavigationTeamsSection } from "@/components/sidebar/navigation-teams-section"
+
+import { useState,type DragEvent } from "react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { useSidebarData } from "@/hooks/use-sidebar-data"
-import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+AlertDialog,
+AlertDialogAction,
+AlertDialogCancel,
+AlertDialogContent,
+AlertDialogDescription,
+AlertDialogFooter,
+AlertDialogHeader,
+AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { TeamDialog } from "./team-dialog"
 import { ProjectDialog } from "./project-dialog"
-import type { Team, Project } from "@/lib/types"
-import { projectAPI, userAPI } from "@/lib/api-client"
-import { Badge } from "@/components/ui/badge"
+import type { Team,Project } from "@/lib/types"
+import { projectAPI,userAPI } from "@/lib/api-client"
 import { showToast } from "@/lib/toast"
 
 export function NavigationMenu() {
@@ -67,13 +61,10 @@ export function NavigationMenu() {
     "reorderProjects",
     "setCurrentUser"
   )
-  
-  const [teamsExpanded, setTeamsExpanded] = useState(true)
-  const [projectsExpanded, setProjectsExpanded] = useState(true)
-  const [archivedProjectsExpanded, setArchivedProjectsExpanded] = useState(false)
+
   const [draggedTeamId, setDraggedTeamId] = useState<string | null>(null)
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null)
-  
+
   // 对话框状态
   const [teamDialogOpen, setTeamDialogOpen] = useState(false)
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
@@ -81,7 +72,7 @@ export function NavigationMenu() {
   const [viewingTeam, setViewingTeam] = useState<Team | undefined>()
   const [editingProject, setEditingProject] = useState<Project | undefined>()
   const [viewingProject, setViewingProject] = useState<Project | undefined>()
-  
+
   const moveItem = (ids: string[], activeId: string, targetId: string) => {
     const fromIndex = ids.indexOf(activeId)
     const toIndex = ids.indexOf(targetId)
@@ -217,19 +208,19 @@ export function NavigationMenu() {
   const handleArchiveProject = async (project: Project) => {
     try {
       await projectAPI.archive(project.id)
-      
+
       // 更新本地状态
-      const updatedProjects = projects.map(p => 
+      const updatedProjects = projects.map(p =>
         p.id === project.id ? { ...p, isArchived: true, archivedAt: new Date() } : p
       )
       useCalendarStore.setState({ projects: updatedProjects })
-      
+
       // 如果当前选中的是被归档的项目，切换到 My Days
       if (selectedProjectId === project.id) {
         setNavigationMode("my-days")
         setSelectedProjectId(null)
       }
-      
+
       showToast.success('归档成功', '项目已归档')
     } catch (error: any) {
       console.error('Failed to archive project:', error)
@@ -240,13 +231,13 @@ export function NavigationMenu() {
   const handleUnarchiveProject = async (project: Project) => {
     try {
       await projectAPI.unarchive(project.id)
-      
+
       // 更新本地状态
-      const updatedProjects = projects.map(p => 
+      const updatedProjects = projects.map(p =>
         p.id === project.id ? { ...p, isArchived: false, archivedAt: undefined } : p
       )
       useCalendarStore.setState({ projects: updatedProjects })
-      
+
       showToast.success('取消归档成功', '项目已恢复')
     } catch (error: any) {
       console.error('Failed to unarchive project:', error)
@@ -300,10 +291,10 @@ export function NavigationMenu() {
           )}
           style={{ marginLeft: '20px' }}
         >
-          <svg 
-            className="h-5 w-5" 
-            viewBox="0 0 24 24" 
-            fill="none" 
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
             <circle cx="12" cy="12" r="5" fill="#FDB813" />
@@ -313,390 +304,61 @@ export function NavigationMenu() {
         </button>
 
         {/* My Teams */}
-        <div>
-          <div className="flex items-center gap-2 py-2 px-1 mx-1">
-            <button
-              onClick={() => setTeamsExpanded(!teamsExpanded)}
-              className="flex items-center gap-2 flex-1 text-sm font-medium hover:bg-muted/50 rounded-md p-1"
-            >
-              {teamsExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="7" r="4" fill="#3B82F6" />
-                <path d="M5 20c0-4 3-7 7-7s7 3 7 7" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="18" cy="6" r="3" fill="#60A5FA" />
-                <circle cx="6" cy="6" r="3" fill="#60A5FA" />
-              </svg>
-              <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Teams</span>
-            </button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={handleCreateTeam}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {teamsExpanded && (
-            <div className="ml-6 mt-1 space-y-1">
-              {myTeams.map((team) => (
-                <div
-                  key={team.id}
-                  onDragOver={(event) => handleTeamDragOver(event, team.id)}
-                  onDrop={persistTeamOrder}
-                  className={cn(
-                    "group flex items-center gap-1 pr-2 transition-opacity",
-                    draggedTeamId === team.id && "opacity-60"
-                  )}
-                >
-                  <button
-                    type="button"
-                    draggable
-                    onDragStart={(event) => {
-                      setDraggedTeamId(team.id)
-                      event.dataTransfer.effectAllowed = "move"
-                      event.dataTransfer.setData("text/plain", team.id)
-                    }}
-                    onDragEnd={persistTeamOrder}
-                    className="flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground active:cursor-grabbing"
-                    aria-label={`拖拽调整团队 ${team.name} 的顺序`}
-                    title="拖拽调整顺序"
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setNavigationMode("team")
-                      await setSelectedTeamId(team.id)
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
-                      navigationMode === "team" && selectedTeamId === team.id && "bg-muted"
-                    )}
-                  >
-                    <div
-                      className="h-2 w-2 rounded-full shrink-0"
-                      style={{ backgroundColor: team.color }}
-                    />
-                    <span className="truncate max-w-[150px]" title={team.name}>{team.name}</span>
-                    {/* 创建者标识 */}
-                    <div className="ml-auto flex items-center gap-2">
-                      {currentUser?.defaultTeamId === team.id && (
-                        <Pin className="h-3 w-3 text-blue-500 rotate-45" />
-                      )}
-                      {currentUser && team.creatorId === currentUser.id && (
-                        <Crown className="h-3 w-3 text-yellow-600 shrink-0" />
-                      )}
-                    </div>
-                  </button>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <MoreVertical className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {canManageTeam(team) ? (
-                        <>
-                          <DropdownMenuItem onClick={() => handleEditTeam(team)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <span>编辑</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteTeam(team)}
-                            className="text-red-600 focus:text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>删除</span>
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
-                        <>
-                          <DropdownMenuItem onClick={() => handleViewTeam(team)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            <span>查看</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleLeaveTeam(team)}
-                            className="text-orange-600 focus:text-orange-600"
-                          >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            <span>退出</span>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleSetDefaultTeam(team.id)}>
-                        <Pin className="mr-2 h-4 w-4" />
-                        <span>设为默认</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <NavigationTeamsSection
+          handleCreateTeam={handleCreateTeam}
+          myTeams={myTeams}
+          handleTeamDragOver={handleTeamDragOver}
+          persistTeamOrder={persistTeamOrder}
+          draggedTeamId={draggedTeamId}
+          setDraggedTeamId={setDraggedTeamId}
+          setNavigationMode={setNavigationMode}
+          setSelectedTeamId={setSelectedTeamId}
+          navigationMode={navigationMode}
+          selectedTeamId={selectedTeamId}
+          currentUser={currentUser}
+          canManageTeam={canManageTeam}
+          handleEditTeam={handleEditTeam}
+          handleDeleteTeam={handleDeleteTeam}
+          handleViewTeam={handleViewTeam}
+          handleLeaveTeam={handleLeaveTeam}
+          handleSetDefaultTeam={handleSetDefaultTeam}
+        />
 
         {/* My Projects */}
-        <div>
-          <div className="flex items-center gap-2 py-2 px-1 mx-1">
-            <button
-              onClick={() => setProjectsExpanded(!projectsExpanded)}
-              className="flex items-center gap-2 flex-1 text-sm font-medium hover:bg-muted/50 rounded-md p-1"
-            >
-              {projectsExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 7c0-1.1.9-2 2-2h5l2 2h7c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V7z" fill="#A855F7" />
-                <path d="M3 7h18" stroke="#7C3AED" strokeWidth="1.5" />
-                <rect x="7" y="11" width="3" height="5" rx="1" fill="#E9D5FF" />
-                <rect x="12" y="11" width="3" height="5" rx="1" fill="#E9D5FF" />
-              </svg>
-              <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Projects</span>
-            </button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={handleCreateProject}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {projectsExpanded && (
-            <div className="ml-6 mt-1 space-y-1">
-              {myProjects.map((project) => {
-                const isPersonalProject = project.name.includes('个人事务')
-
-                return (
-                <div
-                  key={project.id}
-                  onDragOver={(event) => handleProjectDragOver(event, project.id)}
-                  onDrop={persistProjectOrder}
-                  className={cn(
-                    "group flex items-center gap-1 pr-2 transition-opacity",
-                    draggedProjectId === project.id && "opacity-60"
-                  )}
-                >
-                  <button
-                    type="button"
-                    draggable
-                    onDragStart={(event) => {
-                      setDraggedProjectId(project.id)
-                      event.dataTransfer.effectAllowed = "move"
-                      event.dataTransfer.setData("text/plain", project.id)
-                    }}
-                    onDragEnd={persistProjectOrder}
-                    className="flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground active:cursor-grabbing"
-                    aria-label={`拖拽调整项目 ${project.name} 的顺序`}
-                    title="拖拽调整顺序"
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setNavigationMode("project")
-                      await setSelectedProjectId(project.id)
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left",
-                      navigationMode === "project" && selectedProjectId === project.id && "bg-muted"
-                    )}
-                  >
-                    <div
-                      className="h-2 w-2 rounded-full shrink-0"
-                      style={{ backgroundColor: project.color }}
-                    />
-                    <span className="truncate max-w-[150px]" title={project.name}>{project.name}</span>
-                    {isPersonalProject && (
-                      <Pin className="h-3 w-3 text-muted-foreground shrink-0 ml-auto translate-x-[-6px] rotate-45" />
-                    )}
-                    {!isPersonalProject && currentUser && project.creatorId === currentUser.id && (
-                      <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
-                    )}
-                  </button>
-                  
-                  {/*
-                    个人事务项目保留固定的系统项目限制，不显示编辑/删除菜单。
-                  */}
-                  {!isPersonalProject && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <MoreVertical className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {canManageProject(project) ? (
-                          <>
-                            <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              <span>编辑</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleArchiveProject(project)}>
-                              <Archive className="mr-2 h-4 w-4" />
-                              <span>归档</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteProject(project)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>删除</span>
-                            </DropdownMenuItem>
-                          </>
-                        ) : (
-                          <>
-                            <DropdownMenuItem onClick={() => handleViewProject(project)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              <span>查看</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleArchiveProject(project)}>
-                              <Archive className="mr-2 h-4 w-4" />
-                              <span>归档</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleLeaveProject(project)}
-                              className="text-orange-600 focus:text-orange-600"
-                            >
-                              <LogOut className="mr-2 h-4 w-4" />
-                              <span>退出</span>
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <NavigationProjectsSection
+          handleCreateProject={handleCreateProject}
+          myProjects={myProjects}
+          handleProjectDragOver={handleProjectDragOver}
+          persistProjectOrder={persistProjectOrder}
+          draggedProjectId={draggedProjectId}
+          setDraggedProjectId={setDraggedProjectId}
+          setNavigationMode={setNavigationMode}
+          setSelectedProjectId={setSelectedProjectId}
+          navigationMode={navigationMode}
+          selectedProjectId={selectedProjectId}
+          currentUser={currentUser}
+          canManageProject={canManageProject}
+          handleEditProject={handleEditProject}
+          handleArchiveProject={handleArchiveProject}
+          handleDeleteProject={handleDeleteProject}
+          handleViewProject={handleViewProject}
+          handleLeaveProject={handleLeaveProject}
+        />
 
         {/* Archived Projects */}
-        {archivedProjects.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 py-2 px-1 mx-1">
-              <button
-                onClick={() => setArchivedProjectsExpanded(!archivedProjectsExpanded)}
-                className="flex items-center gap-2 flex-1 text-sm font-medium hover:bg-muted/50 rounded-md p-1"
-              >
-                {archivedProjectsExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                <Archive className="h-5 w-5 text-muted-foreground" />
-                <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }} className="text-muted-foreground">
-                  My Archive ({archivedProjects.length})
-                </span>
-              </button>
-            </div>
-            
-            {archivedProjectsExpanded && (
-              <div className="ml-6 mt-1 space-y-1">
-                {archivedProjects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="group flex items-center gap-2 pr-2"
-                  >
-                    <button
-                      onClick={async () => {
-                        setNavigationMode("project")
-                        await setSelectedProjectId(project.id)
-                      }}
-                      className={cn(
-                        "flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted/50 rounded-md flex-1 text-left opacity-60",
-                        navigationMode === "project" && selectedProjectId === project.id && "bg-muted"
-                      )}
-                    >
-                      <div
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: project.color }}
-                      />
-                      <span className="truncate max-w-[150px]" title={project.name}>{project.name}</span>
-                      {currentUser && project.creatorId === currentUser.id && (
-                        <Crown className="h-3 w-3 text-yellow-600 shrink-0 ml-auto" />
-                      )}
-                    </button>
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <MoreVertical className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {canManageProject(project) ? (
-                          <>
-                            <DropdownMenuItem onClick={() => handleUnarchiveProject(project)}>
-                              <ArchiveRestore className="mr-2 h-4 w-4" />
-                              <span>取消归档</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteProject(project)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>删除</span>
-                            </DropdownMenuItem>
-                          </>
-                        ) : (
-                          <>
-                            <DropdownMenuItem onClick={() => handleViewProject(project)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              <span>查看</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUnarchiveProject(project)}>
-                              <ArchiveRestore className="mr-2 h-4 w-4" />
-                              <span>取消归档</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleLeaveProject(project)}
-                              className="text-orange-600 focus:text-orange-600"
-                            >
-                              <LogOut className="mr-2 h-4 w-4" />
-                              <span>退出</span>
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <NavigationArchivedProjectsSection
+          archivedProjects={archivedProjects}
+          setNavigationMode={setNavigationMode}
+          setSelectedProjectId={setSelectedProjectId}
+          navigationMode={navigationMode}
+          selectedProjectId={selectedProjectId}
+          currentUser={currentUser}
+          canManageProject={canManageProject}
+          handleUnarchiveProject={handleUnarchiveProject}
+          handleDeleteProject={handleDeleteProject}
+          handleViewProject={handleViewProject}
+          handleLeaveProject={handleLeaveProject}
+        />
       </div>
 
       {/* 团队对话框 */}

@@ -11,7 +11,7 @@ import {
 } from '@/lib/utils/permission-utils'
 
 import type { CalendarStore } from '../calendar-store'
-import { getFiltersForCurrentNavigation } from '../api-filters'
+import { getFiltersForCurrentNavigation, getTaskQueryRanges } from '../api-filters'
 import { parseApiTask, sortTasksByStartDate } from '../task-normalizer'
 
 export type TaskActions = Pick<
@@ -29,6 +29,10 @@ export const createTaskActions: StateCreator<
   [],
   TaskActions
 > = (set, get) => {
+  let activeRequest: AbortController | undefined
+  let lastQueryKey: string | undefined
+  let lastScopeKey: string | undefined
+
   const markTaskPending = (taskId: string, pending: boolean) => {
     if (pending) {
       get().startTaskPending(taskId)
@@ -38,45 +42,71 @@ export const createTaskActions: StateCreator<
   }
 
   return {
-      fetchTasks: async (filters, options) => {
+      fetchTasks: async (options) => {
+        const state = get();
+        if (!state.currentUser) return;
+
+        const organizationId = state.currentUser.currentOrganizationId;
+        const filters = { ...getFiltersForCurrentNavigation(state), organizationId };
+        const ranges = getTaskQueryRanges(state);
+        const scopeKey = JSON.stringify([state.currentUser.id, filters]);
+        const queryKey = JSON.stringify([scopeKey, ranges]);
+        if (options?.onlyIfChanged && lastQueryKey === queryKey) return;
+
+        activeRequest?.abort();
+        const request = new AbortController();
+        activeRequest = request;
+        const scopeChanged = lastScopeKey !== scopeKey;
+        lastScopeKey = scopeKey;
+        lastQueryKey = queryKey;
         const silent = options?.silent === true;
-        if (!silent) {
-          set({ isLoadingTasks: true, error: null });
-        }
+        set({
+          isLoadingTasks: !silent,
+          ...(silent ? {} : { error: null }),
+          ...(scopeChanged ? { tasks: [] } : {}),
+        });
 
         try {
-          const apiFilters: any = {};
-          if (filters) {
-            if (filters.userId) apiFilters.userId = filters.userId;
-            if (filters.projectId) apiFilters.projectId = filters.projectId;
-            if (filters.teamId) apiFilters.teamId = filters.teamId;
-            if (filters.startDate)
-              apiFilters.startDate = filters.startDate.toISOString();
-            if (filters.endDate)
-              apiFilters.endDate = filters.endDate.toISOString();
+          const fetchWindows = () => Promise.all(ranges.map(({ start, end }) => taskAPI.getWindow({
+            ...filters,
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
+          }, request.signal)));
+          let windows = await fetchWindows();
+          if (request.signal.aborted) return;
+
+          if (windows.some(({ recurringPending }) => recurringPending)) {
+            const through = ranges.reduce((end, range) => range.end > end ? range.end : end, ranges[0].end);
+            try {
+              await taskAPI.prepareRecurringThrough(through, organizationId, request.signal);
+              if (request.signal.aborted) return;
+              windows = await fetchWindows();
+            } catch (error) {
+              if (request.signal.aborted) return;
+              lastQueryKey = undefined;
+              showToast.error("补齐重复事项失败", handleAPIError(error));
+            }
           }
+          if (request.signal.aborted) return;
 
-          const tasksData = await taskAPI.getAll(apiFilters);
-          const tasks = tasksData.map(parseApiTask);
-
-          set({ tasks });
+          const tasks = new Map(windows.flatMap(({ tasks }) => tasks).map((data) => {
+            const task = parseApiTask(data);
+            return [task.id, task] as const;
+          }));
+          set({ tasks: sortTasksByStartDate([...tasks.values()]) });
         } catch (error) {
+          if (request.signal.aborted) return;
+
+          lastQueryKey = undefined;
           const errorMsg = handleAPIError(error);
           console.error("Fetch tasks error:", errorMsg, error);
-
-          // 显示错误提示但不设置全局 error 状态，避免阻塞界面
           showToast.error("获取任务失败", errorMsg);
-
-          // 如果是认证错误，才设置全局 error
-          if (
-            errorMsg.includes("认证") ||
-            errorMsg.includes("Token") ||
-            errorMsg.includes("登录")
-          ) {
+          if (errorMsg.includes("认证") || errorMsg.includes("Token") || errorMsg.includes("登录")) {
             set({ error: errorMsg });
           }
         } finally {
-          if (!silent) {
+          if (activeRequest === request) {
+            activeRequest = undefined;
             set({ isLoadingTasks: false });
           }
         }
@@ -151,7 +181,7 @@ export const createTaskActions: StateCreator<
           // 定时任务会在服务端生成后续事项，静默补齐后续列表
           if (task.recurrence) {
             void get()
-              .fetchTasks(getFiltersForCurrentNavigation(get()), {
+              .fetchTasks({
                 silent: true,
               })
               .catch((error) =>

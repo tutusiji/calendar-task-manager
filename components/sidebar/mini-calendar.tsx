@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
@@ -40,12 +40,8 @@ function startOfLocalDay(date: Date): Date {
 }
 
 export function MiniCalendar() {
-  const { tasks, setCurrentDate, currentDate } = useCalendarState(
-    "tasks",
-    "setCurrentDate",
-    "currentDate"
-  )
-  const [miniDate, setMiniDate] = useState(() => new Date(currentDate))
+  const { tasks, setCurrentDate, currentDate, miniCalendarDate: miniDate, setMiniCalendarDate } =
+    useCalendarState("tasks", "setCurrentDate", "currentDate", "miniCalendarDate", "setMiniCalendarDate")
   const [isCollapsed, setIsCollapsed] = useState(readCollapsedState)
   const today = new Date()
 
@@ -56,20 +52,6 @@ export function MiniCalendar() {
       return next
     })
   }
-
-  // 主日历切换月份时，迷你日历跟随
-  useEffect(() => {
-    setMiniDate((prev) => {
-      if (
-        prev.getFullYear() === currentDate.getFullYear() &&
-        prev.getMonth() === currentDate.getMonth()
-      ) {
-        return prev
-      }
-
-      return new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-    })
-  }, [currentDate])
 
   const monthDays = useMemo(
     () => getMonthDays(miniDate.getFullYear(), miniDate.getMonth()),
@@ -104,18 +86,15 @@ export function MiniCalendar() {
   }, [tasks, miniDate])
 
   const goToPreviousMonth = () => {
-    setMiniDate(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-    )
+    setMiniCalendarDate(new Date(miniDate.getFullYear(), miniDate.getMonth() - 1, 1))
   }
 
   const goToNextMonth = () => {
-    setMiniDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+    setMiniCalendarDate(new Date(miniDate.getFullYear(), miniDate.getMonth() + 1, 1))
   }
 
   const goToToday = () => {
     const now = new Date()
-    setMiniDate(now)
     setCurrentDate(now)
   }
 
@@ -123,7 +102,6 @@ export function MiniCalendar() {
     setCurrentDate(
       new Date(date.getFullYear(), date.getMonth(), date.getDate())
     )
-    setMiniDate(new Date(date.getFullYear(), date.getMonth(), 1))
   }
 
   const weekDays = ["一", "二", "三", "四", "五", "六", "日"]

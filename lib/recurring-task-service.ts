@@ -1,30 +1,14 @@
-import { addDays, addWeeks, differenceInCalendarDays, startOfDay } from "date-fns"
+import { addDays, addWeeks, differenceInCalendarDays, differenceInCalendarMonths, endOfDay, startOfDay } from "date-fns"
+import type { Prisma, RecurringTaskSeries } from "@prisma/client"
 
 import { prisma } from "@/lib/prisma"
 import type { TaskRecurrenceType } from "@/lib/types"
 
 export const DEFAULT_RECURRING_TASK_HORIZON_DAYS = 180
 
-type RecurringTaskSeriesRecord = {
-  id: string
-  title: string
-  description: string | null
-  startDate: Date
-  endDate: Date
-  startTime: string | null
-  endTime: string | null
-  type: "daily" | "meeting" | "vacation"
-  color: string | null
-  progress: number
-  recurrenceType: TaskRecurrenceType
-  intervalDays: number | null
-  assigneeIds: string[]
-  creatorId: string
-  projectId: string
-  teamId: string | null
-  generatedUntil: Date | null
-  stopsAfter: Date | null
-}
+const BATCH_SIZE = 500
+const MAX_BATCHES_PER_SERIES = 10
+const backgroundRuns = new Map<string, { horizon: number; promise: Promise<void> }>()
 
 export function getRecurringGenerationHorizon(
   ...dates: Array<Date | null | undefined>
@@ -100,7 +84,7 @@ function getMonthlyOccurrenceDate(anchorDate: Date, occurrenceIndex: number) {
   )
 }
 
-function getOccurrenceDate(series: RecurringTaskSeriesRecord, occurrenceIndex: number) {
+function getOccurrenceDate(series: RecurringTaskSeries, occurrenceIndex: number) {
   if (occurrenceIndex === 0) return new Date(series.startDate)
 
   switch (series.recurrenceType) {
@@ -115,7 +99,7 @@ function getOccurrenceDate(series: RecurringTaskSeriesRecord, occurrenceIndex: n
   }
 }
 
-function buildRecurringTaskPayload(series: RecurringTaskSeriesRecord, recurrenceDate: Date) {
+function buildRecurringTaskPayload(series: RecurringTaskSeries, recurrenceDate: Date) {
   const durationDays = differenceInCalendarDays(series.endDate, series.startDate)
 
   return {
@@ -133,160 +117,139 @@ function buildRecurringTaskPayload(series: RecurringTaskSeriesRecord, recurrence
     teamId: series.teamId,
     recurringSeriesId: series.id,
     recurrenceDate,
-    assignees: {
-      create: series.assigneeIds.map((userId) => ({
-        userId,
-      })),
-    },
   }
 }
 
-async function generateRecurringTasksForSeries(
-  series: RecurringTaskSeriesRecord,
-  horizonEnd: Date
-) {
-  const effectiveHorizonEnd =
-    series.stopsAfter && series.stopsAfter < horizonEnd
+function getFirstOccurrenceIndex(series: RecurringTaskSeries, cursor: Date | null) {
+  if (!cursor || cursor < series.startDate) return 0
+  const days = differenceInCalendarDays(cursor, series.startDate)
+  const index = series.recurrenceType === "MONTHLY"
+    ? differenceInCalendarMonths(cursor, series.startDate)
+    : Math.floor(days / (series.recurrenceType === "WEEKLY" ? 7 : (series.intervalDays || 1)))
+  return getOccurrenceDate(series, index) <= cursor ? index + 1 : index
+}
+
+async function generateRecurringBatch(seriesId: string, horizonEnd: Date) {
+  return prisma.$transaction(async (tx) => {
+    // Serialize generation and stop operations on the same series across processes.
+    await tx.$queryRaw`SELECT id FROM "RecurringTaskSeries" WHERE id = ${seriesId} FOR UPDATE`
+    const series = await tx.recurringTaskSeries.findUnique({ where: { id: seriesId } })
+    if (!series) return false
+
+    const effectiveEnd = series.stopsAfter && series.stopsAfter < horizonEnd
       ? series.stopsAfter
       : horizonEnd
+    if (series.generatedUntil && series.generatedUntil >= effectiveEnd) return false
 
-  if (series.generatedUntil && series.generatedUntil >= effectiveHorizonEnd) {
-    return
-  }
-
-  // Only extend beyond the last generated window so deleting one occurrence
-  // won't cause older dates to be recreated the next time the horizon grows.
-  const generationStartExclusive = series.generatedUntil
-  const existingOccurrences = await prisma.task.findMany({
-    where: {
-      recurringSeriesId: series.id,
-      recurrenceDate: {
-        ...(generationStartExclusive
-          ? { gt: generationStartExclusive }
-          : {}),
-        lte: effectiveHorizonEnd,
-      },
-    },
-    select: {
-      recurrenceDate: true,
-    },
-  })
-
-  const existingOccurrenceSet = new Set(
-    existingOccurrences
-      .map((task) => task.recurrenceDate?.toISOString())
-      .filter((value): value is string => !!value)
-  )
-
-  const occurrencesToCreate: Date[] = []
-  for (let occurrenceIndex = 0; occurrenceIndex < 5000; occurrenceIndex += 1) {
-    const occurrenceDate = getOccurrenceDate(series, occurrenceIndex)
-    if (occurrenceDate > effectiveHorizonEnd) {
-      break
-    }
-    if (generationStartExclusive && occurrenceDate <= generationStartExclusive) {
-      continue
+    const occurrenceDates: Date[] = []
+    let index = getFirstOccurrenceIndex(series, series.generatedUntil)
+    let next = getOccurrenceDate(series, index)
+    while (next <= effectiveEnd && occurrenceDates.length < BATCH_SIZE) {
+      occurrenceDates.push(next)
+      index += 1
+      next = getOccurrenceDate(series, index)
     }
 
-    const occurrenceKey = occurrenceDate.toISOString()
-    if (!existingOccurrenceSet.has(occurrenceKey)) {
-      occurrencesToCreate.push(occurrenceDate)
-    }
-  }
-
-  await prisma.$transaction(async (tx) => {
-    for (const occurrenceDate of occurrencesToCreate) {
-      await tx.task.create({
-        data: buildRecurringTaskPayload(series, occurrenceDate),
+    if (occurrenceDates.length > 0) {
+      const tasks = await tx.task.createManyAndReturn({
+        data: occurrenceDates.map((date) => buildRecurringTaskPayload(series, date)),
+        skipDuplicates: true,
+        select: { id: true },
       })
+      const assignees = tasks.flatMap(({ id }) => series.assigneeIds.map((userId) => ({ taskId: id, userId })))
+      if (assignees.length > 0) {
+        await tx.taskAssignee.createMany({ data: assignees, skipDuplicates: true })
+      }
     }
 
+    const hasMore = next <= effectiveEnd
     await tx.recurringTaskSeries.update({
-      where: { id: series.id },
-      data: {
-        generatedUntil: effectiveHorizonEnd,
-      },
+      where: { id: seriesId },
+      data: { generatedUntil: hasMore ? occurrenceDates[occurrenceDates.length - 1] : effectiveEnd },
     })
-  })
+    return hasMore
+  }, { timeout: 15_000 })
+}
+
+async function generateRecurringTasksForSeries(seriesId: string, through: Date) {
+  // Bound a single run; each committed batch advances the cursor for the next run.
+  for (let batch = 0; batch < MAX_BATCHES_PER_SERIES; batch += 1) {
+    if (!(await generateRecurringBatch(seriesId, through))) return true
+  }
+  return false
+}
+
+function seriesNeedingCoverage(organizationId: string, through: Date): Prisma.RecurringTaskSeriesWhereInput {
+  return {
+    project: { organizationId },
+    startDate: { lte: through },
+    AND: [
+      { OR: [{ generatedUntil: null }, { generatedUntil: { lt: through } }] },
+      { OR: [
+        { generatedUntil: null },
+        { stopsAfter: null },
+        { stopsAfter: { gt: prisma.recurringTaskSeries.fields.generatedUntil } },
+      ] },
+    ],
+  }
+}
+
+export async function hasPendingRecurringTasks(organizationId: string, through: Date) {
+  return Boolean(await prisma.recurringTaskSeries.findFirst({
+    where: seriesNeedingCoverage(organizationId, through),
+    select: { id: true },
+  }))
 }
 
 export async function ensureRecurringTasksGeneratedForOrganization(
   organizationId: string,
-  horizonEnd?: Date
+  requestedEnd?: Date
 ) {
-  const effectiveHorizonEnd = getRecurringGenerationHorizon(horizonEnd)
-
-  const seriesList = await prisma.recurringTaskSeries.findMany({
-    where: {
-      project: {
-        organizationId,
-      },
-      OR: [
-        { generatedUntil: null },
-        { generatedUntil: { lt: effectiveHorizonEnd } },
-      ],
-    },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      startDate: true,
-      endDate: true,
-      startTime: true,
-      endTime: true,
-      type: true,
-      color: true,
-      progress: true,
-      recurrenceType: true,
-      intervalDays: true,
-      assigneeIds: true,
-      creatorId: true,
-      projectId: true,
-      teamId: true,
-      generatedUntil: true,
-      stopsAfter: true,
-    },
+  const baseline = endOfDay(getRecurringGenerationHorizon())
+  const through = requestedEnd && requestedEnd > baseline ? requestedEnd : baseline
+  const series = await prisma.recurringTaskSeries.findMany({
+    where: seriesNeedingCoverage(organizationId, through),
+    select: { id: true },
   })
 
-  for (const series of seriesList) {
-    await generateRecurringTasksForSeries(series, effectiveHorizonEnd)
+  let complete = true
+  for (const { id } of series) {
+    if (!(await generateRecurringTasksForSeries(id, through))) complete = false
   }
+  return complete
+}
+
+export function replenishRecurringTasksInBackground(organizationId: string) {
+  const horizon = getRecurringGenerationHorizon().getTime()
+  const previous = backgroundRuns.get(organizationId)
+  if (previous?.horizon === horizon) return previous.promise
+
+  if (backgroundRuns.size >= 256) {
+    const oldest = backgroundRuns.keys().next().value
+    if (oldest !== undefined) backgroundRuns.delete(oldest)
+  }
+
+  const run = {
+    horizon,
+    promise: ensureRecurringTasksGeneratedForOrganization(organizationId)
+      .then((complete) => {
+        if (!complete && backgroundRuns.get(organizationId) === run) backgroundRuns.delete(organizationId)
+      })
+      .catch((error) => {
+        if (backgroundRuns.get(organizationId) === run) backgroundRuns.delete(organizationId)
+        throw error
+      }),
+  }
+  backgroundRuns.set(organizationId, run)
+  return run.promise
 }
 
 export async function ensureRecurringTasksGeneratedForSeries(
   seriesId: string,
-  minimumHorizonDate?: Date
+  minimumHorizonDate: Date,
 ) {
-  const series = await prisma.recurringTaskSeries.findUnique({
-    where: { id: seriesId },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      startDate: true,
-      endDate: true,
-      startTime: true,
-      endTime: true,
-      type: true,
-      color: true,
-      progress: true,
-      recurrenceType: true,
-      intervalDays: true,
-      assigneeIds: true,
-      creatorId: true,
-      projectId: true,
-      teamId: true,
-      generatedUntil: true,
-      stopsAfter: true,
-    },
-  })
-
-  if (!series) {
-    return
-  }
-
   await generateRecurringTasksForSeries(
-    series,
-    getRecurringGenerationHorizon(minimumHorizonDate, series.startDate)
+    seriesId,
+    endOfDay(getRecurringGenerationHorizon(minimumHorizonDate)),
   )
 }

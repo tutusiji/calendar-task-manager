@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 import { CalendarHeader } from "@/components/calendar/calendar-header"
 import { MonthView } from "@/components/calendar/month-view"
 import { WeekView } from "@/components/calendar/week-view"
 import { PersonalWeekView } from "@/components/calendar/personal-week-view"
 import { ViewToggle } from "@/components/calendar/view-toggle"
-import { TaskFormPanel } from "@/components/task/task-form-panel"
 import { MiniCalendar } from "@/components/sidebar/mini-calendar"
 import { NavigationMenu } from "@/components/sidebar/navigation-menu"
 import { UserMenu } from "@/components/user-menu"
@@ -16,14 +16,16 @@ import { MainNavigation } from "@/components/navigation/main-navigation"
 import { SpaceSwitcher } from "@/components/space-switcher"
 import { NotificationBell } from "@/components/notification-bell"
 import { ListView } from "@/components/views/list-view"
-import { PlanView } from "@/components/views/plan-view"
-import { StatsView } from "@/components/views/stats-view"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getToken } from "@/lib/api-client"
 import { showToast } from "@/lib/toast"
 import { LoadingLogo } from "@/components/loading-logo"
 import { siteConfig } from "@/lib/site-config"
 import { Loader2, Check } from "lucide-react"
+
+const PlanView = dynamic(() => import("@/components/views/plan-view").then((module) => module.PlanView))
+const StatsView = dynamic(() => import("@/components/views/stats-view").then((module) => module.StatsView))
+const TaskFormPanel = dynamic(() => import("@/components/task/task-form-panel").then((module) => module.TaskFormPanel))
 
 export default function Home() {
   const router = useRouter()

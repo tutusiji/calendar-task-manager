@@ -4,7 +4,6 @@ import { publicHolidayAPI, handleAPIError } from '@/lib/api-client'
 import type { User } from '@/lib/types'
 
 import type { CalendarStore } from '../calendar-store'
-import { getFiltersForCurrentNavigation } from '../api-filters'
 
 export type BootstrapActions = Pick<
   CalendarStore,
@@ -53,8 +52,7 @@ export const createBootstrapActions: StateCreator<
         }
 
         // 任务与基础数据并行加载；节假日不阻塞首屏，后台加载即可
-        const initialFilters = getFiltersForCurrentNavigation(get());
-        const taskPromise = store.fetchTasks(initialFilters);
+        const taskPromise = store.fetchTasks();
         void store.fetchPublicHolidays();
 
         await Promise.all([
@@ -114,7 +112,7 @@ export const createBootstrapActions: StateCreator<
           });
 
           if (currentUser) {
-            await store.fetchTasks({ userId: currentUser.id });
+            await store.fetchTasks();
           }
         }
 

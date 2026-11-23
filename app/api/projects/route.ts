@@ -1,47 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticate } from '@/lib/middleware'
+import { listProjects } from '@/lib/modules/project/project.service'
 import { addPointsForProjectCreation } from '@/lib/utils/points'
 
-async function getOrderedProjectIds(organizationId: string) {
-  try {
-    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id
-      FROM "Project"
-      WHERE "organizationId" = ${organizationId}
-      ORDER BY "sortOrder" ASC, "createdAt" ASC, name ASC
-    `
-    return rows.map(row => row.id)
-  } catch (error) {
-    console.warn('Project sortOrder column is unavailable, falling back to createdAt order:', error)
-    return null
-  }
-}
-
-async function getUserArchiveMap(userId: string, organizationId: string) {
-  try {
-    const rows = await prisma.$queryRaw<Array<{ projectId: string; isArchived: boolean; archivedAt: Date | null }>>`
-      SELECT
-        pm."projectId" AS "projectId",
-        pm."isArchived" AS "isArchived",
-        pm."archivedAt" AS "archivedAt"
-      FROM "ProjectMember" pm
-      INNER JOIN "Project" p ON p.id = pm."projectId"
-      WHERE pm."userId" = ${userId}
-        AND p."organizationId" = ${organizationId}
-    `
-
-    return new Map(
-      rows.map((row) => [
-        row.projectId,
-        { isArchived: row.isArchived, archivedAt: row.archivedAt },
-      ])
-    )
-  } catch (error) {
-    console.warn('ProjectMember archive columns are unavailable, falling back to unarchived state:', error)
-    return new Map<string, { isArchived: boolean; archivedAt: Date | null }>()
-  }
-}
 
 // GET /api/projects - 获取当前用户可访问的项目列表
 export async function GET(request: NextRequest) {
@@ -49,112 +11,13 @@ export async function GET(request: NextRequest) {
     const auth = await authenticate(request)
     if (auth.error) return auth.error
 
-    const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organizationId')
-
-    let targetOrgId = organizationId
-
-    if (!targetOrgId) {
-       // 获取用户信息以获取当前组织
-       const user = await prisma.user.findUnique({
-         where: { id: auth.userId },
-         select: { currentOrganizationId: true },
-       })
-       targetOrgId = user?.currentOrganizationId || null
+    const organizationId = request.nextUrl.searchParams.get('organizationId')
+    const result = await listProjects(auth.userId, organizationId)
+    if (result.kind === 'forbidden') {
+      return NextResponse.json({ success: false, error: '无权访问该组织的数据' }, { status: 403 })
     }
 
-    if (!targetOrgId) {
-      return NextResponse.json({
-        success: true,
-        data: []
-      })
-    }
-
-    // 验证某些用户是否有权限访问该组织
-    const isMember = await prisma.organizationMember.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: auth.userId,
-          organizationId: targetOrgId
-        }
-      }
-    })
-
-    if (!isMember) {
-      return NextResponse.json({
-          success: false,
-          error: '无权访问该组织的数据'
-      }, { status: 403 })
-    }
-
-    const orderedProjectIds = await getOrderedProjectIds(targetOrgId)
-
-    // 获取当前组织内的所有项目（供个人中心等场景使用）
-    const where: any = {
-      organizationId: targetOrgId,
-    }
-
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true
-          }
-        },
-        _count: {
-          select: {
-            members: true
-          }
-        }
-      },
-      orderBy: orderedProjectIds
-        ? undefined
-        : {
-            createdAt: 'asc' // 按创建时间升序排序,新建项目总是在最后
-          }
-    })
-
-    const orderedProjects = orderedProjectIds
-      ? [...projects].sort((a, b) => orderedProjectIds.indexOf(a.id) - orderedProjectIds.indexOf(b.id))
-      : projects
-
-    const archiveMap = await getUserArchiveMap(auth.userId, targetOrgId)
-
-    // 格式化响应数据，包含成员详细信息
-    const formattedProjects = orderedProjects.map(project => {
-      const { members, _count, ...projectData } = project
-      const archiveMeta = archiveMap.get(project.id)
-      return {
-        ...projectData,
-        // 成员维度归档：只返回当前登录用户自己的归档标记
-        isArchived: archiveMeta?.isArchived || false,
-        archivedAt: archiveMeta?.archivedAt || null,
-        memberIds: members.map(m => m.userId),
-        members: members.map(m => m.user),
-        memberCount: _count.members
-      }
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: formattedProjects
-    })
+    return NextResponse.json({ success: true, data: result.projects })
   } catch (error) {
     console.error('Error fetching projects:', error)
     return NextResponse.json(

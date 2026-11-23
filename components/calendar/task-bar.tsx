@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 
 import { useCalendarStore } from "@/lib/store/calendar-store";
 import { useCalendarState } from "@/lib/store/use-calendar-state";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
 import { ProgressCircle } from "../task/progress-circle";
-import { TASK_COLORS } from "@/lib/types";
 import { getCalendarBarMetrics } from "@/lib/utils/calendar-bar-layout";
+import { getTaskBarColors,getTaskBarProgress,getTaskBarSegment } from "@/lib/utils/task-bar-segment";
+import { TaskBarAssignees } from "./task-bar-assignees";
+import { useTaskBarProgress } from "./use-task-bar-progress";
 
 interface TaskBarProps {
   task: Task;
@@ -57,68 +58,28 @@ export function TaskBar({
   const isTaskPending = useCalendarStore((state) =>
     state.pendingTaskIds.includes(task.id)
   );
-  const [isProgressDragging, setIsProgressDragging] = useState(false);
-  const [dragProgress, setDragProgress] = useState(task.progress || 0);
-  const [optimisticProgress, setOptimisticProgress] = useState<number | null>(
-    null
-  );
-  const taskBarRef = React.useRef<HTMLDivElement>(null);
+
+  const segment = getTaskBarSegment(task, date, hideWeekends);
+  const colors = getTaskBarColors(task);
+  const { taskBarRef, isProgressDragging, displayProgress, handleProgressMouseDown } = useTaskBarProgress({
+    progress: task.progress || 0,
+    segment,
+    isPending: isTaskPending,
+    onSave: (progress) => updateTask(task.id, { progress }),
+  });
+  const { segmentProgress, isHandleInSegment } = getTaskBarProgress(segment, displayProgress);
+  const showHandle = task.type === "daily" && isHandleInSegment;
 
   // 使用全局hover状态来实现跨段高亮
   const isHovered = hoveredTaskId === task.id;
 
   const project = getProjectById(task.projectId);
 
-  // 监听 task.progress 变化，如果与乐观状态一致，则清除乐观状态
-  React.useEffect(() => {
-    if (optimisticProgress !== null && task.progress === optimisticProgress) {
-      setOptimisticProgress(null);
-    }
-  }, [task.progress, optimisticProgress]);
-
-
-
-  // 获取所有负责人
-  const assignees = task.assignees || [];
-  const assigneeCount = assignees.length;
-
-  // 获取前三个负责人的用户信息（超过3人时，确保包含当前用户）
-  const assigneeUsers = (() => {
-    if (assigneeCount <= 3) {
-      // 3人及以下，直接显示所有人
-      return assignees
-        .map((a) => getUserById(a.userId))
-        .filter((u): u is import("@/lib/types").User => !!u);
-    } else {
-      // 超过3人时，优先显示当前用户
-      const currentUserId = currentUser?.id;
-      const currentUserAssignee = assignees.find(a => a.userId === currentUserId);
-      
-      if (currentUserAssignee) {
-        // 如果当前用户在负责人列表中，确保显示当前用户
-        const otherAssignees = assignees.filter(a => a.userId !== currentUserId);
-        const displayAssignees = [currentUserAssignee, ...otherAssignees.slice(0, 2)];
-        return displayAssignees
-          .map((a) => getUserById(a.userId))
-          .filter((u): u is import("@/lib/types").User => !!u);
-      } else {
-        // 当前用户不在负责人列表中，显示前3个
-        return assignees
-          .slice(0, 3)
-          .map((a) => getUserById(a.userId))
-          .filter((u): u is import("@/lib/types").User => !!u);
-      }
-    }
-  })();
-
-  // 如果没有负责人，使用创建者
-  const fallbackUser = assigneeCount === 0 ? getUserById(task.creatorId) : null;
-
   // 判断当前任务是否正在被拖拽
   const isBeingDragged = isDragMoving && movingTaskId === task.id;
 
   // 处理拖拽开始
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: ReactMouseEvent) => {
     // 只响应左键点击
     if (e.button !== 0) return;
     if (isTaskPending) return;
@@ -129,167 +90,7 @@ export function TaskBar({
     startDragMove(task, date);
   };
 
-  // 计算两个日期之间的工作日天数（可选择是否跳过周末）
-  const countDays = (startDate: Date, endDate: Date): number => {
-    let count = 0;
-    const current = new Date(startDate);
-    current.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(0, 0, 0, 0);
-
-    while (current <= end) {
-      const dayOfWeek = current.getDay();
-      // 如果隐藏周末，则跳过周六(6)和周日(0)
-      if (!hideWeekends || (dayOfWeek !== 0 && dayOfWeek !== 6)) {
-        count++;
-      }
-      current.setDate(current.getDate() + 1);
-    }
-    return count;
-  };
-
-  // 计算任务跨越的天数
-  const calculateSpanDays = () => {
-    const start = new Date(task.startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(task.endDate);
-    end.setHours(0, 0, 0, 0);
-    return countDays(start, end);
-  };
-
-  // 计算当前段显示的天数（考虑周截断和周末隐藏）
-  const calculateDisplayDays = () => {
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(task.endDate);
-    endDate.setHours(0, 0, 0, 0);
-
-    // 计算当前日期是周几（0=周日, 1=周一, ..., 6=周六）
-    const currentDayOfWeek = currentDate.getDay();
-    const dayOfWeek = currentDayOfWeek === 0 ? 7 : currentDayOfWeek; // 转换为1-7，周日=7
-
-    // 计算到本周末还有多少天（包括今天）
-    // 如果隐藏周末，则到周五结束；否则到周日结束
-    const weekEndDay = hideWeekends ? 5 : 7; // 周五=5, 周日=7
-    let daysUntilWeekEnd: number;
-
-    if (hideWeekends) {
-      // 隐藏周末时，只计算到周五
-      if (dayOfWeek <= 5) {
-        daysUntilWeekEnd = 6 - dayOfWeek; // 到周五的天数（包括今天）
-      } else {
-        // 如果已经是周末（不应该出现），返回0
-        daysUntilWeekEnd = 0;
-      }
-    } else {
-      daysUntilWeekEnd = 8 - dayOfWeek; // 到周日的天数
-    }
-
-    // 计算任务实际还剩多少天（考虑周末隐藏）
-    const remainingDays = countDays(currentDate, endDate);
-
-    // 返回较小值：要么到周末，要么到任务结束
-    return Math.min(daysUntilWeekEnd, remainingDays);
-  };
-
-  // 判断是否是任务的开始日期
-  const isTaskStart = () => {
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-    const startDate = new Date(task.startDate);
-    startDate.setHours(0, 0, 0, 0);
-    return currentDate.getTime() === startDate.getTime();
-  };
-
-  // 判断当前段是否包含任务的结束日期
-  const isSegmentEnd = () => {
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(task.endDate);
-    endDate.setHours(0, 0, 0, 0);
-
-    const displayDays = calculateDisplayDays();
-    const lastDisplayDate = new Date(currentDate);
-    lastDisplayDate.setDate(lastDisplayDate.getDate() + displayDays - 1);
-
-    // 检查任务结束日期是否在当前段的显示范围内
-    return (
-      endDate.getTime() >= currentDate.getTime() &&
-      endDate.getTime() <= lastDisplayDate.getTime()
-    );
-  };
-
-  // 判断是否在周末（周日）截断
-  const spanDays = calculateDisplayDays();
-  const taskStart = isTaskStart();
-  const segmentEnd = isSegmentEnd();
-
-  // 获取圆角样式
-  const getRoundedClass = () => {
-    // 情况1：任务在当前段开始且结束 → 两端圆角
-    if (taskStart && segmentEnd) {
-      return "rounded-full";
-    }
-
-    // 情况2：任务开始段，但没有结束（被截断） → 左圆角
-    if (taskStart && !segmentEnd) {
-      return "rounded-l-full";
-    }
-
-    // 情况3：任务结束段（从之前周继续，这一段包含结束日期） → 右圆角
-    if (!taskStart && segmentEnd) {
-      return "rounded-r-full";
-    }
-
-    // 情况4：任务中间段（既不是开始也不包含结束） → 无圆角
-    if (!taskStart && !segmentEnd) {
-      return "";
-    }
-
-    // 其他情况默认两端圆角
-    return "rounded-full";
-  };
-
-  const getTaskColor = () => {
-    // 如果是日常任务且有自定义颜色，使用镂空样式
-    if (task.type === "daily" && task.color) {
-      const colorConfig = TASK_COLORS.find((c) => c.value === task.color);
-      if (colorConfig) {
-        return `${colorConfig.border} ${colorConfig.lightBg} ${colorConfig.text} border`;
-      }
-    }
-
-    // 默认颜色
-    switch (task.type) {
-      case "daily":
-        return "bg-blue-500";
-      case "meeting":
-        return "bg-yellow-500";
-      case "vacation":
-        return "bg-red-500";
-      default:
-        return "bg-blue-500";
-    }
-  };
-
-  const getTaskHexColor = () => {
-    if (task.type === "daily" && task.color) {
-      const colorConfig = TASK_COLORS.find((c) => c.value === task.color);
-      return colorConfig ? colorConfig.hex : "#3b82f6";
-    }
-    switch (task.type) {
-      case "daily":
-        return "#3b82f6";
-      case "meeting":
-        return "#eab308";
-      case "vacation":
-        return "#ef4444";
-      default:
-        return "#3b82f6";
-    }
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: ReactMouseEvent) => {
     e.stopPropagation(); // Prevent triggering calendar day's drag creation
     if (isTaskPending) return;
     // 只有在不是拖拽状态时才打开编辑面板
@@ -298,173 +99,13 @@ export function TaskBar({
     }
   };
 
-  // 处理进度条拖拽
-  const handleProgressMouseDown = (e: React.MouseEvent) => {
-    if (isTaskPending) return;
-    e.stopPropagation();
-    e.preventDefault();
-
-    setIsProgressDragging(true);
-    setDragProgress(task.progress || 0);
-
-    // 计算转换参数（用于将段内进度转换为总进度）
-    const totalDays = calculateSpanDays();
-    const taskStartDate = new Date(task.startDate);
-    taskStartDate.setHours(0, 0, 0, 0);
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-    const daysBeforeSegment = countDays(taskStartDate, currentDate) - 1;
-    const segmentDays = calculateDisplayDays();
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (taskBarRef.current) {
-        const rect = taskBarRef.current.getBoundingClientRect();
-        const x = moveEvent.clientX - rect.left;
-        // 计算段内进度百分比
-        let segmentProgressPercent = Math.round((x / rect.width) * 100);
-        segmentProgressPercent = Math.max(0, Math.min(100, segmentProgressPercent));
-
-        // 将段内进度转换为总进度
-        // 段内进度对应的天数
-        const progressDaysInSegment = (segmentProgressPercent / 100) * segmentDays;
-        // 总进度对应的天数
-        const totalProgressDays = daysBeforeSegment + progressDaysInSegment;
-        // 转换为总进度百分比
-        let newTotalProgress = Math.round((totalProgressDays / totalDays) * 100);
-        newTotalProgress = Math.max(0, Math.min(100, newTotalProgress));
-
-        setDragProgress(newTotalProgress);
-      }
-    };
-
-    const handleMouseUpWithSave = async (upEvent: MouseEvent) => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUpWithSave);
-
-      if (taskBarRef.current) {
-        const rect = taskBarRef.current.getBoundingClientRect();
-        const x = upEvent.clientX - rect.left;
-        // 计算段内进度百分比
-        let segmentProgressPercent = Math.round((x / rect.width) * 100);
-        segmentProgressPercent = Math.max(0, Math.min(100, segmentProgressPercent));
-
-        // 将段内进度转换为总进度
-        const progressDaysInSegment = (segmentProgressPercent / 100) * segmentDays;
-        const totalProgressDays = daysBeforeSegment + progressDaysInSegment;
-        let finalProgress = Math.round((totalProgressDays / totalDays) * 100);
-        finalProgress = Math.max(0, Math.min(100, finalProgress));
-
-        // 如果进度没有变化，直接退出
-        if (finalProgress === (task.progress || 0)) {
-          setIsProgressDragging(false);
-          return;
-        }
-
-        // 先设置乐观状态，防止回弹
-        setOptimisticProgress(finalProgress);
-        
-        // 结束拖拽状态
-        setIsProgressDragging(false);
-
-        try {
-          await updateTask(task.id, { progress: finalProgress });
-        } catch (error) {
-          console.error("Failed to update progress:", error);
-          // 如果失败，清除乐观状态，回滚到 store 中的值
-          setOptimisticProgress(null);
-        }
-        // 注意：不要在 finally 中清除 optimisticProgress，
-        // 而是通过 useEffect 监听 task.progress 的变化来清除，
-        // 这样可以避免在 store 更新前出现回弹
-      } else {
-        setIsProgressDragging(false);
-      }
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUpWithSave);
-  };
-
   const TASK_HEIGHT = taskBarSize === "compact" ? 24 : 30; // 任务条高度 (px): 紧凑型24px, 宽松型30px
   const TASK_GAP = 4; // 任务条间距 (px)
 
   // 根据 taskBarSize 动态设置样式
-  const avatarSizeClass =
-    taskBarSize === "compact" ? "h-4 w-4" : "h-[22px] w-[22px]";
   const textSizeClass = taskBarSize === "compact" ? "text-xs" : "text-sm";
-  const avatarFallbackTextSize =
-    taskBarSize === "compact" ? "text-[8px]" : "text-[10px]";
-
-  // 获取用户名首字母
-  const getUserInitial = (name: string) => {
-    return name.charAt(0).toUpperCase();
-  };
-
-  // 计算显示的进度值
-  const displayProgress = isProgressDragging
-    ? dragProgress
-    : optimisticProgress !== null
-    ? optimisticProgress
-    : task.progress || 0;
-
-  // 计算当前段应该显示的进度
-  const getSegmentProgress = () => {
-    // 计算事项总天数
-    const totalDays = calculateSpanDays();
-    
-    // 计算当前段之前已经过的天数
-    const taskStartDate = new Date(task.startDate);
-    taskStartDate.setHours(0, 0, 0, 0);
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-    const daysBeforeSegment = countDays(taskStartDate, currentDate) - 1; // 当前段之前的天数
-    
-    // 当前段的天数
-    const segmentDays = calculateDisplayDays();
-    
-    // 进度对应的绝对天数（从0开始）
-    const progressDays = totalDays * (displayProgress / 100);
-    
-    // 判断进度在哪个位置
-    if (progressDays < daysBeforeSegment) {
-      // 进度还没到当前段
-      return 0;
-    } else if (progressDays >= daysBeforeSegment + segmentDays) {
-      // 进度已经过了当前段
-      return 100;
-    } else {
-      // 进度在当前段内
-      const progressInSegment = progressDays - daysBeforeSegment;
-      return (progressInSegment / segmentDays) * 100;
-    }
-  };
-
-  const segmentProgress = getSegmentProgress();
-
-  // 判断拖拽手柄是否应该在当前段显示
-  const shouldShowHandle = () => {
-    if (task.type !== "daily") return false;
-    
-    const totalDays = calculateSpanDays();
-    const taskStartDate = new Date(task.startDate);
-    taskStartDate.setHours(0, 0, 0, 0);
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-    const daysBeforeSegment = countDays(taskStartDate, currentDate) - 1;
-    const segmentDays = calculateDisplayDays();
-    const progressDays = totalDays * (displayProgress / 100);
-    
-    // 手柄应该在包含进度位置的那个段
-    // 或者当进度为100%且当前段是结束段时
-    const isProgressInSegment = progressDays >= daysBeforeSegment && progressDays < daysBeforeSegment + segmentDays;
-    const is100PercentInEndSegment = displayProgress === 100 && segmentEnd;
-    
-    return isProgressInSegment || is100PercentInEndSegment;
-  };
-
-  const showHandle = shouldShowHandle();
   const barMetrics = getCalendarBarMetrics(
-    spanDays,
+    segment.spanDays,
     isPersonalWeekView ? "padded-day" : "content-box"
   );
 
@@ -479,8 +120,8 @@ export function TaskBar({
       className={cn(
         "task-bar group absolute px-1 font-medium text-white transition-all overflow-visible",
         textSizeClass,
-        getTaskColor(),
-        getRoundedClass(),
+        colors.className,
+        segment.roundedClass,
         // 拖拽样式
         isBeingDragged
           ? "shadow-[0_8px_30px_rgb(0,0,0,0.4)] cursor-move"
@@ -511,15 +152,15 @@ export function TaskBar({
           isProgressDragging ? "opacity-50" : "opacity-30",
           !isProgressDragging && "transition-all duration-300",
           // 左边只在任务开始段时圆角，右边只在接近100%时圆角
-          segmentProgress >= 99 
-            ? getRoundedClass() 
-            : taskStart 
-            ? "rounded-l-full" 
+          segmentProgress >= 99
+            ? segment.roundedClass
+            : segment.startsHere
+            ? "rounded-l-full"
             : ""
         )}
         style={{
           width: `${segmentProgress}%`,
-          backgroundColor: getTaskHexColor(),
+          backgroundColor: colors.hex,
         }}
       />
 
@@ -546,126 +187,7 @@ export function TaskBar({
 
       <div className="taskbar flex items-center gap-1 truncate h-full relative z-10">
         {showUserInfo && (
-          <>
-            {assigneeCount === 1 ? (
-              // 单个负责人：显示头像和姓名
-              assigneeUsers[0] && (
-                <>
-                  <Avatar
-                    className={cn(
-                      avatarSizeClass,
-                      "shrink-0 border border-white/30 bg-white"
-                    )}
-                  >
-                    <AvatarImage
-                      src={assigneeUsers[0].avatar}
-                      alt={assigneeUsers[0].name}
-                    />
-                    <AvatarFallback
-                      className={cn(
-                        "bg-white/20 text-white",
-                        avatarFallbackTextSize
-                      )}
-                    >
-                      {getUserInitial(assigneeUsers[0].name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="shrink-0 font-semibold">
-                    {assigneeUsers[0].name}
-                  </span>
-                  <span className="opacity-60">|</span>
-                </>
-              )
-            ) : assigneeCount === 0 ? (
-              // 没有负责人：显示创建者
-              fallbackUser && (
-                <>
-                  <Avatar
-                    className={cn(
-                      avatarSizeClass,
-                      "shrink-0 border border-white/30 bg-white"
-                    )}
-                  >
-                    <AvatarImage
-                      src={fallbackUser.avatar}
-                      alt={fallbackUser.name}
-                    />
-                    <AvatarFallback
-                      className={cn(
-                        "bg-white/20 text-white",
-                        avatarFallbackTextSize
-                      )}
-                    >
-                      {getUserInitial(fallbackUser.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="shrink-0 font-semibold">
-                    {fallbackUser.name}
-                  </span>
-                  <span className="opacity-60">|</span>
-                </>
-              )
-            ) : assigneeCount <= 3 ? (
-              // 2-3个负责人：只显示头像
-              <>
-                <div className="flex items-center -space-x-1 shrink-0">
-                  {assigneeUsers.map((user, index) => (
-                    <Avatar
-                      key={user.id}
-                      className={cn(
-                        avatarSizeClass,
-                        "border border-white/30 bg-white"
-                      )}
-                      style={{ zIndex: assigneeCount - index }}
-                    >
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                      <AvatarFallback
-                        className={cn(
-                          "bg-white/20 text-white",
-                          avatarFallbackTextSize
-                        )}
-                      >
-                        {getUserInitial(user.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                </div>
-                <span className="opacity-60">|</span>
-              </>
-            ) : (
-              // 4个或更多负责人：显示前3个头像（包括自己）+ "等N人"
-              <>
-                <div className="flex items-center gap-1 shrink-0">
-                  <div className="flex items-center -space-x-1">
-                    {assigneeUsers.slice(0, 3).map((user, index) => (
-                      <Avatar
-                        key={user.id}
-                        className={cn(
-                          avatarSizeClass,
-                          "border border-white/30 bg-white"
-                        )}
-                        style={{ zIndex: 3 - index }}
-                      >
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback
-                          className={cn(
-                            "bg-white/20 text-white",
-                            avatarFallbackTextSize
-                          )}
-                        >
-                          {getUserInitial(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                  </div>
-                  <span className="text-xs font-semibold">
-                    等{assigneeCount}人
-                  </span>
-                </div>
-                <span className="opacity-60 -mr-0.5">|</span>
-              </>
-            )}
-          </>
+          <TaskBarAssignees task={task} taskBarSize={taskBarSize} currentUserId={currentUser?.id} getUserById={getUserById} />
         )}
         {task.startTime && (
           <span

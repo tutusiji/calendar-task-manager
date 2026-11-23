@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay } from "date-fns"
+import { format, startOfDay } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { getTaskViewDateRange } from "@/lib/store/api-filters"
 import { filterTasksByDateRange, filterTasksByNavigationMode } from "@/lib/store/task-filters"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -56,19 +57,10 @@ export function ListView() {
   const [copiedState, setCopiedState] = useState<{ groupId: string; mode: CopyMode } | null>(null)
 
   // 计算日期范围
-  const dateRange = useMemo(() => {
-    if (viewMode === "personal" || viewMode === "week") {
-      return {
-        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-        end: endOfWeek(currentDate, { weekStartsOn: 1 }),
-      }
-    } else {
-      return {
-        start: startOfMonth(currentDate),
-        end: endOfMonth(currentDate),
-      }
-    }
-  }, [currentDate, viewMode])
+  const dateRange = useMemo(
+    () => getTaskViewDateRange(currentDate, viewMode),
+    [currentDate, viewMode]
+  )
 
   // 过滤任务
   const filteredTasks = useMemo(() => {

@@ -61,7 +61,7 @@ export interface PlanningBucket {
   cards: PlanningCard[]
 }
 
-export interface PlanningBoard {
+export interface PlanningBoardSummary {
   id: string
   name: string
   description?: string | null
@@ -73,15 +73,23 @@ export interface PlanningBoard {
   creatorId: string
   createdAt: string
   updatedAt: string
+}
+
+export interface PlanningBoard extends PlanningBoardSummary {
   buckets: PlanningBucket[]
 }
 
 export const planningAPI = {
-  async getBoards(scopeType: PlanningScopeType, scopeId: string) {
-    return get<PlanningBoard[]>("/plans/boards", {
+  async getBoardSummaries(scopeType: PlanningScopeType, scopeId: string, signal?: AbortSignal) {
+    return get<PlanningBoardSummary[]>("/plans/boards", {
       scopeType,
       scopeId,
-    })
+      summary: true,
+    }, { signal, showError: false })
+  },
+
+  async getBoard(id: string, signal?: AbortSignal) {
+    return get<PlanningBoard>(`/plans/boards/${id}`, undefined, { signal, showError: false })
   },
 
   async createBoard(payload: {
@@ -102,7 +110,7 @@ export const planningAPI = {
       color?: string
     }
   ) {
-    return patch(`/plans/boards/${id}`, payload)
+    return patch<PlanningBoardSummary>(`/plans/boards/${id}`, payload)
   },
 
   async deleteBoard(id: string) {

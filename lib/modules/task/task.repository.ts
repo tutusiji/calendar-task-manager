@@ -258,20 +258,24 @@ export async function stopRecurringSeries(
   recurringSeriesId: string,
   stopsAfter: Date
 ) {
-  return prisma.$transaction([
-    prisma.recurringTaskSeries.update({
-      where: { id: recurringSeriesId },
-      data: { stopsAfter },
-    }),
-    prisma.task.deleteMany({
+  return prisma.$transaction(async (tx) => {
+    await tx.recurringTaskSeries.updateMany({
       where: {
-        recurringSeriesId,
-        recurrenceDate: {
-          gt: stopsAfter,
-        },
+        id: recurringSeriesId,
+        OR: [{ stopsAfter: null }, { stopsAfter: { gt: stopsAfter } }],
       },
-    }),
-  ])
+      data: { stopsAfter },
+    })
+    const series = await tx.recurringTaskSeries.findUniqueOrThrow({
+      where: { id: recurringSeriesId },
+      select: { stopsAfter: true },
+    })
+    const cutoff = series.stopsAfter ?? stopsAfter
+    await tx.task.deleteMany({
+      where: { recurringSeriesId, recurrenceDate: { gt: cutoff } },
+    })
+    return cutoff
+  })
 }
 
 export async function listTasks(where: Prisma.TaskWhereInput) {

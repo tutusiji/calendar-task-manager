@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { successResponse, errorResponse } from "@/lib/api-response"
 import { authenticate } from "@/lib/middleware"
 import { randomBytes } from "crypto"
+import { searchOrganizationDirectory } from "@/lib/modules/organization/organization.repository"
+import { listUserOrganizations } from "@/lib/modules/organization/organization.service"
 
 // 生成短邀请码(8位)
 function generateInviteCode(): string {
@@ -17,71 +19,15 @@ export async function GET(req: NextRequest) {
 
     // 如果有搜索参数，则搜索所有组织（用于注册时的搜索，不需要认证）
     if (search) {
-      const organizations = await prisma.organization.findMany({
-        where: {
-          name: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          isVerified: true,
-          description: true,
-        },
-        take: 10,
-      })
-      return successResponse(organizations)
+      return successResponse(await searchOrganizationDirectory(search))
     }
 
     // 否则需要认证才能获取用户的组织列表
     const auth = await authenticate(req)
     if (auth.error) return auth.error
 
-    const organizationId = searchParams.get('organizationId')
-
-    const where: any = {
-      userId: auth.userId,
-    }
-
-    if (organizationId) {
-      where.organizationId = organizationId
-    }
-
-    // 返回用户所属的所有组织
-    const organizationMembers = await prisma.organizationMember.findMany({
-      where,
-      include: {
-        organization: {
-          include: {
-            _count: {
-              select: {
-                members: true,
-                teams: true,
-                projects: true,
-              },
-            },
-          },
-        },
-      },
-    })
-
-    const organizations = organizationMembers.map((om) => ({
-      id: om.organization.id,
-      name: om.organization.name,
-      description: om.organization.description,
-      isVerified: om.organization.isVerified,
-      creatorId: om.organization.creatorId,
-      joinRequiresApproval: om.organization.joinRequiresApproval,
-      role: om.role,
-      memberCount: om.organization._count.members,
-      teamCount: om.organization._count.teams,
-      projectCount: om.organization._count.projects,
-      createdAt: om.organization.createdAt,
-    }))
-
-    return successResponse(organizations)
+    const organizationId = searchParams.get("organizationId")
+    return successResponse(await listUserOrganizations(auth.userId, organizationId))
   } catch (error) {
     console.error("获取组织列表失败:", error)
     return errorResponse("获取组织列表失败")

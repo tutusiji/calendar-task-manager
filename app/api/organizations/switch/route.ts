@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { switchOrganization } from "@/lib/modules/organization/organization.service"
 import { successResponse, errorResponse } from "@/lib/api-response"
 import { authenticate } from "@/lib/middleware"
 
@@ -16,25 +16,9 @@ export async function POST(req: NextRequest) {
       return errorResponse("组织ID不能为空")
     }
 
-    // 验证用户是否是该组织的成员
-    const member = await prisma.organizationMember.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: auth.userId,
-          organizationId,
-        },
-      },
-    })
-
-    if (!member) {
+    if (!(await switchOrganization(auth.userId, organizationId))) {
       return errorResponse("您不是该组织的成员", 403)
     }
-
-    // 更新用户的当前组织
-    await prisma.user.update({
-      where: { id: auth.userId },
-      data: { currentOrganizationId: organizationId },
-    })
 
     return successResponse({ 
       message: "已切换组织",

@@ -1,43 +1,29 @@
 "use client"
 
+import { TaskFormDetails } from "@/components/task/task-form-details"
+import { TaskFormRequiredFields } from "@/components/task/task-form-required-fields"
+
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { X, Trash2, HelpCircle, AlertCircle } from "lucide-react"
+import { useState,useEffect } from "react"
+import { X,Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { Switch } from "@/components/ui/switch"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { useToast } from "@/hooks/use-toast"
 import { useTaskFormPermissions } from "@/hooks/use-task-form-permissions"
-import type { Task, TaskRecurrenceType, TaskType } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import type { Task,TaskRecurrenceType,TaskType } from "@/lib/types"
 
-import { UserMultiSelector } from "./user-multi-selector"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ColorPicker } from "./color-picker"
-import { ProgressSlider } from "./progress-slider"
-import { TimePicker } from "@/components/ui/time-picker"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+AlertDialog,
+AlertDialogAction,
+AlertDialogCancel,
+AlertDialogContent,
+AlertDialogDescription,
+AlertDialogFooter,
+AlertDialogHeader,
+AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
 interface TaskFormPanelProps {
@@ -49,7 +35,7 @@ interface TaskFormPanelProps {
 
 export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPanelProps) {
   const isEditMode = !!task
-  
+
   const {
     addTask,
     updateTask,
@@ -87,13 +73,13 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
   const [color, setColor] = useState<string>(task?.color || 'blue')
   const [progress, setProgress] = useState<number>(task?.progress || 0)
   const [projectId, setProjectId] = useState(
-    task?.projectId || 
-    taskCreation.projectId || 
-    settings.lastSelectedProjectId || 
+    task?.projectId ||
+    taskCreation.projectId ||
+    settings.lastSelectedProjectId ||
     "personal"
   )
   const [assigneeIds, setAssigneeIds] = useState<string[]>(
-    task?.assignees?.map(a => a.userId) || 
+    task?.assignees?.map(a => a.userId) ||
     (taskCreation.userId ? [taskCreation.userId] : (currentUser?.id ? [currentUser.id] : []))
   )
   const [rememberProject, setRememberProject] = useState(settings.rememberLastProject)
@@ -110,7 +96,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
 
   // Get creator info (edit mode only)
   const creator = task ? (task.creator || getUserById(task.creatorId)) : null
-  
+
   const selectableProjects = projects
     .filter((p) => {
       const isMember = currentUser ? p.memberIds.includes(currentUser.id) : false
@@ -297,21 +283,21 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
           ...taskData,
           creatorId: currentUser!.id,
         } as any)
-        
+
         // Update settings if remember project is checked
         if (rememberProject) {
           updateSettings({ lastSelectedProjectId: projectId, rememberLastProject: true })
         } else {
           updateSettings({ rememberLastProject: false })
         }
-        
+
         toast({
           variant: 'success' as any,
           title: "创建成功",
           description: `任务「${title}」已创建`,
         })
       }
-      
+
       onClose()
     } catch (error) {
       console.error('Failed to save task:', error)
@@ -327,7 +313,7 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
 
   const handleDelete = async () => {
     if (!task) return
-    
+
     setIsDeleting(true)
     setShowDeleteConfirm(false)
 
@@ -382,16 +368,6 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
     }
   }
 
-  const getTaskTypeColor = (type: TaskType) => {
-    switch (type) {
-      case "daily":
-        return "bg-blue-500"
-      case "meeting":
-        return "bg-yellow-500"
-      case "vacation":
-        return "bg-red-500"
-    }
-  }
 
   const daysDiff = dateRange.to
     ? Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1
@@ -421,10 +397,10 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
           </h2>
           <div className="flex items-center gap-2">
             {isEditMode && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setShowDeleteConfirm(true)} 
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowDeleteConfirm(true)}
                 className="text-red-500 hover:text-red-600"
                 disabled={isDeleting || isSubmitting || isStoppingRecurring || !canDeleteTask}
                 title={
@@ -453,320 +429,58 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-2 gap-6">
             {/* Left column - Required fields */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-foreground border-b pb-2">必填信息</h3>
-              
-              {/* Title */}
-              <div className="space-y-2">
-                <Label htmlFor="title" className="text-sm font-medium">
-                  事项名称 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="输入事项名称"
-                  autoFocus
-                  required
-                />
-              </div>
-
-              {/* Assignee */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  负责人 <span className="text-red-500">*</span>
-                  {isPersonalProject ? (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      (个人事务只能指派给自己)
-                    </span>
-                  ) : isSelectedProjectSelfOnlyMode && !canEditAssignees ? (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {isEditMode
-                        ? "(当前目标项目下只能指派给自己)"
-                        : "(普通成员只能为自己创建任务)"}
-                    </span>
-                  ) : null}
-                </Label>
-                <UserMultiSelector 
-                  selectedUserIds={assigneeIds}
-                  onUserChange={setAssigneeIds}
-                  creatorId={task?.creatorId || currentUser?.id}
-                  disabled={!canEditAssignees || isPersonalProject}
-                />
-              </div>
-
-              {/* Project */}
-              <div className="space-y-2">
-                <Label htmlFor="project" className="text-sm font-medium">
-                  归属项目 <span className="text-red-500">*</span>
-                </Label>
-                <Select value={projectId || ''} onValueChange={(value) => {
-                  setProjectId(value)
-                  setProjectError(false)
-                }}>
-                  <SelectTrigger className={cn(
-                    projectError && "border-red-500 text-red-600 ring-1 ring-red-500 focus:ring-red-500 bg-red-50"
-                  )}>
-                    <SelectValue placeholder="请选择项目" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectableProjects.map((project) => (
-                      <SelectItem key={project.id} value={project.id} title={project.name}>
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
-                          <span className="truncate max-w-[240px]">{project.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {projectError && (
-                  <div className="flex items-center gap-1 mt-1.5 text-red-600 animate-in slide-in-from-top-1 fade-in-0">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    <p className="text-xs font-medium">请选择一个归属项目</p>
-                  </div>
-                )}
-                {isProjectOnlyEditMode && (
-                  <p className="text-xs text-muted-foreground">
-                    当前事项来自“仅创建人”项目。你现在只能调整归属项目，其他字段不会保存。
-                  </p>
-                )}
-              </div>
-
-              {/* Task Type */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">事项类型</Label>
-                <div className="flex gap-2">
-                  {(["daily", "meeting", "vacation"] as TaskType[]).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setTaskType(type)}
-                      className={cn(
-                        "flex-1 rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all",
-                        taskType === type
-                          ? "border-current shadow-sm"
-                          : "border-border bg-muted/30 text-muted-foreground hover:bg-muted",
-                        taskType === type && type === "daily" && "text-blue-600 bg-blue-50",
-                        taskType === type && type === "meeting" && "text-yellow-600 bg-yellow-50",
-                        taskType === type && type === "vacation" && "text-red-600 bg-red-50",
-                      )}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <div className={cn("h-3 w-3 rounded-full", getTaskTypeColor(type))} />
-                        {type === "daily" && "日常"}
-                        {type === "meeting" && "会议"}
-                        {type === "vacation" && "休假"}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color Picker & Progress Slider - Only for daily tasks */}
-              {taskType === 'daily' && (
-                <>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">事项颜色</Label>
-                    <ColorPicker value={color} onChange={setColor} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">进度</Label>
-                    <ProgressSlider value={progress} onChange={setProgress} color={color} />
-                  </div>
-                </>
-              )}
-            </div>
+            <TaskFormRequiredFields
+              title={title}
+              setTitle={setTitle}
+              isPersonalProject={isPersonalProject}
+              isSelectedProjectSelfOnlyMode={isSelectedProjectSelfOnlyMode}
+              canEditAssignees={canEditAssignees}
+              isEditMode={isEditMode}
+              assigneeIds={assigneeIds}
+              setAssigneeIds={setAssigneeIds}
+              task={task}
+              currentUser={currentUser}
+              projectId={projectId}
+              setProjectId={setProjectId}
+              setProjectError={setProjectError}
+              projectError={projectError}
+              selectableProjects={selectableProjects}
+              isProjectOnlyEditMode={isProjectOnlyEditMode}
+              setTaskType={setTaskType}
+              taskType={taskType}
+              color={color}
+              setColor={setColor}
+              progress={progress}
+              setProgress={setProgress}
+            />
 
             {/* Right column - Details */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-foreground border-b pb-2">详细信息</h3>
-              
-              {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-medium">
-                  详情
-                </Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="添加详细描述（可选）"
-                  rows={3}
-                />
-              </div>
-
-              {/* Date Range */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">时间范围</Label>
-                <DateRangePicker
-                  value={dateRange}
-                  onChange={(range) => range && setDateRange(range)}
-                  className="w-full"
-                />
-              </div>
-
-              {/* Time */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    开始时间
-                  </Label>
-                  <TimePicker
-                    value={startTime}
-                    onChange={setStartTime}
-                    placeholder="选择时间（可选）"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    结束时间
-                  </Label>
-                  <TimePicker
-                    value={endTime}
-                    onChange={setEndTime}
-                    placeholder="选择时间（可选）"
-                  />
-                </div>
-              </div>
-
-              {isEditMode ? (
-                isRecurringTask ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="recurring-task-active" className="text-sm font-medium">
-                        定时任务
-                      </Label>
-                      <Switch
-                        id="recurring-task-active"
-                        checked
-                        disabled={!canStopRecurringTask || isStoppingRecurring || isDeleting || isSubmitting}
-                        onCheckedChange={(checked) => {
-                          if (!checked && canStopRecurringTask) {
-                            setShowStopRecurringConfirm(true)
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="rounded-md border border-input bg-muted/20 px-3 py-3">
-                      <div className="flex items-center gap-1 text-sm font-medium text-foreground">
-                        {getRecurrenceDescription()}
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="max-w-xs">
-                                修改当前事项不会影响后续定时任务；关闭后只会清理这一天之后的未来事项，当前事项和历史事项会保留。
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      {!canStopRecurringTask && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          当前权限下不能终止这个定时任务。
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : null
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="recurring-task" className="text-sm font-medium">
-                      定时任务
-                    </Label>
-                    <Switch
-                      id="recurring-task"
-                      checked={isRecurringEnabled}
-                      onCheckedChange={setIsRecurringEnabled}
-                    />
-                  </div>
-
-                  {isRecurringEnabled && (
-                    <div className="space-y-3 rounded-md border border-input bg-muted/20 p-3">
-                      <div
-                        className={cn(
-                          "grid gap-3",
-                          recurrenceType === "INTERVAL_DAYS"
-                            ? "grid-cols-[minmax(0,1fr)_120px]"
-                            : "grid-cols-1"
-                        )}
-                      >
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">重复方式</Label>
-                          <Select
-                            value={recurrenceType}
-                            onValueChange={(value) => setRecurrenceType(value as TaskRecurrenceType)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="WEEKLY">按周提醒</SelectItem>
-                              <SelectItem value="MONTHLY">按月提醒</SelectItem>
-                              <SelectItem value="INTERVAL_DAYS">指定天数提醒</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {recurrenceType === "INTERVAL_DAYS" && (
-                          <div className="space-y-2">
-                            <Label htmlFor="interval-days" className="text-sm font-medium">
-                              间隔天数
-                            </Label>
-                            <Input
-                              id="interval-days"
-                              type="number"
-                              min={1}
-                              step={1}
-                              value={intervalDays}
-                              onChange={(e) => setIntervalDays(Math.max(1, Number(e.target.value) || 1))}
-                              className="text-center"
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-muted-foreground">
-                        {getRecurrenceDescription()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Creator - Show in edit mode or current user in create mode */}
-              {(isEditMode && creator) || (!isEditMode && currentUser) ? (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">创建人</Label>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-input bg-muted/30">
-                    {(() => {
-                      const displayUser = isEditMode ? creator : currentUser
-                      return displayUser ? (
-                        <>
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
-                            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                              {displayUser.name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">{displayUser.name}</div>
-                            <div className="text-xs text-muted-foreground">{displayUser.email}</div>
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">未知创建人</span>
-                      )
-                    })()}
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            <TaskFormDetails
+              description={description}
+              setDescription={setDescription}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              startTime={startTime}
+              setStartTime={setStartTime}
+              endTime={endTime}
+              setEndTime={setEndTime}
+              isEditMode={isEditMode}
+              isRecurringTask={isRecurringTask}
+              canStopRecurringTask={canStopRecurringTask}
+              isStoppingRecurring={isStoppingRecurring}
+              isDeleting={isDeleting}
+              isSubmitting={isSubmitting}
+              setShowStopRecurringConfirm={setShowStopRecurringConfirm}
+              getRecurrenceDescription={getRecurrenceDescription}
+              isRecurringEnabled={isRecurringEnabled}
+              setIsRecurringEnabled={setIsRecurringEnabled}
+              recurrenceType={recurrenceType}
+              setRecurrenceType={setRecurrenceType}
+              intervalDays={intervalDays}
+              setIntervalDays={setIntervalDays}
+              creator={creator}
+              currentUser={currentUser}
+            />
           </div>
 
           {/* Remember Project - Create mode only */}
@@ -785,18 +499,18 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
 
           {/* Actions */}
           <div className="flex gap-3 pt-6 border-t mt-6 justify-end">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose} 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
               className="bg-transparent min-w-24"
               disabled={isSubmitting || isDeleting || isStoppingRecurring}
             >
               取消
             </Button>
-            <Button 
-              type="submit" 
-              className="min-w-28" 
+            <Button
+              type="submit"
+              className="min-w-28"
               disabled={!canSubmitTask}
             >
               {isSubmitting ? (isEditMode ? '保存中...' : '创建中...') : (isEditMode ? '保存更改' : '创建事项')}

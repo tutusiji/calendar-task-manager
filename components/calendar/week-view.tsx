@@ -3,14 +3,20 @@
 import { useEffect, useMemo } from "react"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
 import { getWeekDays, getWeekDayName } from "@/lib/utils/date-utils"
+import type { Task } from "@/lib/types"
+import { filterTasksByDateRange } from "@/lib/store/task-filters"
 import { getPublicHolidayLabelForDate } from "@/lib/utils/public-holiday-utils"
 import { Badge } from "@/components/ui/badge"
 import { TeamMemberRow } from "./team-member-row"
 import { cn } from "@/lib/utils"
 
+const NO_TASKS: Task[] = []
+
 export function WeekView() {
   const {
     currentDate,
+    tasks,
+    selectedProjectIds,
     publicHolidays,
     users,
     teams,
@@ -27,6 +33,8 @@ export function WeekView() {
     getProjectById,
   } = useCalendarState(
     "currentDate",
+    "tasks",
+    "selectedProjectIds",
     "publicHolidays",
     "users",
     "teams",
@@ -75,6 +83,21 @@ export function WeekView() {
     // 默认显示所有用户
     return users
   }, [navigationMode, selectedTeamId, selectedProjectId, users, teams, projects, getTeamById, getProjectById])
+
+  const tasksByAssignee = useMemo(() => {
+    const byAssignee = new Map<string, Task[]>()
+    const projectIds = new Set(selectedProjectIds)
+    const weekTasks = filterTasksByDateRange(tasks, weekDays[0], weekDays[weekDays.length - 1])
+    for (const task of weekTasks) {
+      if (projectIds.size > 0 && !projectIds.has(task.projectId)) continue
+      for (const assignee of task.assignees ?? []) {
+        const assigned = byAssignee.get(assignee.userId)
+        if (assigned) assigned.push(task)
+        else byAssignee.set(assignee.userId, [task])
+      }
+    }
+    return byAssignee
+  }, [tasks, selectedProjectIds, weekDays])
 
   // 全局 mouseup 事件处理，防止拖拽状态未清除
   useEffect(() => {
@@ -138,7 +161,7 @@ export function WeekView() {
       {/* Team member rows */}
       <div className="flex-1 overflow-y-auto">
         {displayUsers.map((user) => (
-          <TeamMemberRow key={user.id} user={user} weekDays={weekDays} showPlaceholder={false} />
+          <TeamMemberRow key={user.id} user={user} weekDays={weekDays} tasks={tasksByAssignee.get(user.id) ?? NO_TASKS} showPlaceholder={false} />
         ))}
       </div>
     </div>

@@ -1,49 +1,39 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { OrganizationManagementList } from "@/components/organization/organization-management-list"
+
+import type { ManagedOrganization } from "@/components/organization/organization-types"
+
+import { OrganizationCreateDialog } from "@/components/organization/organization-create-dialog"
+import { OrganizationEditDialog } from "@/components/organization/organization-edit-dialog"
+
+import { useState,useEffect } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+Dialog,
+DialogContent,
+DialogDescription,
+DialogHeader,
+DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { Shield, Trash2, Edit, Users, Briefcase, FolderKanban, Plus, LogOut, Eye, Copy, Check } from "lucide-react"
+import { Plus } from "lucide-react"
 import { organizationAPI } from "@/lib/api/organization"
 import { OrganizationDetailDialog } from "@/components/organization-detail-dialog"
 import { copyToClipboard } from "@/lib/utils/clipboard"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+AlertDialog,
+AlertDialogAction,
+AlertDialogCancel,
+AlertDialogContent,
+AlertDialogDescription,
+AlertDialogFooter,
+AlertDialogHeader,
+AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-interface Organization {
-  id: string
-  name: string
-  description?: string
-  isVerified: boolean
-  role?: string
-  memberCount?: number
-  teamCount?: number
-  projectCount?: number
-  creatorId: string
-  joinRequiresApproval: boolean
-}
 
 interface OrganizationManagementDialogProps {
   open: boolean
@@ -55,10 +45,10 @@ export function OrganizationManagementDialog({
   onOpenChange,
 }: OrganizationManagementDialogProps) {
   const { toast } = useToast()
-  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [organizations, setOrganizations] = useState<ManagedOrganization[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [editingOrg, setEditingOrg] = useState<Organization | null>(null)
+  const [editingOrg, setEditingOrg] = useState<ManagedOrganization | null>(null)
   const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null)
   const [leaveOrgId, setLeaveOrgId] = useState<string | null>(null)
   const [viewingOrgId, setViewingOrgId] = useState<string | null>(null)
@@ -84,7 +74,7 @@ export function OrganizationManagementDialog({
   useEffect(() => {
     if (open) {
       fetchOrganizations()
-      
+
       // 获取当前组织ID
       const userStr = localStorage.getItem("currentUser")
       if (userStr) {
@@ -98,7 +88,7 @@ export function OrganizationManagementDialog({
     try {
       const data = await organizationAPI.getAll()
       setOrganizations(data)
-      
+
       // 为每个组织获取邀请码
       for (const org of data) {
         try {
@@ -140,7 +130,7 @@ export function OrganizationManagementDialog({
     try {
       const data = await organizationAPI.getAll(query)
       setSearchResults(data)
-      
+
       // 检查是否有完全匹配的结果
       const exactMatch = data.find((org: any) => org.name === query)
       setSelectedExistingOrg(exactMatch ? exactMatch.id : null)
@@ -153,17 +143,17 @@ export function OrganizationManagementDialog({
 
   const handleNameChange = (value: string) => {
     setFormData({ ...formData, name: value })
-    
+
     // 清除之前的定时器
     if (searchTimeout) {
       clearTimeout(searchTimeout)
     }
-    
+
     // 设置新的定时器，300ms 后执行搜索
     const timeout = setTimeout(() => {
       searchOrganizations(value)
     }, 300)
-    
+
     setSearchTimeout(timeout)
   }
 
@@ -195,7 +185,7 @@ export function OrganizationManagementDialog({
           organizationId: selectedExistingOrg,
           message: formData.description || "",
         })
-        
+
         toast({
           title: "申请已提交",
           description: `已向 ${formData.name} 提交加入申请，请等待审核`,
@@ -222,7 +212,7 @@ export function OrganizationManagementDialog({
     setIsLoading(true)
     try {
       await organizationAPI.create(formData)
-      
+
       toast({
         title: "创建成功",
         description: "空间已创建",
@@ -244,7 +234,7 @@ export function OrganizationManagementDialog({
     }
   }
 
-  const handleEdit = (org: Organization) => {
+  const handleEdit = (org: ManagedOrganization) => {
     setEditingOrg(org)
     setFormData({
       name: org.name,
@@ -259,13 +249,13 @@ export function OrganizationManagementDialog({
     setIsLoading(true)
     try {
       await organizationAPI.update(editingOrg.id, formData)
-      
+
       toast({
         title: "更新成功",
         description: "组织信息已更新",
       })
       setEditingOrg(null)
-        
+
         // 刷新页面以更新所有组件中的组织信息
         toast({
           title: "数据已更新",
@@ -305,7 +295,7 @@ export function OrganizationManagementDialog({
     setIsLoading(true)
     try {
       await organizationAPI.delete(deleteOrgId)
-      
+
       toast({
         title: "删除成功",
         description: "空间已删除",
@@ -337,13 +327,13 @@ export function OrganizationManagementDialog({
       const user = JSON.parse(userStr)
 
       await organizationAPI.removeMember(leaveOrgId, user.id)
-      
+
       toast({
         title: "退出成功",
         description: "已退出该空间",
       })
       setLeaveOrgId(null)
-        
+
         // 退出组织后，刷新页面以更新所有组件的组织列表
         toast({
           title: "空间已更新",
@@ -380,14 +370,14 @@ export function OrganizationManagementDialog({
     const copyText = `注册时空间组织输入"${orgName}"，并在下拉列表中选择该选项，输入邀请码 ${code}`
 
     const success = await copyToClipboard(copyText)
-    
+
     if (success) {
       setCopiedCode(orgId)
       toast({
         title: "已复制",
         description: `${orgName} 的邀请信息已复制到剪贴板`,
       })
-      
+
       // 2秒后清除复制状态
       setTimeout(() => {
         setCopiedCode(null)
@@ -401,15 +391,6 @@ export function OrganizationManagementDialog({
     }
   }
 
-  const getRoleBadge = (role?: string) => {
-    const roleMap = {
-      OWNER: { label: "所有者", variant: "default" as const },
-      ADMIN: { label: "管理员", variant: "secondary" as const },
-      MEMBER: { label: "成员", variant: "outline" as const },
-    }
-    const info = roleMap[role as keyof typeof roleMap] || roleMap.MEMBER
-    return <Badge variant={info.variant}>{info.label}</Badge>
-  }
 
   return (
     <>
@@ -435,331 +416,51 @@ export function OrganizationManagementDialog({
           </div>
 
           {/* 组织列表 - 可滚动区域 */}
-          <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
-            {organizations.map((org) => (
-              <div
-                key={org.id}
-                className="rounded-lg border p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-lg">{org.name}</h3>
-                      {org.isVerified && (
-                        <div title="已认证">
-                          <Shield className="h-4 w-4 text-blue-500" />
-                        </div>
-                      )}
-                      {getRoleBadge(org.role)}
-                      {org.id === currentOrgId && (
-                        <Badge variant="default">当前空间</Badge>
-                      )}
-                    </div>
-                    {org.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {org.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewingOrgId(org.id)}
-                      title="查看详情"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {(org.role === "OWNER" || org.role === "ADMIN") && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(org)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {org.role === "OWNER" && org.id !== currentOrgId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeleteOrgId(org.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {org.role !== "OWNER" && org.id !== currentOrgId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLeaveOrgId(org.id)}
-                        className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                        title="退出空间"
-                      >
-                        <LogOut className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>{org.memberCount || 0} 成员</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Briefcase className="h-4 w-4" />
-                    <span>{org.teamCount || 0} 团队</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <FolderKanban className="h-4 w-4" />
-                    <span>{org.projectCount || 0} 项目</span>
-                  </div>
-                </div>
-
-                {/* 邀请码区域 */}
-                {inviteCodes[org.id] && (
-                  <div className="flex items-center gap-2 pt-3 border-t">
-                    <span className="text-sm text-muted-foreground">邀请码:</span>
-                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                      {inviteCodes[org.id]}
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopyInviteCode(org.id, org.name)}
-                      className="h-7 px-2"
-                    >
-                      {copiedCode === org.id ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {organizations.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                暂无组织
-              </div>
-            )}
-          </div>
+          <OrganizationManagementList
+            organizations={organizations}
+            currentOrgId={currentOrgId}
+            setViewingOrgId={setViewingOrgId}
+            handleEdit={handleEdit}
+            setDeleteOrgId={setDeleteOrgId}
+            setLeaveOrgId={setLeaveOrgId}
+            inviteCodes={inviteCodes}
+            handleCopyInviteCode={handleCopyInviteCode}
+            copiedCode={copiedCode}
+          />
         </DialogContent>
       </Dialog>
 
       {/* 编辑对话框 */}
-      <Dialog open={!!editingOrg} onOpenChange={(open) => !open && setEditingOrg(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>编辑空间</DialogTitle>
-            <DialogDescription>
-              修改空间的基本信息
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">空间名称</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="输入空间名称"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">描述</Label>
-              <Textarea
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="输入空间描述（可选）"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <Label className="text-base">加入需要审批</Label>
-                <div className="text-sm text-muted-foreground">
-                  开启后,即使通过邀请码加入也需要管理员审批
-                </div>
-              </div>
-              <Switch
-                checked={formData.joinRequiresApproval}
-                onCheckedChange={(checked) => setFormData({ ...formData, joinRequiresApproval: checked })}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setEditingOrg(null)}
-                disabled={isLoading}
-              >
-                取消
-              </Button>
-              <Button onClick={handleSaveEdit} disabled={isLoading}>
-                {isLoading ? "保存中..." : "保存"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <OrganizationEditDialog
+        editingOrg={editingOrg}
+        setEditingOrg={setEditingOrg}
+        formData={formData}
+        setFormData={setFormData}
+        isLoading={isLoading}
+        handleSaveEdit={handleSaveEdit}
+      />
 
       {/* 新增空间对话框 */}
-      <Dialog open={isCreating} onOpenChange={(open) => {
-        if (!open) {
-          setIsCreating(false)
-          setSearchResults([])
-          setSelectedExistingOrg(null)
-          if (searchTimeout) clearTimeout(searchTimeout)
-        }
-      }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>新增空间</DialogTitle>
-            <DialogDescription>
-              搜索并加入已有空间，或创建一个新的空间/组织
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="create-name">空间名称 *</Label>
-              <div className="relative">
-                <Input
-                  id="create-name"
-                  value={formData.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="输入空间名称搜索或创建"
-                  autoComplete="off"
-                />
-                {isSearching && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  </div>
-                )}
-              </div>
-
-              {/* 搜索结果下拉列表 */}
-              {searchResults.length > 0 && (
-                <div className="border rounded-md shadow-lg bg-background max-h-60 overflow-y-auto">
-                  {searchResults.map((org) => (
-                    <div
-                      key={org.id}
-                      className="px-3 py-2 hover:bg-accent cursor-pointer border-b last:border-b-0"
-                      onClick={() => selectSearchResult(org)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{org.name}</span>
-                            {org.isVerified && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Shield className="h-3 w-3 mr-1" />
-                                已认证
-                              </Badge>
-                            )}
-                          </div>
-                          {org.description && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {org.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 提示信息 - 只在未选择已有空间时显示 */}
-              {!selectedExistingOrg && formData.name.trim() && !isSearching && searchResults.length === 0 && (
-                <div className="flex items-start gap-2 p-3 rounded-md bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
-                  <div className="shrink-0 mt-0.5">
-                    <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
-                      这是一个新的未注册空间
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      点击"创建"将创建名为 "<span className="font-semibold">{formData.name}</span>" 的新空间，您将成为所有者
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {selectedExistingOrg && (
-                <div className="flex items-start gap-2 p-3 rounded-md bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
-                  <div className="shrink-0 mt-0.5">
-                    <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
-                      已选择现有空间
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      点击"申请加入"将向 "<span className="font-semibold">{formData.name}</span>" 的创建者发送加入申请
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="create-description">
-                {selectedExistingOrg ? "申请留言" : "描述"}
-              </Label>
-              <Textarea
-                id="create-description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder={
-                  selectedExistingOrg
-                    ? "输入申请留言（可选）"
-                    : "输入空间描述（可选）"
-                }
-                rows={3}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsCreating(false)
-                  setSearchResults([])
-                  setSelectedExistingOrg(null)
-                  if (searchTimeout) clearTimeout(searchTimeout)
-                }}
-                disabled={isLoading}
-              >
-                取消
-              </Button>
-              <Button 
-                onClick={handleSaveCreate} 
-                disabled={isLoading || !formData.name.trim()}
-              >
-                {isLoading ? "处理中..." : selectedExistingOrg ? "申请加入" : "创建"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <OrganizationCreateDialog
+        isCreating={isCreating}
+        setIsCreating={setIsCreating}
+        setSearchResults={setSearchResults}
+        setSelectedExistingOrg={setSelectedExistingOrg}
+        searchTimeout={searchTimeout}
+        formData={formData}
+        handleNameChange={handleNameChange}
+        isSearching={isSearching}
+        searchResults={searchResults}
+        selectSearchResult={selectSearchResult}
+        selectedExistingOrg={selectedExistingOrg}
+        setFormData={setFormData}
+        isLoading={isLoading}
+        handleSaveCreate={handleSaveCreate}
+      />
 
       {/* 删除确认对话框 */}
-      <AlertDialog 
-        open={!!deleteOrgId} 
+      <AlertDialog
+        open={!!deleteOrgId}
         onOpenChange={(open) => {
           if (!open) {
             setDeleteOrgId(null)
@@ -774,7 +475,7 @@ export function OrganizationManagementDialog({
               此操作将永久删除该空间及其所有关联的团队、项目和任务数据。此操作无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
-          
+
           <div className="space-y-2">
             <Label htmlFor="delete-confirm">
               请输入空间名称 <span className="font-semibold text-foreground">
@@ -804,8 +505,8 @@ export function OrganizationManagementDialog({
       </AlertDialog>
 
       {/* 退出空间确认对话框 */}
-      <AlertDialog 
-        open={!!leaveOrgId} 
+      <AlertDialog
+        open={!!leaveOrgId}
         onOpenChange={(open) => {
           if (!open) {
             setLeaveOrgId(null)

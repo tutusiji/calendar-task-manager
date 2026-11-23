@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
-import type { User } from "@/lib/types"
+import type { Task, User } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { assignTaskTracks } from "@/lib/utils/task-layout"
 import { TaskBar } from "./task-bar"
@@ -12,32 +12,29 @@ import { TaskBar } from "./task-bar"
 interface TeamMemberRowProps {
   user: User
   weekDays: Date[]
+  tasks: Task[]
   showPlaceholder: boolean
 }
 
-export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRowProps) {
+export function TeamMemberRow({ user, weekDays, tasks, showPlaceholder }: TeamMemberRowProps) {
   const {
-    tasks,
     openTaskEdit,
     startDragCreate,
     updateDragCreate,
     endDragCreate,
     openTaskCreation,
     dragState,
-    selectedProjectIds,
     dragMoveState,
     updateDragMove,
     startDragMove,
     taskBarSize,
   } = useCalendarState(
-    "tasks",
     "openTaskEdit",
     "startDragCreate",
     "updateDragCreate",
     "endDragCreate",
     "openTaskCreation",
     "dragState",
-    "selectedProjectIds",
     "dragMoveState",
     "updateDragMove",
     "startDragMove",
@@ -45,25 +42,7 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
   )
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
-  // 根据选中的项目过滤任务
-  const filteredTasks = useMemo(() => {
-    // 如果没有选中任何项目，则显示当前团队成员的全部任务（后端已按团队成员聚合）
-    if (selectedProjectIds.length === 0) {
-      return tasks
-    }
-    return tasks.filter(task => selectedProjectIds.includes(task.projectId))
-  }, [tasks, selectedProjectIds])
-
-  // 只显示该用户作为负责人的任务(不包括仅作为创建人的任务)
-  const userTasks = useMemo(() => 
-    filteredTasks.filter((task) => 
-      task.assignees?.some(a => a.userId === user.id)
-    ), 
-    [filteredTasks, user.id]
-  )
-
-  // 为用户的任务分配轨道
-  const userTasksWithTracks = useMemo(() => assignTaskTracks(userTasks), [userTasks])
+  const userTasksWithTracks = useMemo(() => assignTaskTracks(tasks), [tasks])
 
   // 获取需要在指定日期渲染的任务
   const getTasksToRenderForDay = (date: Date, dayIndex: number) => {
@@ -93,27 +72,7 @@ export function TeamMemberRow({ user, weekDays, showPlaceholder }: TeamMemberRow
     })
   }
 
-  // 计算该周的最大轨道数
-  const maxTrack = useMemo(() => {
-    const weekStart = new Date(weekDays[0])
-    weekStart.setHours(0, 0, 0, 0)
-    const weekEnd = new Date(weekDays[weekDays.length - 1])
-    weekEnd.setHours(23, 59, 59, 999)
-    
-    // 获取该周内的所有任务
-    const weekTasks = userTasksWithTracks.filter(task => {
-      const taskStart = new Date(task.startDate)
-      taskStart.setHours(0, 0, 0, 0)
-      const taskEnd = new Date(task.endDate)
-      taskEnd.setHours(23, 59, 59, 999)
-      return taskStart <= weekEnd && taskEnd >= weekStart
-    })
-    
-    if (weekTasks.length === 0) return 0
-    return Math.max(...weekTasks.map(t => t.track)) + 1
-  }, [userTasksWithTracks, weekDays])
-
-
+  const maxTrack = userTasksWithTracks.reduce((tracks, task) => Math.max(tracks, task.track + 1), 0)
 
   // 判断日期是否在拖拽范围内
   const isInDragRange = (date: Date) => {

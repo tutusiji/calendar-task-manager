@@ -1017,6 +1017,27 @@ paths:
                     properties:
                       data: { $ref: '#/components/schemas/Task' }
 
+  /api/tasks/recurrence:
+    post:
+      tags: [任务]
+      summary: 补齐指定日期范围的重复任务
+      operationId: 补齐重复任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endDate]
+              properties:
+                endDate: { type: string, format: date-time }
+                organizationId: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SuccessMessage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '503': { description: 补齐已按批次保存进度，可以重试。 }
+
   /api/tasks/{id}:
     get:
       tags: [任务]
@@ -1575,6 +1596,9 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Task' }
         count: { type: integer }
+        recurringPending:
+          type: boolean
+          description: 请求的日期范围仍有重复事项待补齐。可调用补齐接口后重新查询。
     Notification:
       type: object
       properties:

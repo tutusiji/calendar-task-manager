@@ -1,0 +1,7 @@
+ALTER TABLE "PublicHoliday" ALTER COLUMN "updatedAt" DROP DEFAULT;
+
+ALTER TABLE "RecurringTaskSeries"
+  ALTER COLUMN "assigneeIds" DROP DEFAULT,
+  ALTER COLUMN "updatedAt" DROP DEFAULT;
+
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "defaultTeamId" TEXT;

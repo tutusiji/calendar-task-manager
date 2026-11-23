@@ -15,9 +15,21 @@ jobs:
   quality:
     name: Typecheck, lint, test, build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: calendar_tasks
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d calendar_tasks"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      # prisma.config.ts 在加载阶段要求 DATABASE_URL；generate/typecheck/test
-      # 不会真正连接数据库，这里提供占位连接串即可。
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calendar_tasks?schema=public
 
     steps:
@@ -41,14 +53,21 @@ jobs:
       - name: Generate Prisma client
         run: pnpm exec prisma generate
 
+      - name: Verify database migrations
+        run: |
+          pnpm exec prisma migrate deploy
+          pnpm exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint
 
-      - name: Unit tests
+      - name: Unit and integration tests
         run: pnpm test
+        env:
+          RUN_DB_INTEGRATION: '1'
 
       - name: Build
         run: pnpm build

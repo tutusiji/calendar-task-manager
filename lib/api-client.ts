@@ -110,6 +110,7 @@ export interface TaskFilters {
   userId?: string
   projectId?: string
   teamId?: string
+  organizationId?: string
   startDate?: string // ISO 8601 格式
   endDate?: string   // ISO 8601 格式
 }
@@ -119,6 +120,10 @@ export const taskAPI = {
    * 获取任务列表
    */
   async getAll(filters?: TaskFilters): Promise<Task[]> {
+    return (await taskAPI.getWindow(filters)).tasks
+  },
+
+  async getWindow(filters?: TaskFilters, signal?: AbortSignal) {
     const params = new URLSearchParams()
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -129,10 +134,18 @@ export const taskAPI = {
     const query = params.toString()
     const endpoint = query ? `/tasks?${query}` : '/tasks'
     
-    const result = await fetchAPI<{ tasks: Task[]; count: number }>(endpoint)
-    
-    // 新的 API 返回 { tasks, count }
-    return result.tasks || (result as any) || []
+    const result = await fetchAPI<{ tasks: Task[]; recurringPending?: boolean } | Task[]>(endpoint, { signal })
+    return Array.isArray(result)
+      ? { tasks: result, recurringPending: false }
+      : { tasks: result.tasks, recurringPending: result.recurringPending === true }
+  },
+
+  async prepareRecurringThrough(endDate: Date, organizationId?: string, signal?: AbortSignal) {
+    await fetchAPI('/tasks/recurrence', {
+      method: 'POST',
+      body: JSON.stringify({ endDate, organizationId }),
+      signal,
+    })
   },
 
   /**
@@ -411,6 +424,7 @@ export const projectAPI = {
 
 export interface TeamWithMembers extends Team {
   members?: User[]
+  organization?: { name: string }
 }
 
 export const teamAPI = {

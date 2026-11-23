@@ -63,6 +63,8 @@ axiosInstance.interceptors.response.use(
     return data
   },
   (error: AxiosError<any>) => {
+    if (axios.isCancel(error)) return Promise.reject(error)
+
     // 错误处理
     console.error('响应错误:', error)
     

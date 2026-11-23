@@ -13,6 +13,26 @@ import {
   normalizePlanningColor,
   sanitizePlanningText,
 } from "@/lib/planning-server"
+import { loadPlanningBoard } from "@/lib/modules/planning/planning.service"
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const auth = await authenticate(request)
+    if (auth.error) return auth.error
+
+    const { id } = await params
+    const result = await loadPlanningBoard(auth.userId, id)
+    if (result.kind === "not-found") return notFoundResponse("计划板不存在")
+    if (result.kind === "forbidden") return forbiddenResponse("无权查看该计划板")
+    return successResponse(result.board)
+  } catch (error) {
+    console.error("获取计划板详情失败:", error)
+    return serverErrorResponse("获取计划板详情失败")
+  }
+}
 
 export async function PATCH(
   request: NextRequest,

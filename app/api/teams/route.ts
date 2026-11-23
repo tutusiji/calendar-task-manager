@@ -1,22 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticate } from '@/lib/middleware'
+import { listTeams } from '@/lib/modules/team/team.service'
 import { addPointsForTeamCreation } from '@/lib/utils/points'
 
-async function getOrderedTeamIds(organizationId: string) {
-  try {
-    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id
-      FROM "Team"
-      WHERE "organizationId" = ${organizationId}
-      ORDER BY "sortOrder" ASC, name ASC, "createdAt" ASC
-    `
-    return rows.map(row => row.id)
-  } catch (error) {
-    console.warn('Team sortOrder column is unavailable, falling back to name order:', error)
-    return null
-  }
-}
 
 // GET /api/teams - 获取当前用户可访问的团队列表
 export async function GET(request: NextRequest) {
@@ -24,109 +11,13 @@ export async function GET(request: NextRequest) {
     const auth = await authenticate(request)
     if (auth.error) return auth.error
 
-    const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organizationId')
-
-    let targetOrgId = organizationId
-
-    if (!targetOrgId) {
-      // 获取用户信息以获取当前组织
-      const user = await prisma.user.findUnique({
-        where: { id: auth.userId },
-        select: { currentOrganizationId: true },
-      })
-      targetOrgId = user?.currentOrganizationId || null
+    const organizationId = request.nextUrl.searchParams.get('organizationId')
+    const result = await listTeams(auth.userId, organizationId)
+    if (result.kind === 'forbidden') {
+      return NextResponse.json({ success: false, error: '无权访问该组织的数据' }, { status: 403 })
     }
 
-    if (!targetOrgId) {
-      return NextResponse.json({
-        success: true,
-        data: []
-      })
-    }
-
-    // 验证某些用户是否有权限访问该组织
-    const isMember = await prisma.organizationMember.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: auth.userId,
-          organizationId: targetOrgId
-        }
-      }
-    })
-
-    if (!isMember) {
-      return NextResponse.json({
-          success: false,
-          error: '无权访问该组织的数据'
-      }, { status: 403 })
-    }
-
-    const orderedTeamIds = await getOrderedTeamIds(targetOrgId)
-
-    // 获取当前组织内的所有团队（供个人中心等场景使用）
-    const teams = await prisma.team.findMany({
-      where: {
-        organizationId: targetOrgId,
-      },
-      include: {
-        organization: {
-          select: {
-            name: true
-          }
-        },
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            }
-          }
-        },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true
-          }
-        },
-        _count: {
-          select: {
-            members: true
-          }
-        }
-      },
-      orderBy: orderedTeamIds
-        ? undefined
-        : {
-            name: 'asc'
-          }
-    })
-
-    const orderedTeams = orderedTeamIds
-      ? [...teams].sort((a, b) => orderedTeamIds.indexOf(a.id) - orderedTeamIds.indexOf(b.id))
-      : teams
-
-    // 格式化响应数据，包含成员详细信息
-    const formattedTeams = orderedTeams.map(team => {
-      const { members, _count, ...teamData } = team
-      return {
-        ...teamData,
-        memberIds: members.map(m => m.userId),
-        members: members.map(m => m.user),
-        memberCount: _count.members
-      }
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: formattedTeams
-    })
+    return NextResponse.json({ success: true, data: result.teams })
   } catch (error) {
     console.error('Error fetching teams:', error)
     return NextResponse.json(

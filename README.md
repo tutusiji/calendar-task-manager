@@ -66,9 +66,12 @@
 ```bash
 pnpm install
 docker compose up -d postgres
-npx prisma migrate dev
+pnpm exec prisma migrate deploy
+pnpm exec prisma generate
 pnpm dev
 ```
+
+启动前请配置指向开发数据库的 `DATABASE_URL`。本版本修正了已发布的 `20260426100000_project_member_archive_flags` 迁移在空库上的兼容性。已有数据库升级请使用 `prisma migrate deploy`，它会按现有记录跳过已应用的迁移。`prisma migrate dev` 会检查历史迁移的校验和，之前应用过该迁移的开发库应使用独立的空库重放迁移来开发新的数据库变更。
 
 默认开发访问地址：
 

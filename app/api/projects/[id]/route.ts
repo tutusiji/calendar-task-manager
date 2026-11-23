@@ -9,24 +9,8 @@ import {
   serverErrorResponse
 } from '@/lib/api-response'
 import { sanitizeString } from '@/lib/validation'
+import { getUserArchiveState } from '@/lib/modules/project/project.repository'
 
-async function getUserArchiveState(userId: string, projectId: string) {
-  try {
-    const rows = await prisma.$queryRaw<Array<{ isArchived: boolean; archivedAt: Date | null }>>`
-      SELECT
-        pm."isArchived" AS "isArchived",
-        pm."archivedAt" AS "archivedAt"
-      FROM "ProjectMember" pm
-      WHERE pm."userId" = ${userId}
-        AND pm."projectId" = ${projectId}
-      LIMIT 1
-    `
-    return rows[0] || { isArchived: false, archivedAt: null }
-  } catch (error) {
-    console.warn('ProjectMember archive columns are unavailable, falling back to unarchived state:', error)
-    return { isArchived: false, archivedAt: null }
-  }
-}
 
 // GET /api/projects/[id] - 获取单个项目
 export async function GET(

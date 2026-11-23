@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
 import { authenticate } from "@/lib/middleware"
 import {
   successResponse,
@@ -8,16 +7,10 @@ import {
   serverErrorResponse,
 } from "@/lib/api-response"
 import {
-  DEFAULT_PLANNING_BUCKET_TITLE,
   isPlanningScopeType,
 } from "@/lib/planning"
-import {
-  buildPlanningScopeWhere,
-  ensurePlanningScopeAccess,
-  normalizePlanningColor,
-  planningBoardInclude,
-  sanitizePlanningText,
-} from "@/lib/planning-server"
+import { createPlanningBoard, listPlanningBoards } from "@/lib/modules/planning/planning.service"
+import { normalizePlanningColor, sanitizePlanningText } from "@/lib/modules/planning/planning.validator"
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,26 +27,11 @@ export async function GET(request: NextRequest) {
     const effectiveScopeId =
       scopeTypeValue === "PERSONAL" ? scopeIdValue || auth.userId : scopeIdValue || ""
 
-    const access = await ensurePlanningScopeAccess(
-      auth.userId,
-      scopeTypeValue,
-      effectiveScopeId
+    const result = await listPlanningBoards(
+      auth.userId, scopeTypeValue, effectiveScopeId,
+      request.nextUrl.searchParams.get("summary") === "true",
     )
-
-    if (!access.allowed) {
-      return forbiddenResponse(access.message)
-    }
-
-    const boards = await prisma.planningBoard.findMany({
-      where: buildPlanningScopeWhere(scopeTypeValue, effectiveScopeId),
-      include: planningBoardInclude,
-      orderBy: [
-        { createdAt: "asc" },
-        { updatedAt: "asc" },
-      ],
-    })
-
-    return successResponse(boards)
+    return result.kind === "forbidden" ? forbiddenResponse(result.message) : successResponse(result.boards)
   } catch (error) {
     console.error("获取计划板列表失败:", error)
     return serverErrorResponse("获取计划板列表失败")
@@ -83,37 +61,12 @@ export async function POST(request: NextRequest) {
     const effectiveScopeId =
       scopeTypeValue === "PERSONAL" ? scopeIdValue || auth.userId : scopeIdValue || ""
 
-    const access = await ensurePlanningScopeAccess(
-      auth.userId,
-      scopeTypeValue,
-      effectiveScopeId
-    )
-
-    if (!access.allowed) {
-      return forbiddenResponse(access.message)
-    }
-
-    const board = await prisma.planningBoard.create({
-      data: {
-        name,
-        description: description || null,
-        color,
-        scopeType: scopeTypeValue,
-        creatorId: auth.userId,
-        ...access.scopeData,
-        buckets: {
-          create: [
-            {
-              title: DEFAULT_PLANNING_BUCKET_TITLE,
-              sortOrder: 0,
-            },
-          ],
-        },
-      },
-      include: planningBoardInclude,
+    const result = await createPlanningBoard(auth.userId, scopeTypeValue, effectiveScopeId, {
+      name, description: description || null, color,
     })
-
-    return successResponse(board, "计划板已创建", 201)
+    return result.kind === "forbidden"
+      ? forbiddenResponse(result.message)
+      : successResponse(result.board, "计划板已创建", 201)
   } catch (error) {
     console.error("创建计划板失败:", error)
     return serverErrorResponse("创建计划板失败")

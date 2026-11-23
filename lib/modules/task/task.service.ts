@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client'
 import {
   ensureRecurringTasksGeneratedForOrganization,
   ensureRecurringTasksGeneratedForSeries,
+  hasPendingRecurringTasks,
 } from '@/lib/recurring-task-service'
 import { addPointsForTaskCreation } from '@/lib/utils/points'
 import {
@@ -33,11 +34,8 @@ import {
   validateUpdateContent,
 } from './task.validator'
 
-export async function listTasks(
-  actor: TaskActor,
-  filters: TaskListFilters
-): Promise<{ tasks: unknown[]; count: number }> {
-  let targetOrganizationId = filters.organizationId || null
+async function resolveTaskOrganization(actor: TaskActor, organizationId?: string | null) {
+  let targetOrganizationId = organizationId || null
 
   if (!targetOrganizationId) {
     const user = await taskRepository.findUserOrganization(actor.userId)
@@ -50,14 +48,31 @@ export async function listTasks(
 
   await assertOrganizationAccess(actor.userId, targetOrganizationId)
 
-  if (filters.endDate && Number.isNaN(new Date(filters.endDate).getTime())) {
+  return targetOrganizationId
+}
+
+export async function prepareRecurringTasks(actor: TaskActor, organizationId: string | null, endDate: string) {
+  const through = new Date(endDate)
+  if (!Number.isFinite(through.getTime())) {
     throw new TaskServiceError(400, '日期格式无效')
   }
 
-  await ensureRecurringTasksGeneratedForOrganization(
-    targetOrganizationId,
-    filters.endDate ? new Date(filters.endDate) : undefined
-  )
+  const targetOrganizationId = await resolveTaskOrganization(actor, organizationId)
+  if (!(await ensureRecurringTasksGeneratedForOrganization(targetOrganizationId, through))) {
+    throw new TaskServiceError(503, '重复事项仍在补齐，请稍后重试')
+  }
+}
+
+export async function listTasks(actor: TaskActor, filters: TaskListFilters) {
+  const targetOrganizationId = await resolveTaskOrganization(actor, filters.organizationId)
+  const start = filters.startDate ? new Date(filters.startDate) : null
+  const end = filters.endDate ? new Date(filters.endDate) : null
+  if ((start && !Number.isFinite(start.getTime())) || (end && !Number.isFinite(end.getTime()))) {
+    throw new TaskServiceError(400, '日期格式无效')
+  }
+  if (start && end && start > end) {
+    throw new TaskServiceError(400, '开始日期不能晚于结束日期')
+  }
 
   const where: Prisma.TaskWhereInput = {
     project: {
@@ -79,7 +94,7 @@ export async function listTasks(
     const teamMemberIds = team.members.map((member) => member.userId)
 
     if (!teamMemberIds.includes(actor.userId)) {
-      return { tasks: [], count: 0 }
+      return { tasks: [], count: 0, organizationId: targetOrganizationId, recurringPending: false }
     }
 
     where.OR = [
@@ -105,7 +120,7 @@ export async function listTasks(
     )
 
     if (!projectMember) {
-      return { tasks: [], count: 0 }
+      return { tasks: [], count: 0, organizationId: targetOrganizationId, recurringPending: false }
     }
 
     const project = await taskRepository.findProjectForTaskView(
@@ -154,36 +169,21 @@ export async function listTasks(
     }
   }
 
-  if (filters.startDate && filters.endDate) {
-    const start = new Date(filters.startDate)
-    const end = new Date(filters.endDate)
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new TaskServiceError(400, '日期格式无效')
-    }
-
-    const dateFilter: Prisma.TaskWhereInput = {
-      OR: [
-        { startDate: { gte: start, lte: end } },
-        { endDate: { gte: start, lte: end } },
-        {
-          AND: [{ startDate: { lte: start } }, { endDate: { gte: end } }],
-        },
-      ],
-    }
-
-    if (where.OR) {
-      where.AND = [dateFilter]
-    } else {
-      Object.assign(where, dateFilter)
-    }
+  if (start && end) {
+    where.startDate = { lte: end }
+    where.endDate = { gte: start }
   }
 
+  // Check coverage before reading the tasks. If a worker advances the cursor
+  // between the two reads, this can cause an extra refresh but cannot miss rows.
+  const recurringPending = end ? await hasPendingRecurringTasks(targetOrganizationId, end) : false
   const tasks = await taskRepository.listTasks(where)
 
   return {
     tasks,
     count: tasks.length,
+    recurringPending,
+    organizationId: targetOrganizationId,
   }
 }
 
@@ -647,16 +647,7 @@ export async function stopRecurringTask(actor: TaskActor, taskId: string) {
   }
 
   const stopDate = task.recurrenceDate || task.startDate
-  const nextStopsAfter =
-    task.recurringSeries.stopsAfter &&
-    task.recurringSeries.stopsAfter < stopDate
-      ? task.recurringSeries.stopsAfter
-      : stopDate
-
-  await taskRepository.stopRecurringSeries(
-    task.recurringSeries.id,
-    nextStopsAfter
-  )
+  const nextStopsAfter = await taskRepository.stopRecurringSeries(task.recurringSeries.id, stopDate)
 
   return {
     recurringSeriesId: task.recurringSeries.id,

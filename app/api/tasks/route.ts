@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { after, NextRequest } from 'next/server'
 
 import {
   serverErrorResponse,
@@ -6,6 +6,7 @@ import {
   errorResponse,
 } from '@/lib/api-response'
 import { authenticate } from '@/lib/middleware'
+import { replenishRecurringTasksInBackground } from '@/lib/recurring-task-service'
 import * as taskService from '@/lib/modules/task/task.service'
 import { isTaskServiceError } from '@/lib/modules/task/task.types'
 
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
 
   try {
-    const result = await taskService.listTasks(
+    const { organizationId, ...result } = await taskService.listTasks(
       { userId: auth.userId },
       {
         userId: searchParams.get('userId'),
@@ -37,6 +38,14 @@ export async function GET(request: NextRequest) {
         organizationId: searchParams.get('organizationId'),
       }
     )
+
+    after(async () => {
+      try {
+        await replenishRecurringTasksInBackground(organizationId)
+      } catch (error) {
+        console.error('后台补齐重复任务失败:', error)
+      }
+    })
 
     return successResponse(result)
   } catch (error) {
