@@ -1,3 +1,5 @@
+import type { ProjectType } from '@/lib/types'
+
 export interface ManagedOrganization {
   id: string
   name: string
@@ -26,5 +28,5 @@ export interface OrgDetails {
     } | null
   }>
   teams: Array<{ id: string; name: string; color: string; memberCount: number }>
-  projects: Array<{ id: string; name: string; color: string; memberCount: number }>
+  projects: Array<{ id: string; name: string; type: ProjectType; color: string; memberCount: number }>
 }

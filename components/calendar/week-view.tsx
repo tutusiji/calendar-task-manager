@@ -71,7 +71,7 @@ export function WeekView() {
       const project = getProjectById(selectedProjectId)
       if (project) {
         // 个人事务项目：只显示当前用户
-        if (project.name.includes('个人事务')) {
+        if (project.type === 'PERSONAL') {
           const currentUser = users.find(u => u.id === project.creatorId)
           return currentUser ? [currentUser] : []
         }

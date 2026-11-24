@@ -30,12 +30,12 @@ export const createProjectActions: StateCreator<
         try {
           const projectsData = await projectAPI.getAll();
           // 转换数据格式
-          const projects = projectsData.map((project: any) => ({
+          const projects = projectsData.map((project) => ({
             id: project.id,
             name: project.name,
+            type: project.type,
             description: project.description,
             color: project.color,
-            teamId: project.teamId,
             organizationId: project.organizationId,
             creatorId: project.creatorId, // 添加创建者ID
             taskPermission: project.taskPermission || "ALL_MEMBERS", // 任务权限
@@ -73,7 +73,7 @@ export const createProjectActions: StateCreator<
 
       addProject: async (project) => {
         try {
-          const newProject = await projectAPI.create(project as any);
+          const newProject = await projectAPI.create(project);
 
           // 重新获取项目列表以确保数据同步
           await get().fetchProjects();

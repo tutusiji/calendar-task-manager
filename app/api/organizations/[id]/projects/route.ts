@@ -69,6 +69,7 @@ export async function GET(
     const formattedProjects = projects.map(project => ({
       id: project.id,
       name: project.name,
+      type: project.type,
       color: project.color,
       description: project.description,
       memberCount: project._count.members,

@@ -58,6 +58,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
+            type: true,
             color: true,
             _count: {
               select: { members: true },

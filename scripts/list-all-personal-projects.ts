@@ -10,9 +10,7 @@ async function listAllPersonalProjects() {
       include: {
         createdProjects: {
           where: {
-            name: {
-              endsWith: '的个人事务'
-            }
+            type: 'PERSONAL'
           }
         },
         projectMembers: {
@@ -29,9 +27,8 @@ async function listAllPersonalProjects() {
     users.forEach((user, index) => {
       console.log(`${index + 1}. ${user.name} (${user.username})`)
       
-      const personalProject = user.createdProjects.find(p => p.name.includes('个人事务'))
-      if (personalProject) {
-        console.log(`   ✅ 创建了: ${personalProject.name}`)
+      for (const project of user.createdProjects) {
+        console.log(`   ✅ 创建了: ${project.name}`)
       }
       
       const memberProjects = user.projectMembers.map(m => m.project.name)

@@ -2,6 +2,7 @@ export type TaskType = "daily" | "meeting" | "vacation"
 export type TaskRecurrenceType = "WEEKLY" | "MONTHLY" | "INTERVAL_DAYS"
 
 export type TaskPermission = "ALL_MEMBERS" | "CREATOR_ONLY"
+export type ProjectType = "PERSONAL" | "STANDARD"
 
 export type OrgMemberRole = "OWNER" | "ADMIN" | "MEMBER"
 
@@ -124,6 +125,7 @@ export interface Team {
 export interface Project {
   id: string
   name: string
+  type: ProjectType
   description?: string
   color: string
   organizationId: string

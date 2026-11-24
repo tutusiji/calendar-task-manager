@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { countPanoramaTasksForPeople } from "@/lib/modules/task/panorama-task-count"
 import { requirePanoramaAccess } from "@/lib/server/auth/require"
 
 // GET /api/admin/panorama/organizations/[id]/members - 获取组织的所有成员
@@ -39,22 +40,8 @@ export async function GET(
     // 转换数据格式并添加事项统计
     const formattedMembers = await Promise.all(
       members.map(async (m) => {
-        const taskCount = await prisma.task.count({
-          where: {
-            AND: [
-              {
-                OR: [
-                  { creatorId: m.user.id },
-                  { assignees: { some: { userId: m.user.id } } }
-                ]
-              },
-              {
-                project: { organizationId: id }
-              }
-            ]
-          }
-        })
-        
+        const taskCount = await countPanoramaTasksForPeople(id, [m.user.id])
+
         return {
           id: m.user.id,
           username: m.user.username,

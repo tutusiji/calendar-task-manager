@@ -153,7 +153,7 @@ export async function findProjectMember(projectId: string, userId: string) {
 export async function findProjectForTaskView(projectId: string) {
   return prisma.project.findUnique({
     where: { id: projectId },
-    select: { name: true, organizationId: true },
+    select: { type: true, organizationId: true },
   })
 }
 

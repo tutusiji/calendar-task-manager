@@ -4,7 +4,8 @@ import { NavigationArchivedProjectsSection } from "@/components/sidebar/navigati
 import { NavigationProjectsSection } from "@/components/sidebar/navigation-projects-section"
 import { NavigationTeamsSection } from "@/components/sidebar/navigation-teams-section"
 
-import { useState,type DragEvent } from "react"
+import { useState, type DragEvent } from "react"
+import { Sun } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCalendarStore } from "@/lib/store/calendar-store"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
@@ -24,8 +25,13 @@ import { ProjectDialog } from "./project-dialog"
 import type { Team,Project } from "@/lib/types"
 import { projectAPI,userAPI } from "@/lib/api-client"
 import { showToast } from "@/lib/toast"
+import { sidebarActive, sidebarFocus } from "./sidebar-navigation"
 
-export function NavigationMenu() {
+export function NavigationMenu({ compact, onExpandSidebar, onNavigate }: {
+  compact: boolean
+  onExpandSidebar: () => void
+  onNavigate?: () => void
+}) {
   const {
     navigationMode,
     setNavigationMode,
@@ -215,7 +221,7 @@ export function NavigationMenu() {
       )
       useCalendarStore.setState({ projects: updatedProjects })
 
-      // 如果当前选中的是被归档的项目，切换到 My Days
+      // 如果当前选中的是被归档的项目，切换到我的日程
       if (selectedProjectId === project.id) {
         setNavigationMode("my-days")
         setSelectedProjectId(null)
@@ -279,42 +285,53 @@ export function NavigationMenu() {
     }
   }
 
+  const selectTeam = (teamId: string) => {
+    setNavigationMode("team")
+    void setSelectedTeamId(teamId)
+    onNavigate?.()
+  }
+
+  const selectProject = (projectId: string) => {
+    setNavigationMode("project")
+    void setSelectedProjectId(projectId)
+    onNavigate?.()
+  }
+
+  const isMyDays = navigationMode === "my-days"
+
   return (
     <>
-      <div className="flex flex-col gap-1 py-4">
-        {/* My Days */}
+      <nav aria-label="工作空间导航" className={cn("flex flex-col gap-3 pb-4", compact && "gap-2")}>
         <button
-          onClick={() => setNavigationMode("my-days")}
+          type="button"
+          onClick={() => {
+            setNavigationMode("my-days")
+            onNavigate?.()
+          }}
+          aria-current={isMyDays ? "true" : undefined}
+          title={compact ? "我的日程" : undefined}
           className={cn(
-            "flex items-center gap-2 py-2 text-sm font-medium transition-colors hover:bg-muted/50 rounded-md mx-2 pl-4",
-            navigationMode === "my-days" && !selectedTeamId && !selectedProjectId && "bg-muted"
+            "flex h-9 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-semibold transition-colors hover:bg-sidebar-accent",
+            sidebarFocus,
+            compact && "justify-center px-0",
+            isMyDays && cn(sidebarActive, "hover:bg-blue-50 dark:hover:bg-blue-500/15"),
           )}
-          style={{ marginLeft: '20px' }}
         >
-          <svg
-            className="h-5 w-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="12" cy="12" r="5" fill="#FDB813" />
-            <path d="M12 1v3M12 20v3M23 12h-3M4 12H1M20.485 20.485l-2.121-2.121M5.636 5.636L3.515 3.515M20.485 3.515l-2.121 2.121M5.636 18.364l-2.121 2.121" stroke="#FDB813" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Days</span>
+          <Sun aria-hidden="true" strokeWidth={1.7} className="size-[18px] shrink-0" />
+          <span className={compact ? "sr-only" : undefined}>我的日程</span>
         </button>
 
-        {/* My Teams */}
         <NavigationTeamsSection
+          compact={compact}
+          onExpandSidebar={onExpandSidebar}
           handleCreateTeam={handleCreateTeam}
           myTeams={myTeams}
           handleTeamDragOver={handleTeamDragOver}
           persistTeamOrder={persistTeamOrder}
           draggedTeamId={draggedTeamId}
           setDraggedTeamId={setDraggedTeamId}
-          setNavigationMode={setNavigationMode}
-          setSelectedTeamId={setSelectedTeamId}
-          navigationMode={navigationMode}
-          selectedTeamId={selectedTeamId}
+          onSelect={selectTeam}
+          selectedTeamId={navigationMode === "team" ? selectedTeamId : null}
           currentUser={currentUser}
           canManageTeam={canManageTeam}
           handleEditTeam={handleEditTeam}
@@ -324,18 +341,17 @@ export function NavigationMenu() {
           handleSetDefaultTeam={handleSetDefaultTeam}
         />
 
-        {/* My Projects */}
         <NavigationProjectsSection
+          compact={compact}
+          onExpandSidebar={onExpandSidebar}
           handleCreateProject={handleCreateProject}
           myProjects={myProjects}
           handleProjectDragOver={handleProjectDragOver}
           persistProjectOrder={persistProjectOrder}
           draggedProjectId={draggedProjectId}
           setDraggedProjectId={setDraggedProjectId}
-          setNavigationMode={setNavigationMode}
-          setSelectedProjectId={setSelectedProjectId}
-          navigationMode={navigationMode}
-          selectedProjectId={selectedProjectId}
+          onSelect={selectProject}
+          selectedProjectId={navigationMode === "project" ? selectedProjectId : null}
           currentUser={currentUser}
           canManageProject={canManageProject}
           handleEditProject={handleEditProject}
@@ -345,13 +361,12 @@ export function NavigationMenu() {
           handleLeaveProject={handleLeaveProject}
         />
 
-        {/* Archived Projects */}
         <NavigationArchivedProjectsSection
+          compact={compact}
+          onExpandSidebar={onExpandSidebar}
           archivedProjects={archivedProjects}
-          setNavigationMode={setNavigationMode}
-          setSelectedProjectId={setSelectedProjectId}
-          navigationMode={navigationMode}
-          selectedProjectId={selectedProjectId}
+          onSelect={selectProject}
+          selectedProjectId={navigationMode === "project" ? selectedProjectId : null}
           currentUser={currentUser}
           canManageProject={canManageProject}
           handleUnarchiveProject={handleUnarchiveProject}
@@ -359,7 +374,7 @@ export function NavigationMenu() {
           handleViewProject={handleViewProject}
           handleLeaveProject={handleLeaveProject}
         />
-      </div>
+      </nav>
 
       {/* 团队对话框 */}
       {teamDialogOpen && (

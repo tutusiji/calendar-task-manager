@@ -112,7 +112,7 @@ export function SpaceSwitcher() {
         localStorage.setItem("currentUser", JSON.stringify(user))
       }
       
-      // 重置导航状态到 My Days
+      // 重置导航状态到我的日程
       const storeKey = "calendar-storage-v2"
       const storeStr = localStorage.getItem(storeKey)
       if (storeStr) {
@@ -162,24 +162,25 @@ export function SpaceSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        aria-label={currentOrg ? `切换工作空间，当前为${currentOrg.name}` : "选择工作空间"}
         className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium",
+          "flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-sm font-medium sm:px-3",
           "hover:bg-muted/50 transition-colors",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
           isLoading && "opacity-50 cursor-not-allowed"
         )}
         disabled={isLoading}
       >
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg aria-hidden="true" className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="3" y="3" width="8" height="8" rx="2" fill="#10B981" />
           <rect x="13" y="3" width="8" height="8" rx="2" fill="#34D399" />
           <rect x="3" y="13" width="8" height="8" rx="2" fill="#34D399" />
           <rect x="13" y="13" width="8" height="8" rx="2" fill="#6EE7B7" />
         </svg>
-        <span style={{ fontFamily: 'Micro, sans-serif', fontWeight: 900, fontSize: '16px', letterSpacing: '0.5px' }}>My Space</span>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        <span className="text-foreground font-semibold">
-          {currentOrg?.name || "选择空间"}
+        <span className="hidden shrink-0 sm:inline">工作空间</span>
+        <ChevronRight aria-hidden="true" className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+        <span className="max-w-32 truncate font-semibold text-foreground sm:max-w-40" title={currentOrg?.name}>
+          {currentOrg?.name || "选择工作空间"}
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">

@@ -16,12 +16,15 @@ export function OrganizationProjectsSection({
   setProjectDialogOpen: React.Dispatch<React.SetStateAction<boolean>>
   setDeleteDialog: React.Dispatch<React.SetStateAction<{ open: boolean; type: "member" | "team" | "project"; id: string; name: string; } | null>>
 }) {
+  const standardProjects = orgDetails.projects.filter(project => project.type === 'STANDARD')
+  const personalProjects = orgDetails.projects.filter(project => project.type === 'PERSONAL')
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-base flex items-center gap-2">
           <FolderKanban className="h-5 w-5" />
-          项目 ({orgDetails.projects.filter(p => !p.name.includes('的个人事务')).length})
+          项目 ({standardProjects.length})
         </h3>
         {isOwner && (
           <Button
@@ -36,7 +39,7 @@ export function OrganizationProjectsSection({
       </div>
       <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
         {/* 正常项目 */}
-        {orgDetails.projects.filter(p => !p.name.includes('的个人事务')).map((project) => (
+        {standardProjects.map((project) => (
           <div
             key={project.id}
             className="text-sm p-3 rounded-lg border hover:bg-accent/50 transition-colors relative group"
@@ -69,17 +72,17 @@ export function OrganizationProjectsSection({
             </div>
           </div>
         ))}
-        {orgDetails.projects.filter(p => !p.name.includes('的个人事务')).length === 0 && (
+        {standardProjects.length === 0 && (
           <div className="text-sm text-muted-foreground py-8 text-center">暂无项目</div>
         )}
 
         {/* 个人事务项目 - 灰色显示,不显示删除按钮 */}
-        {orgDetails.projects.filter(p => p.name.includes('的个人事务')).length > 0 && (
+        {personalProjects.length > 0 && (
           <>
             <div className="text-xs text-muted-foreground pt-2 pb-1 border-t">
               个人事务项目:
             </div>
-            {orgDetails.projects.filter(p => p.name.includes('的个人事务')).map((project) => (
+            {personalProjects.map((project) => (
               <div
                 key={project.id}
                 className="text-sm p-3 rounded-lg border border-dashed bg-muted/20 opacity-60"

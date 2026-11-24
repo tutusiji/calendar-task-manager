@@ -1,16 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react"
+import { useId, useMemo, useState } from "react"
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCalendarState } from "@/lib/store/use-calendar-state"
 import {
   formatDate,
   getMonthDays,
-  getMonthName,
   isSameDay,
 } from "@/lib/utils/date-utils"
 import { cn } from "@/lib/utils"
+import { sidebarFocus } from "./sidebar-navigation"
 
 const MINI_CALENDAR_COLLAPSED_KEY = "mini-calendar-collapsed"
 
@@ -39,18 +39,18 @@ function startOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
-export function MiniCalendar() {
+export function MiniCalendar({ onNavigate }: { onNavigate?: () => void }) {
   const { tasks, setCurrentDate, currentDate, miniCalendarDate: miniDate, setMiniCalendarDate } =
     useCalendarState("tasks", "setCurrentDate", "currentDate", "miniCalendarDate", "setMiniCalendarDate")
   const [isCollapsed, setIsCollapsed] = useState(readCollapsedState)
+  const calendarGridId = useId()
+  const monthLabel = `${miniDate.getFullYear()}年${miniDate.getMonth() + 1}月`
   const today = new Date()
 
   const toggleCollapsed = () => {
-    setIsCollapsed((prev) => {
-      const next = !prev
-      writeCollapsedState(next)
-      return next
-    })
+    const next = !isCollapsed
+    setIsCollapsed(next)
+    writeCollapsedState(next)
   }
 
   const monthDays = useMemo(
@@ -96,139 +96,135 @@ export function MiniCalendar() {
   const goToToday = () => {
     const now = new Date()
     setCurrentDate(now)
+    onNavigate?.()
   }
 
   const handleDateClick = (date: Date) => {
     setCurrentDate(
       new Date(date.getFullYear(), date.getMonth(), date.getDate())
     )
+    onNavigate?.()
   }
 
   const weekDays = ["一", "二", "三", "四", "五", "六", "日"]
 
   return (
-    <div className={cn("bg-card", isCollapsed ? "px-4 py-3" : "p-4")}>
-      {/* Header */}
-      <div
-        className={cn(
-          "flex items-center justify-between",
-          !isCollapsed && "mb-3"
-        )}
-      >
-        <h3 className="text-sm font-semibold text-foreground">
-          {getMonthName(miniDate.getMonth())} {miniDate.getFullYear()}
-        </h3>
-        <div className="flex items-center gap-1">
-          {!isCollapsed && (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-xs font-medium"
-                onClick={goToToday}
-                title="返回今天"
-                aria-label="返回今天"
-              >
-                今
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={goToPreviousMonth}
-                aria-label="上个月"
-              >
-                <ChevronLeft className="h-3 w-3" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={goToNextMonth}
-                aria-label="下个月"
-              >
-                <ChevronRight className="h-3 w-3" />
-              </Button>
-            </>
+    <section aria-label="迷你日历" className="shrink-0 border-t border-sidebar-border">
+      <div className="flex items-center">
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={`${isCollapsed ? "展开" : "折叠"}迷你日历，${monthLabel}`}
+          aria-expanded={!isCollapsed}
+          aria-controls={calendarGridId}
+          className={cn(
+            "flex h-8 min-w-0 flex-1 items-center gap-1.5 px-3 text-left text-xs font-semibold tabular-nums transition-colors hover:bg-sidebar-accent",
+            sidebarFocus,
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={toggleCollapsed}
-            aria-label={isCollapsed ? "展开迷你日历" : "折叠迷你日历"}
-            aria-expanded={!isCollapsed}
-            title={isCollapsed ? "展开日历" : "折叠日历"}
-          >
-            {isCollapsed ? (
-              <ChevronUp className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
-            )}
-          </Button>
-        </div>
+        >
+          <CalendarDays aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.7} />
+          <span className="min-w-0 flex-1 truncate">{monthLabel}</span>
+          {isCollapsed ? (
+            <ChevronUp aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+          )}
+        </button>
+        {!isCollapsed && (
+          <div className="flex shrink-0 items-center pr-2.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-auto px-1 text-[11px] font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+              onClick={goToToday}
+              title="返回今天"
+              aria-label="返回今天"
+            >
+              今天
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-6 text-muted-foreground"
+              onClick={goToPreviousMonth}
+              aria-label="上个月"
+              title="上个月"
+            >
+              <ChevronLeft className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-6 text-muted-foreground"
+              onClick={goToNextMonth}
+              aria-label="下个月"
+              title="下个月"
+            >
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
 
-      {!isCollapsed && (
-        <>
-          {/* Week day headers */}
-          <div className="mb-2 grid grid-cols-7 gap-1">
-            {weekDays.map((day) => (
-              <div
-                key={day}
-                className="text-center text-xs font-medium text-muted-foreground"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {monthDays.map((day) => {
-              const isCurrentMonth = day.getMonth() === miniDate.getMonth()
-              const isToday = isSameDay(day, today)
-              const isSelected =
-                isCurrentMonth && isSameDay(day, currentDate)
-              const taskCount = isCurrentMonth
-                ? taskCountsByDay.get(formatDate(day)) || 0
-                : 0
-
-              return (
-                <button
-                  key={formatDate(day)}
-                  type="button"
-                  onClick={() => handleDateClick(day)}
-                  aria-label={`${day.getMonth() + 1}月${day.getDate()}日${
-                    taskCount > 0 ? `，${taskCount} 个事项` : ""
-                  }`}
-                  aria-current={isToday ? "date" : undefined}
-                  title={taskCount > 0 ? `${taskCount} 个事项` : undefined}
-                  className={cn(
-                    "relative flex h-8 w-8 items-center justify-center rounded-md text-xs transition-colors",
-                    !isCurrentMonth && "text-muted-foreground/40",
-                    isCurrentMonth && "text-foreground hover:bg-muted",
-                    isSelected &&
-                      !isToday &&
-                      "font-semibold text-primary ring-1 ring-primary/60",
-                    isToday &&
-                      "bg-primary text-primary-foreground hover:bg-primary/90"
-                  )}
+      <div id={calendarGridId} hidden={isCollapsed} className="px-3 pb-2">
+        {!isCollapsed && (
+          <>
+            {/* Week day headers */}
+            <div className="mb-0.5 grid grid-cols-7 gap-px" aria-hidden="true">
+              {weekDays.map((day) => (
+                <div
+                  key={day}
+                  className="text-center text-[11px] font-medium text-muted-foreground"
                 >
-                  {day.getDate()}
-                  {taskCount > 0 && isCurrentMonth && !isToday && (
-                    <div className="absolute bottom-1 h-1 w-1 rounded-full bg-blue-500" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </div>
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 justify-items-center gap-px">
+              {monthDays.map((day) => {
+                const isCurrentMonth = day.getMonth() === miniDate.getMonth()
+                const isToday = isSameDay(day, today)
+                const isSelected =
+                  isCurrentMonth && isSameDay(day, currentDate)
+                const taskCount = isCurrentMonth
+                  ? taskCountsByDay.get(formatDate(day)) || 0
+                  : 0
+
+                return (
+                  <button
+                    key={formatDate(day)}
+                    type="button"
+                    onClick={() => handleDateClick(day)}
+                    aria-label={`${day.getMonth() + 1}月${day.getDate()}日${
+                      taskCount > 0 ? `，${taskCount} 个事项` : ""
+                    }`}
+                    aria-current={isToday ? "date" : undefined}
+                    aria-pressed={isSelected}
+                    title={taskCount > 0 ? `${taskCount} 个事项` : undefined}
+                    className={cn(
+                      "relative grid size-6 place-items-center rounded-md text-[11px] tabular-nums transition-colors hover:bg-muted",
+                      sidebarFocus,
+                      !isCurrentMonth && "text-muted-foreground/70",
+                      isSelected && !isToday && "bg-blue-50 font-semibold text-blue-800 ring-1 ring-inset ring-blue-200 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-500/40 dark:hover:bg-blue-500/25",
+                      isToday && "bg-blue-600 font-semibold text-white hover:bg-blue-700 focus-visible:ring-white/85"
+                    )}
+                  >
+                    {day.getDate()}
+                    {taskCount > 0 && (
+                      <span aria-hidden="true" className={cn("absolute bottom-0.5 size-[3px] rounded-full bg-blue-500", isToday && "bg-white")} />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   )
 }

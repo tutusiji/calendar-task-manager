@@ -50,7 +50,7 @@ export function useTaskFormPermissions({
       }
     : null
 
-  const isPersonalProject = !!selectedProject?.name.includes('个人事务')
+  const isPersonalProject = selectedProject?.type === 'PERSONAL'
 
   const currentTaskAssigneeIds =
     task?.assignees?.map((assignee) => assignee.userId) || []

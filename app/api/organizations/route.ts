@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
     await prisma.project.create({
       data: {
         name: `${creator?.name || '我'}的个人事务`,
+        type: 'PERSONAL',
         color: '#3b82f6',
         description: '个人日常任务和事项',
         organizationId: organization.id,

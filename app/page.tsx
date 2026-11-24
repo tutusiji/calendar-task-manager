@@ -3,14 +3,12 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
-import Image from "next/image"
 import { CalendarHeader } from "@/components/calendar/calendar-header"
 import { MonthView } from "@/components/calendar/month-view"
 import { WeekView } from "@/components/calendar/week-view"
 import { PersonalWeekView } from "@/components/calendar/personal-week-view"
 import { ViewToggle } from "@/components/calendar/view-toggle"
-import { MiniCalendar } from "@/components/sidebar/mini-calendar"
-import { NavigationMenu } from "@/components/sidebar/navigation-menu"
+import { WorkspaceSidebar } from "@/components/sidebar/workspace-sidebar"
 import { UserMenu } from "@/components/user-menu"
 import { MainNavigation } from "@/components/navigation/main-navigation"
 import { SpaceSwitcher } from "@/components/space-switcher"
@@ -20,8 +18,10 @@ import { useCalendarStore } from "@/lib/store/calendar-store"
 import { getToken } from "@/lib/api-client"
 import { showToast } from "@/lib/toast"
 import { LoadingLogo } from "@/components/loading-logo"
-import { siteConfig } from "@/lib/site-config"
-import { Loader2, Check } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { Loader2, Check, PanelLeftOpen } from "lucide-react"
 
 const PlanView = dynamic(() => import("@/components/views/plan-view").then((module) => module.PlanView))
 const StatsView = dynamic(() => import("@/components/views/stats-view").then((module) => module.StatsView))
@@ -31,6 +31,8 @@ export default function Home() {
   const router = useRouter()
   const [showLoading, setShowLoading] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const isMobile = useIsMobile()
   
   const fetchAllData = useCalendarStore(state => state.fetchAllData)
   const isLoadingTasks = useCalendarStore(state => state.isLoadingTasks)
@@ -44,15 +46,10 @@ export default function Home() {
   const viewMode = useCalendarStore(state => state.viewMode)
   const navigationMode = useCalendarStore(state => state.navigationMode)
   const mainViewMode = useCalendarStore(state => state.mainViewMode)
-  const setMainViewMode = useCalendarStore(state => state.setMainViewMode)
   const taskCreation = useCalendarStore(state => state.taskCreation)
   const closeTaskCreation = useCalendarStore(state => state.closeTaskCreation)
   const taskEdit = useCalendarStore(state => state.taskEdit)
   const closeTaskEdit = useCalendarStore(state => state.closeTaskEdit)
-
-  const handleLogoClick = () => {
-    setMainViewMode("calendar")
-  }
 
   // 检查登录状态并加载数据
   useEffect(() => {
@@ -162,73 +159,39 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <aside className="w-72 border-r border-border bg-background flex flex-col">
-        {/* Logo */}
-        <div className="border-b border-border bg-card px-6 pt-[14px] pb-[13px]">
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleLogoClick}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault()
-                handleLogoClick()
-              }
-            }}
-            className="flex items-center gap-3 cursor-pointer select-none focus:outline-none"
-            aria-label="切换到日历视图"
-            >
-            {/* Logo 图片 */}
-            <div className="relative h-10 w-10 shrink-0">
-              <Image
-                src="/logo.png"
-                alt={siteConfig.logoAlt}
-                width={40}
-                height={40}
-                className="object-contain"
-                priority
-              />
-            </div>
-            <div>
-              <h1 className="text-[22px] font-bold tracking-tight bg-linear-to-r from-purple-600 via-blue-500 to-red-500 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-cangji), sans-serif' }}>
-                {siteConfig.appName}
-              </h1>
-              <p className="text-[13px] text-muted-foreground" style={{ fontFamily: 'MomoLite, sans-serif' }}>
-                {siteConfig.appSlogan}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Navigation Menu */}
-        <div className="flex-1 overflow-y-auto">
-          <NavigationMenu />
-        </div>
-        
-        {/* Mini Calendar at bottom */}
-        <div className="">
-          <MiniCalendar />
-        </div>
-      </aside>
+    <div className="flex h-dvh overflow-hidden">
+      {!isMobile && <WorkspaceSidebar />}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top Bar with Main Navigation and View Controls */}
-        <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
-          {/* Left: Space Switcher + Main Navigation (日历/清单/统计/计划) */}
-          <div className="flex items-center gap-4">
+        <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-card px-3 py-2.5 sm:px-4 xl:flex-nowrap xl:px-6 xl:py-4">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+            <Sheet open={isMobile && mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label="打开工作空间侧栏" title="打开工作空间侧栏">
+                  <PanelLeftOpen aria-hidden="true" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[248px] max-w-[calc(100vw-2rem)] gap-0 p-0" aria-describedby={undefined}>
+                <SheetTitle className="sr-only">工作空间侧栏</SheetTitle>
+                <WorkspaceSidebar mobile onNavigate={() => setMobileSidebarOpen(false)} />
+              </SheetContent>
+            </Sheet>
             <SpaceSwitcher />
-            <div className="h-6 w-px bg-border" />
+          </div>
+          <div className="order-3 grow max-sm:[&_button]:px-2 max-[420px]:[&_button_span]:sr-only xl:order-none xl:border-l xl:border-border xl:pl-3">
             <MainNavigation />
           </div>
-          
-          {/* Right: View Toggle, Notification Bell and User Menu */}
-          <div className="flex items-center gap-4">
-            {mainViewMode !== "plan" && <ViewToggle />}
+          {mainViewMode !== "plan" && (
+            <div className="order-4 ml-auto xl:order-none xl:ml-0">
+              <ViewToggle />
+            </div>
+          )}
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3 xl:ml-0">
             <NotificationBell />
             <UserMenu />
           </div>
-        </div>
+        </header>
 
         {/* Main Content Area */}
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">

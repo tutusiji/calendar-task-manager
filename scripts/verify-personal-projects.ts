@@ -8,7 +8,7 @@ async function verify() {
   // 获取所有个人事务项目
   const personalProjects = await prisma.project.findMany({
     where: {
-      name: { contains: '的个人事务' },
+      type: 'PERSONAL',
     },
     select: {
       id: true,
@@ -19,17 +19,19 @@ async function verify() {
     orderBy: { name: 'asc' },
   });
 
-  // 获取用户总数
-  const userCount = await prisma.user.count();
+  const usersWithCurrentOrganization = await prisma.user.findMany({
+    where: { currentOrganizationId: { not: null } },
+    select: { id: true, currentOrganizationId: true },
+  });
+  const projectOwners = new Set(personalProjects.map(
+    (project) => JSON.stringify([project.organizationId, project.creatorId]),
+  ));
+  const missingCount = usersWithCurrentOrganization.filter(
+    (user) => !projectOwners.has(JSON.stringify([user.currentOrganizationId, user.id])),
+  ).length;
 
   console.log(`个人事务项目总数: ${personalProjects.length}`);
-  console.log(`用户总数: ${userCount}\n`);
-
-  if (userCount === personalProjects.length) {
-    console.log('✅ 每个用户都有个人事务项目！\n');
-  } else {
-    console.log(`❌ 个人事务项目数量不匹配 (应该有 ${userCount} 个)\n`);
-  }
+  console.log(`当前组织内缺少个人事务项目的用户数: ${missingCount}\n`);
 
   console.log('个人事务项目列表:');
   personalProjects.forEach((p) => {

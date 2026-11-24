@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Calendar, Clock, Loader2 } from "lucide-react"
+import { Calendar, Clock, Loader2, Repeat } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -36,6 +36,7 @@ export interface PanoramaTask {
   progress: number
   projectId: string
   teamId?: string | null
+  recurringSeriesId?: string | null
   creatorId: string
   creator: PanoramaTaskPerson
   assignees: Array<{
@@ -76,6 +77,21 @@ export function filterPanoramaTasksByDateRange(
     rangeStart,
     rangeEnd
   ) as unknown as PanoramaTask[]
+}
+
+export function countPanoramaTasks(tasks: ReadonlyArray<Pick<PanoramaTask, "recurringSeriesId">>): number {
+  const seriesIds = new Set<string>()
+  let singleTasks = 0
+
+  for (const task of tasks) {
+    if (task.recurringSeriesId != null) {
+      seriesIds.add(task.recurringSeriesId)
+    } else {
+      singleTasks++
+    }
+  }
+
+  return singleTasks + seriesIds.size
 }
 
 export function getTaskTypeLabel(type: string): string {
@@ -202,7 +218,7 @@ export function PanoramaTaskMonthView({
                   {day.getDate()}
                 </span>
                 {dayTasks.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground">{dayTasks.length}</span>
+                  <span className="text-[10px] text-muted-foreground">{countPanoramaTasks(dayTasks)}</span>
                 )}
               </div>
               <div className="flex min-h-0 flex-col gap-0.5 overflow-hidden">
@@ -211,10 +227,11 @@ export function PanoramaTaskMonthView({
                     key={task.id}
                     type="button"
                     onClick={() => onTaskClick(task)}
-                    title={task.title}
+                    title={task.recurringSeriesId ? `${task.title} · 定时任务` : task.title}
                     className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-[11px] leading-tight text-white transition-opacity hover:opacity-80"
                     style={{ backgroundColor: taskColor(task) }}
                   >
+                    {task.recurringSeriesId && <Repeat aria-hidden="true" className="size-3 shrink-0" />}
                     <span className="truncate">{task.title}</span>
                   </button>
                 ))}
@@ -288,7 +305,7 @@ export function PanoramaTaskListView({
             <h3 className="text-sm font-semibold">
               {group.date.getMonth() + 1}月{group.date.getDate()}日 {getWeekDayName(group.date.getDay())}
             </h3>
-            <span className="text-xs text-muted-foreground">{group.tasks.length} 个事项</span>
+            <span className="text-xs text-muted-foreground">{countPanoramaTasks(group.tasks)} 个事项</span>
           </div>
           <div className="space-y-2">
             {group.tasks.map((task) => (
@@ -314,6 +331,7 @@ export function PanoramaTaskListView({
                       <Badge variant="outline" className="px-1.5 py-0 text-xs">
                         {getTaskTypeLabel(task.type)}
                       </Badge>
+                      {task.recurringSeriesId && <Badge variant="outline" className="px-1.5 py-0 text-xs">定时任务</Badge>}
                     </div>
                     <h4 className="truncate text-sm font-medium">{task.title}</h4>
                     {task.description && (
@@ -393,6 +411,7 @@ export function PanoramaTaskDetailDialog({
                 <Badge variant="outline" className={cn("text-xs text-white", getTaskTypeClass(task.type))}>
                   {getTaskTypeLabel(task.type)}
                 </Badge>
+                {task.recurringSeriesId && <Badge variant="outline" className="text-xs">定时任务</Badge>}
               </div>
 
               {task.description && (

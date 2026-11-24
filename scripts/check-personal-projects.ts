@@ -5,7 +5,7 @@ const prisma = new PrismaClient()
 async function checkPersonalProjects() {
   const projects = await prisma.project.findMany({
     where: {
-      name: { contains: '个人事务' }
+      type: 'PERSONAL'
     },
     include: {
       creator: { select: { id: true, name: true, username: true } },

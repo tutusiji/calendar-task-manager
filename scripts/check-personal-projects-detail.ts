@@ -21,7 +21,7 @@ async function checkPersonalProjects() {
   // 获取所有个人事务项目
   const personalProjects = await prisma.project.findMany({
     where: {
-      name: { contains: '个人事务' },
+      type: 'PERSONAL',
     },
     select: {
       id: true,
@@ -41,15 +41,13 @@ async function checkPersonalProjects() {
   // 检查每个用户的个人事务项目
   for (const user of users) {
     const userPersonalProject = personalProjects.find(
-      (p) => p.name === `${user.name}的个人事务` && p.organizationId === user.currentOrganizationId
+      (p) => p.creatorId === user.id && p.organizationId === user.currentOrganizationId
     );
 
     if (userPersonalProject) {
       const isMember = userPersonalProject.members.some((m) => m.userId === user.id);
-      const isCreator = userPersonalProject.creatorId === user.id;
       console.log(`✅ ${user.name} (${user.username}): 有个人事务项目`);
       console.log(`   项目ID: ${userPersonalProject.id}`);
-      console.log(`   是否创建者: ${isCreator ? '是' : '否'}`);
       console.log(`   是否成员: ${isMember ? '是' : '否'}`);
     } else {
       console.log(`❌ ${user.name} (${user.username}): 缺少个人事务项目`);

@@ -1,8 +1,10 @@
+import { Prisma } from '@prisma/client'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticate } from '@/lib/middleware'
 import {
   successResponse,
+  errorResponse,
   notFoundResponse,
   forbiddenResponse,
   validationErrorResponse,
@@ -128,7 +130,7 @@ export async function PUT(
     }
 
     // 准备更新数据
-    const updateData: any = {}
+    const updateData: Prisma.ProjectUncheckedUpdateInput = {}
     if (name !== undefined) updateData.name = sanitizeString(name, 200)
     if (description !== undefined) updateData.description = description ? sanitizeString(description, 2000) : null
     if (color !== undefined) updateData.color = color
@@ -137,33 +139,17 @@ export async function PUT(
 
     // 处理成员更新
     if (memberIds !== undefined && Array.isArray(memberIds)) {
-      const currentMemberIds = existingProject.members.map((m: any) => m.userId)
-      const newMemberIds = memberIds
+      const currentMemberIds = existingProject.members.map((member) => member.userId)
+      const newMemberIds = memberIds as string[]
 
       // 找出需要删除的成员
       const membersToRemove = currentMemberIds.filter((id: string) => !newMemberIds.includes(id))
       // 找出需要添加的成员
       const membersToAdd = newMemberIds.filter((id: string) => !currentMemberIds.includes(id))
 
-      // 执行成员更新
-      if (membersToRemove.length > 0) {
-        await prisma.projectMember.deleteMany({
-          where: {
-            projectId: id,
-            userId: {
-              in: membersToRemove
-            }
-          }
-        })
-      }
-
-      if (membersToAdd.length > 0) {
-        await prisma.projectMember.createMany({
-          data: membersToAdd.map(userId => ({
-            projectId: id,
-            userId
-          }))
-        })
+      updateData.members = {
+        deleteMany: { userId: { in: membersToRemove } },
+        createMany: { data: membersToAdd.map(userId => ({ userId })) },
       }
     }
 
@@ -189,6 +175,12 @@ export async function PUT(
 
     return successResponse(project, '项目更新成功')
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = error.meta?.target
+      if (Array.isArray(target) && target.includes('organizationId') && target.includes('creatorId')) {
+        return errorResponse('新创建者在该组织中已有个人事务项目', 409)
+      }
+    }
     console.error('Error updating project:', error)
     return serverErrorResponse('更新项目失败')
   }

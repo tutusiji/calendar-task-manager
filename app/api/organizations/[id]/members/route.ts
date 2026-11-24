@@ -392,41 +392,9 @@ export async function DELETE(
 
       // 使用事务处理退出操作
       await prisma.$transaction(async (tx) => {
-        // 1. 查找并删除该用户在该组织下的个人事务项目
-        const user = await tx.user.findUnique({
-          where: { id: userId },
-          select: { name: true },
+        await tx.project.deleteMany({
+          where: { organizationId, creatorId: userId, type: 'PERSONAL' },
         })
-
-        if (user) {
-          const personalProjectName = `${user.name}的个人事务`
-          
-          // 查找个人事务项目
-          const personalProject = await tx.project.findFirst({
-            where: {
-              name: personalProjectName,
-              organizationId,
-              creatorId: userId,
-            },
-          })
-
-          if (personalProject) {
-            // 删除项目相关的任务
-            await tx.task.deleteMany({
-              where: { projectId: personalProject.id },
-            })
-
-            // 删除项目成员关系
-            await tx.projectMember.deleteMany({
-              where: { projectId: personalProject.id },
-            })
-
-            // 删除项目
-            await tx.project.delete({
-              where: { id: personalProject.id },
-            })
-          }
-        }
 
         // 2. 移除成员
         await tx.organizationMember.delete({
@@ -500,41 +468,9 @@ export async function DELETE(
 
     // 使用事务处理移除操作
     await prisma.$transaction(async (tx) => {
-      // 1. 查找并删除该用户在该组织下的个人事务项目
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        select: { name: true },
+      await tx.project.deleteMany({
+        where: { organizationId, creatorId: userId, type: 'PERSONAL' },
       })
-
-      if (user) {
-        const personalProjectName = `${user.name}的个人事务`
-        
-        // 查找个人事务项目
-        const personalProject = await tx.project.findFirst({
-          where: {
-            name: personalProjectName,
-            organizationId,
-            creatorId: userId,
-          },
-        })
-
-        if (personalProject) {
-          // 删除项目相关的任务
-          await tx.task.deleteMany({
-            where: { projectId: personalProject.id },
-          })
-
-          // 删除项目成员关系
-          await tx.projectMember.deleteMany({
-            where: { projectId: personalProject.id },
-          })
-
-          // 删除项目
-          await tx.project.delete({
-            where: { id: personalProject.id },
-          })
-        }
-      }
 
       // 2. 移除成员
       await tx.organizationMember.delete({

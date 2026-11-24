@@ -108,8 +108,8 @@ export function TaskFormPanel({ task, startDate, endDate, onClose }: TaskFormPan
       return !p.isArchived
     })
     .sort((a, b) => {
-      const aIsPersonal = a.name.includes('个人事务')
-      const bIsPersonal = b.name.includes('个人事务')
+      const aIsPersonal = a.type === 'PERSONAL'
+      const bIsPersonal = b.type === 'PERSONAL'
       if (aIsPersonal && !bIsPersonal) return -1
       if (!aIsPersonal && bIsPersonal) return 1
       return a.name.localeCompare(b.name)

@@ -81,11 +81,11 @@ export interface CalendarStore extends CalendarViewState, CalendarDragState, Cal
   deleteTeam: (id: string) => Promise<void>;
 
   addProject: (
-    project: Omit<Project, "id" | "createdAt"> & { memberIds: string[] }
+    project: Omit<Project, "id" | "type" | "createdAt"> & { memberIds: string[] }
   ) => Promise<void>;
   updateProject: (
     id: string,
-    project: Partial<Project> & { memberIds?: string[] }
+    project: Partial<Omit<Project, "type">>
   ) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   leaveProject: (id: string) => Promise<void>;

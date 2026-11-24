@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
     const project = await prisma.project.create({
       data: {
         name,
+        type: 'STANDARD',
         color,
         organizationId,
         description,

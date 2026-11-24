@@ -62,6 +62,7 @@ import {
   PanoramaTaskDetailDialog,
   PanoramaTaskListView,
   PanoramaTaskMonthView,
+  countPanoramaTasks,
   filterPanoramaTasksByDateRange,
   parsePanoramaTasks,
   type PanoramaTask,
@@ -315,9 +316,10 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
     [taskCurrentDate]
   )
   const monthTaskCount = useMemo(
-    () => filterPanoramaTasksByDateRange(scopedTasks, monthStart, monthEnd).length,
+    () => countPanoramaTasks(filterPanoramaTasksByDateRange(scopedTasks, monthStart, monthEnd)),
     [scopedTasks, monthStart, monthEnd]
   )
+  const totalTaskCount = useMemo(() => countPanoramaTasks(scopedTasks), [scopedTasks])
 
   const currentMonthLabel = `${taskCurrentDate.getFullYear()}年${taskCurrentDate.getMonth() + 1}月`
 
@@ -611,7 +613,7 @@ export default function PanoramaView({ onLogout }: PanoramaViewProps) {
                   <div className="min-w-0">
                     <h2 className="truncate text-2xl font-bold">{selectedOrg.name}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {scopeLabel} · 本月 {monthTaskCount} 个事项 · 全部 {scopedTasks.length} 个
+                      {scopeLabel} · 本月 {monthTaskCount} 个事项 · 全部 {totalTaskCount} 个 · 定时任务按系列计数
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1 rounded-lg bg-muted p-1">

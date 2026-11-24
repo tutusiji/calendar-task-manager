@@ -119,7 +119,3 @@ export function assertCanDeleteTask(
     )
   }
 }
-
-export function isPersonalProjectName(name: string): boolean {
-  return name.includes('个人事务')
-}

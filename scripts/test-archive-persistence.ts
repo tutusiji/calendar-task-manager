@@ -9,11 +9,7 @@ async function testArchivePersistence() {
     // 1. 找一个项目
     const project = await prisma.project.findFirst({
       where: {
-        name: {
-          not: {
-            contains: '个人事务'
-          }
-        }
+        type: 'STANDARD'
       }
     })
     

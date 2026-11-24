@@ -1465,6 +1465,9 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
+        type:
+          type: string
+          enum: [PERSONAL, STANDARD]
         color: { type: string }
         description: { type: string, nullable: true }
         organizationId: { type: string }

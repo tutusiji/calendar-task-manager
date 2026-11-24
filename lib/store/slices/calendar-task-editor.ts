@@ -68,7 +68,10 @@ export const createCalendarTaskEditor: StateCreator<CalendarStore, [], [], Calen
       } else if (navigationMode === "my-days") {
         const availableProjects = currentUser
           ? projects.filter(
-              (p) => !p.isArchived && p.memberIds.includes(currentUser.id)
+              (p) =>
+                !p.isArchived &&
+                p.memberIds.includes(currentUser.id) &&
+                (p.type !== "PERSONAL" || p.creatorId === currentUser.id)
             )
           : [];
 
@@ -79,9 +82,7 @@ export const createCalendarTaskEditor: StateCreator<CalendarStore, [], [], Calen
               )
             : null;
 
-        const personalProject = availableProjects.find((p) =>
-          p.name.includes("个人事务")
-        );
+        const personalProject = availableProjects.find((p) => p.type === "PERSONAL");
 
         defaultProjectId =
           rememberedProject?.id ||

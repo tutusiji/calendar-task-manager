@@ -13,6 +13,7 @@ import {
 const baseProject: Project = {
   id: 'project-1',
   name: '测试项目',
+  type: 'STANDARD',
   description: '',
   color: '#3b82f6',
   organizationId: 'org-1',

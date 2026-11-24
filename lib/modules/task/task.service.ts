@@ -19,7 +19,6 @@ import {
   assertCanDeleteTask,
   assertOrganizationAccess,
   assertTeamInOrganization,
-  isPersonalProjectName,
 } from './task.permission'
 import type {
   CreateTaskInput,
@@ -133,7 +132,7 @@ export async function listTasks(actor: TaskActor, filters: TaskListFilters) {
 
     where.projectId = filters.projectId
 
-    if (project && isPersonalProjectName(project.name)) {
+    if (project.type === 'PERSONAL') {
       where.OR = [
         { creatorId: actor.userId },
         { assignees: { some: { userId: actor.userId } } },
@@ -258,7 +257,7 @@ export async function createTask(
   const assigneeUserIds =
     input.assigneeIds.length > 0 ? input.assigneeIds : [actor.userId]
 
-  const isPersonalProject = isPersonalProjectName(project.name)
+  const isPersonalProject = project.type === 'PERSONAL'
 
   if (isPersonalProject && project.creatorId !== actor.userId) {
     throw new TaskServiceError(403, '不能在他人的个人事务项目中创建事项')
@@ -504,7 +503,7 @@ export async function updateTask(
         ? input.assigneeIds
         : existingTask.assignees.map((assignee) => assignee.userId)
 
-    const isPersonalProject = isPersonalProjectName(project.name)
+    const isPersonalProject = project.type === 'PERSONAL'
 
     if (isPersonalProject && project.creatorId !== actor.userId) {
       throw new TaskServiceError(403, '不能将事项迁移到他人的个人事务项目')
@@ -554,7 +553,7 @@ export async function updateTask(
         ? input.assigneeIds
         : currentAssigneeIds
 
-    const isPersonalProject = isPersonalProjectName(nextProject.name)
+    const isPersonalProject = nextProject.type === 'PERSONAL'
 
     if (isPersonalProject && nextProject.creatorId !== actor.userId) {
       throw new TaskServiceError(403, '不能在他人的个人事务项目中修改事项')

@@ -4,6 +4,7 @@
  */
 
 import { get, post, put, del } from '../request'
+import type { ProjectType } from '../types'
 
 // ==================== 类型定义 ====================
 
@@ -60,6 +61,7 @@ export interface OrganizationTeam {
 export interface OrganizationProject {
   id: string
   name: string
+  type: ProjectType
   color: string
   description?: string
   memberCount: number

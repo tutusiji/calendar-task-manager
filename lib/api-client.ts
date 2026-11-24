@@ -46,7 +46,7 @@ export function clearToken(): void {
 // ==================== 请求方法 ====================
 
 // 通用请求方法
-async function fetchAPI<T>(
+export async function fetchAPI<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -343,7 +343,7 @@ export const projectAPI = {
    * 创建项目
    */
   async create(
-    project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> & { memberIds: string[] }
+    project: Omit<Project, 'id' | 'type' | 'createdAt' | 'updatedAt'> & { memberIds: string[] }
   ): Promise<ProjectWithMembers> {
     return fetchAPI<ProjectWithMembers>('/projects', {
       method: 'POST',
@@ -356,7 +356,7 @@ export const projectAPI = {
    */
   async update(
     id: string,
-    updates: Partial<Project> & { memberIds?: string[] }
+    updates: Partial<Omit<Project, 'type'>>
   ): Promise<ProjectWithMembers> {
     return fetchAPI<ProjectWithMembers>(`/projects/${id}`, {
       method: 'PUT',

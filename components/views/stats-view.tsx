@@ -81,10 +81,6 @@ function formatProjectSummary(names: string[]) {
   return `${names.slice(0, 2).join(" / ")} 等 ${names.length} 个项目`
 }
 
-function isPersonalProjectName(name?: string) {
-  return Boolean(name?.includes("个人事务"))
-}
-
 function normalizeTooltipValue(value: number | string) {
   return typeof value === "number" ? formatMetricValue(value) : value
 }

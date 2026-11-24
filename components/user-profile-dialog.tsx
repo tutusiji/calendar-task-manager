@@ -79,8 +79,7 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
       ])
 
       setAllTeams(teamsData)
-      // 过滤掉个人事务项目（名称包含"的个人事务"）
-      const nonPersonalProjects = projectsData.filter(p => !p.name.includes('的个人事务'))
+      const nonPersonalProjects = projectsData.filter(p => p.type === 'STANDARD')
       setAllProjects(nonPersonalProjects)
     } catch (error) {
       console.error('Load teams and projects failed:', error)

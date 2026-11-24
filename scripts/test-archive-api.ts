@@ -10,11 +10,7 @@ async function testArchiveAPI() {
     const testProject = await prisma.project.findFirst({
       where: {
         isArchived: false,
-        name: {
-          not: {
-            contains: '个人事务'
-          }
-        }
+        type: 'STANDARD'
       },
       include: {
         organization: true,

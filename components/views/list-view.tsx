@@ -9,10 +9,11 @@ import { filterTasksByDateRange, filterTasksByNavigationMode } from "@/lib/store
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Clock, Copy, Check, List } from "lucide-react"
+import { Calendar, Clock, Copy, Check, List, Loader2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Task } from "@/lib/types"
 import { copyToClipboard } from "@/lib/utils/clipboard"
+import { summarizeTaskGroup } from "@/lib/api/ai"
 
 interface GroupedTasks {
   id: string
@@ -55,6 +56,11 @@ export function ListView() {
   )
 
   const [copiedState, setCopiedState] = useState<{ groupId: string; mode: CopyMode } | null>(null)
+  const [summaryState, setSummaryState] = useState<Record<string, {
+    status: "loading" | "success" | "error"
+    text?: string
+    message?: string
+  }>>({})
 
   // 计算日期范围
   const dateRange = useMemo(
@@ -215,6 +221,29 @@ export function ListView() {
     }
   }
 
+  const handleSummarize = async (group: GroupedTasks) => {
+    setSummaryState((current) => ({
+      ...current,
+      [group.id]: { status: "loading" },
+    }))
+
+    try {
+      const text = await summarizeTaskGroup(group.title, group.tasks)
+      setSummaryState((current) => ({
+        ...current,
+        [group.id]: { status: "success", text },
+      }))
+    } catch (error) {
+      setSummaryState((current) => ({
+        ...current,
+        [group.id]: {
+          status: "error",
+          message: error instanceof Error ? error.message : "AI 总结失败",
+        },
+      }))
+    }
+  }
+
   const getTaskTypeLabel = (type: string) => {
     switch (type) {
       case "daily": return "日常"
@@ -266,6 +295,22 @@ export function ListView() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => void handleSummarize(group)}
+                        disabled={summaryState[group.id]?.status === "loading"}
+                        className="h-7 px-2 gap-1"
+                        title="AI 总结当前模块"
+                        aria-label="AI 总结当前模块"
+                      >
+                        {summaryState[group.id]?.status === "loading" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        <span className="text-xs">AI 总结</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleCopy(group)}
                         className="h-7 px-2 gap-1"
                         title="复制完整内容"
@@ -298,6 +343,14 @@ export function ListView() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">共 {group.tasks.length} 项</p>
+                  {summaryState[group.id]?.status === "success" && (
+                    <div className="mt-2 whitespace-pre-wrap rounded-md border border-violet-200 bg-violet-50/70 px-3 py-2 text-xs leading-5 text-violet-950">
+                      {summaryState[group.id].text}
+                    </div>
+                  )}
+                  {summaryState[group.id]?.status === "error" && (
+                    <p className="mt-2 text-xs text-red-600">{summaryState[group.id].message}</p>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-2 pt-2 px-4 pb-3">
                   {group.tasks.map((task) => {

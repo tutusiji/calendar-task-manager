@@ -15,10 +15,6 @@ export interface TaskNavigationFilterContext {
   teamModeIncludesPersonalProjects?: boolean
 }
 
-function isPersonalProjectName(name?: string | null): boolean {
-  return !!name && name.includes('个人事务')
-}
-
 /**
  * 按导航模式过滤任务：My Days / 团队 / 项目 / 项目多选。
  */
@@ -59,7 +55,7 @@ export function filterTasksByNavigationMode(
     return tasks.filter((task) => {
       if (
         !teamModeIncludesPersonalProjects &&
-        isPersonalProjectName(getProjectById(task.projectId)?.name)
+        getProjectById(task.projectId)?.type === 'PERSONAL'
       ) {
         return false
       }

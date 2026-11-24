@@ -31,8 +31,9 @@ async function ensurePersonalProjects() {
     // 检查是否已存在该用户的个人事务项目
     const existingProject = await prisma.project.findFirst({
       where: {
-        name: personalProjectName,
         organizationId: user.currentOrganizationId,
+        creatorId: user.id,
+        type: 'PERSONAL',
       },
     });
 
@@ -63,6 +64,7 @@ async function ensurePersonalProjects() {
       const newProject = await prisma.project.create({
         data: {
           name: personalProjectName,
+          type: 'PERSONAL',
           description: `${user.name}的个人事务管理`,
           color: '#8B5CF6', // 紫色
           organizationId: user.currentOrganizationId,

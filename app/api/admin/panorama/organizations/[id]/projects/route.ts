@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { countPanoramaTasksByProject } from "@/lib/modules/task/panorama-task-count"
 import { requirePanoramaAccess } from "@/lib/server/auth/require"
 
 // GET /api/admin/panorama/organizations/[id]/projects - 获取组织的所有项目
@@ -36,11 +37,6 @@ export async function GET(
               }
             }
           }
-        },
-        _count: {
-          select: {
-            tasks: true
-          }
         }
       },
       orderBy: {
@@ -48,9 +44,14 @@ export async function GET(
       }
     })
 
+    const counts = await countPanoramaTasksByProject(id)
+
     return NextResponse.json({
       success: true,
-      data: projects
+      data: projects.map((project) => ({
+        ...project,
+        _count: { tasks: counts.get(project.id) ?? 0 },
+      }))
     })
   } catch (error) {
     console.error("Error fetching projects:", error)
